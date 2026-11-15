@@ -8,13 +8,41 @@ import { CurrentUser, type JwtPayload } from '../../common/decorators/current-us
 import { ok } from '../../common/pagination/paginated.response.dto';
 import { CreateMethodTemplateDto, UpdateMethodTemplateDto } from './method-templates.dto';
 import { MethodTemplatesService } from './method-templates.service';
+import { ProductAsksService } from '../asks/product-asks.service';
 
 /** Ready methods (v37.0.0) — the list the product page's "Use a ready method" picks from. */
 @ApiTags('bank-programs-admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin/bank-programs/method-templates')
 export class MethodTemplatesController {
-  constructor(private readonly service: MethodTemplatesService) {}
+  constructor(
+    private readonly service: MethodTemplatesService,
+    private readonly asks: ProductAsksService,
+  ) {}
+
+  @Get('questions')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({ summary: 'Every question a method may read, with its fact when it has one' })
+  async questions() {
+    return ok(await this.asks.methodQuestions());
+  }
+
+  @Post('questions/:code/fact')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: 'The fact a method reads a question by',
+    description: 'Binds one when the question has none yet. Asks nothing of any product.',
+  })
+  async ensureFact(
+    @Param('code') code: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const sourceIp =
+      typeof forwarded === 'string' ? (forwarded.split(',')[0]?.trim() ?? null) : (req.ip ?? null);
+    return ok(await this.asks.ensureFact(code, { id: user.sub, sourceIp }));
+  }
 
   @Get()
   @Roles('super_admin', 'sales_manager')

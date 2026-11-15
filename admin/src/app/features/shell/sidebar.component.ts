@@ -147,7 +147,7 @@ import { CanDirective } from '../../shared/can.directive';
             ></span>
             <span class="item-label" i18n="@@sidebar.program_catalog">Program catalog</span>
           </a>
-          <a routerLink="/ready-methods" routerLinkActive="active" class="item">
+          <a routerLink="/surrogate-methods" routerLinkActive="active" class="item">
             <span
               nz-icon
               nzType="function"
@@ -155,7 +155,7 @@ import { CanDirective } from '../../shared/can.directive';
               class="item-icon"
               aria-hidden="true"
             ></span>
-            <span class="item-label" i18n="@@sidebar.ready_methods">Ready methods</span>
+            <span class="item-label" i18n="@@sidebar.ready_methods">Surrogate methods</span>
           </a>
         </nav>
       }

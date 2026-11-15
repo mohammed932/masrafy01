@@ -16,6 +16,19 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LookupsApiService } from '@features/lookups/lookups.api.service';
+import { GroupBoardComponent } from '@shared/groups/group-board.component';
+import { FormPageComponent, SearchSelectComponent, type SearchSelectOption } from '@shared/ui';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import {
+  CloseOutline,
+  DeleteOutline,
+  ExclamationCircleOutline,
+  LinkOutline,
+  PlusOutline,
+} from '@ant-design/icons-angular/icons';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
@@ -26,6 +39,7 @@ import { BankProgramsApiService } from '@features/bank-programs/bank-programs.ap
 import {
   registryFacts,
   type IncomeBand,
+  type MethodQuestion,
   type MethodTemplate,
   type StepFigures,
   type TemplateGroup,
@@ -35,6 +49,11 @@ import {
 import { howLabel, methodFacts, type MethodFact, type MethodOption } from './method-facts';
 
 type ColMode = 'answer' | 'groups';
+
+/** The prefix a question with no fact yet is offered under. */
+const UNBOUND = 'q:';
+
+const SCALAR_KINDS: readonly TemplateMechanismKind[] = ['shareOf', 'multipleOf', 'dividedBy'];
 
 const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
   'numberBand',
@@ -47,55 +66,121 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
   selector: 'app-ready-method-edit-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ReactiveFormsModule, NgTemplateOutlet],
+  imports: [
+    RouterLink,
+    ReactiveFormsModule,
+    NgTemplateOutlet,
+    GroupBoardComponent,
+    FormPageComponent,
+    SearchSelectComponent,
+    NzButtonModule,
+    NzIconModule,
+    NzInputModule,
+    NzToolTipModule,
+  ],
+  providers: [
+    provideNzIconsPatch([
+      DeleteOutline,
+      PlusOutline,
+      CloseOutline,
+      LinkOutline,
+      ExclamationCircleOutline,
+    ]),
+  ],
   template: `
-    <section class="page">
-      <a class="back" routerLink="/ready-methods"
-        ><span aria-hidden="true">←</span> <span i18n="@@rm.back">All ready methods</span></a
-      >
-      <h1>
-        @if (isNew) {
-          <span i18n="@@rm.new_title">New ready method</span>
-        } @else {
-          {{ nameForm.controls.labelEn.value || key }}
-        }
-      </h1>
+    <app-form-page
+      wide
+      [title]="pageTitle()"
+      [subtitle]="pageLede"
+      [backLabel]="backLabel"
+      [cancelLabel]="cancelLabel"
+      [submitLabel]="saveLabel"
+      [submitting]="saving()"
+      [blockReason]="loading() ? null : block()"
+      [hint]="usedBy().length > 0 ? usedHint() : null"
+      (cancelled)="leave()"
+      (submitted)="save()"
+    >
+      @if (!isNew && !loading()) {
+        <div formPageAside class="aside">
+          <span class="src" [class.own]="source() !== 'seed'">
+            @if (source() === 'seed') {
+              <span i18n="@@rm.shipped">Shipped</span>
+            } @else {
+              <span i18n="@@rm.added">Added</span>
+            }
+          </span>
+          <span
+            nz-tooltip
+            [nzTooltipTitle]="usedBy().length > 0 ? deleteBlocked() : null"
+          >
+            <button
+              nz-button
+              nzType="default"
+              nzDanger
+              type="button"
+              [disabled]="usedBy().length > 0"
+              (click)="confirmDelete()"
+            >
+              <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@rm.delete">Delete</span>
+            </button>
+          </span>
+        </div>
+      }
 
       @if (loading()) {
-        <p class="muted" i18n="@@ps.loading">Loading…</p>
+        <div class="blk skel" aria-busy="true">
+          <span class="bar w40"></span><span class="bar w70"></span><span class="bar w55"></span>
+        </div>
       } @else {
         @if (usedBy().length > 0) {
-          <p class="used" role="status">
-            <span i18n="@@rm.used_note"
-              >Saving changes this method on every product that uses it:</span
-            >
-            <b>{{ usedByNames() }}</b>
-          </p>
+          <div class="used" role="status">
+            <span nz-icon nzType="link" nzTheme="outline" class="used-i" aria-hidden="true"></span>
+            <div>
+              <p i18n="@@rm.used_note3">
+                Saving changes the questions, how and groups of these products. Each keeps its own
+                amounts.
+              </p>
+              <ul class="chips" role="list">
+                @for (p of usedBy(); track p.key) {
+                  <li>
+                    <a
+                      [routerLink]="['/program-catalog/products', p.key]"
+                      [queryParams]="{ step: 3 }"
+                      >{{ isAr ? p.labelAr : p.labelEn }}</a
+                    >
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
         }
         <section class="blk">
           <h2 i18n="@@ps.called">What is it called?</h2>
           <div class="names" [formGroup]="nameForm">
             <label class="fl"
-              ><span i18n="@@ps.name_en">Name in English</span><input formControlName="labelEn"
+              ><span i18n="@@ps.name_en">Name in English</span
+              ><input nz-input formControlName="labelEn"
             /></label>
             <label class="fl"
               ><span i18n="@@ps.name_ar">Name in Arabic</span
-              ><input formControlName="labelAr" dir="rtl"
+              ><input nz-input formControlName="labelAr" dir="rtl"
             /></label>
           </div>
         </section>
 
         <section class="blk">
           <h2 i18n="@@ps.decides">What decides the amount?</h2>
-          <label class="fl"
-            ><span i18n="@@rm.q1">Question</span>
-            <select (change)="setFact(val($event))">
-              <option value="" [selected]="fact() === ''" i18n="@@ps.choose">Choose…</option>
-              @for (f of askable(); track f.key) {
-                <option [value]="f.key" [selected]="f.key === fact()">{{ f.label }}</option>
-              }
-            </select>
-          </label>
+          <div class="fl wide">
+            <span i18n="@@rm.q1">Question</span>
+            <app-search-select
+              [options]="askableOpts()"
+              [value]="fact()"
+              [ariaLabel]="q1Aria"
+              (changed)="pickQuestion('row', $event)"
+            />
+          </div>
 
           @if (factOf(fact()); as f) {
             <div class="row">
@@ -125,15 +210,16 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
               <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'row' }" />
             }
 
-            <label class="fl"
-              ><span i18n="@@rm.q2">Different amounts by a second answer (optional)</span>
-              <select (change)="setColumn(val($event))">
-                <option value="" [selected]="colFact() === ''" i18n="@@rm.q2_none">No</option>
-                @for (c of columnFacts(); track c.key) {
-                  <option [value]="c.key" [selected]="c.key === colFact()">{{ c.label }}</option>
-                }
-              </select>
-            </label>
+            <div class="fl wide">
+              <span i18n="@@rm.q2">Different amounts by a second answer (optional)</span>
+              <app-search-select
+                [options]="columnOpts()"
+                [value]="colFact()"
+                [clearLabel]="noSecond"
+                [ariaLabel]="q2Aria"
+                (changed)="pickQuestion('col', $event)"
+              />
+            </div>
             @if (factOf(colFact()); as c) {
               @if (groupable(c)) {
                 <div class="row">
@@ -173,8 +259,9 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
               }
             }
 
-            <p class="hint" i18n="@@rm.figures_hint">
-              Default amounts. A box left empty is filled in by each bank.
+            <p class="hint" i18n="@@rm.figures_hint2">
+              Default amounts: a product that picks this method starts from them, then sets its own.
+              A box left empty is filled in by each bank.
             </p>
             @switch (shape()) {
               @case ('table') {
@@ -259,12 +346,14 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                           }
                           <td>
                             <button
+                              nz-button
+                              nzType="text"
+                              nzShape="circle"
                               type="button"
-                              class="x"
                               [attr.aria-label]="removeAria"
                               (click)="removeRange(k)"
                             >
-                              ✕
+                              <span nz-icon nzType="close" nzTheme="outline" aria-hidden="true"></span>
                             </button>
                           </td>
                         </tr>
@@ -272,8 +361,9 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                     </tbody>
                   </table>
                 </div>
-                <button type="button" class="link" (click)="addRange()" i18n="@@ps.add_range">
-                  + Add a range
+                <button nz-button nzType="dashed" type="button" (click)="addRange()">
+                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@rm.add_range">Add a range</span>
                 </button>
               }
               @case ('scalar') {
@@ -304,90 +394,30 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         </section>
 
         @if (error(); as e) {
-          <p class="err" role="alert">{{ e }}</p>
+          <p class="err" role="alert">
+            <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
+            {{ e }}
+          </p>
         }
-        <div class="foot">
-          @if (!isNew && usedBy().length === 0) {
-            <button type="button" class="link danger" (click)="confirmDelete()" i18n="@@rm.delete">
-              Delete
-            </button>
-          } @else {
-            <span></span>
-          }
-          <div class="acts">
-            <a class="btn" routerLink="/ready-methods" i18n="@@rm.cancel">Cancel</a>
-            <button
-              type="button"
-              class="btn primary"
-              (click)="save()"
-              [disabled]="saving() || block() !== null"
-              [attr.title]="block()"
-            >
-              @if (saving()) {
-                <span i18n="@@ps.saving">Saving…</span>
-              } @else {
-                <span i18n="@@rm.save">Save method</span>
-              }
-            </button>
-          </div>
-        </div>
       }
-    </section>
+    </app-form-page>
 
     <ng-template #groupsEd let-axis="axis">
       <div class="groups">
         <p class="hint" i18n="@@rm.groups_own">
           These groups belong to this method, and are copied to every product that uses it.
         </p>
-        <div class="gnames">
-          @for (g of groupsOf(axis); track g.key; let gi = $index) {
-            <span class="gname">
-              <input
-                [value]="g.labelEn"
-                (change)="renameGroup(axis, g.key, val($event), null)"
-                [attr.aria-label]="groupNameLabel(gi)"
-                placeholder="English"
-              />
-              <input
-                dir="rtl"
-                [value]="g.labelAr"
-                (change)="renameGroup(axis, g.key, null, val($event))"
-                [attr.aria-label]="groupNameLabel(gi)"
-                placeholder="عربي"
-              />
-              @if (groupsOf(axis).length > (axis === 'row' ? 1 : 2)) {
-                <button
-                  type="button"
-                  class="x"
-                  [attr.aria-label]="removeAria"
-                  (click)="removeGroup(axis, g.key)"
-                >
-                  ✕
-                </button>
-              }
-            </span>
-          }
-          <button type="button" class="link" (click)="addGroup(axis)" i18n="@@ps.add_group">
-            + Group
-          </button>
-        </div>
-        <div class="gplace">
-          @for (o of axisOptions(axis); track o.code) {
-            <label
-              >{{ o.label }}
-              <select (change)="place(axis, o.code, val($event))">
-                <option value="" [selected]="placeOf(axis, o.code) === ''" i18n="@@ps.no_group">
-                  Not in a group
-                </option>
-                @for (g of groupsOf(axis); track g.key) {
-                  <option [value]="g.key" [selected]="placeOf(axis, o.code) === g.key">
-                    {{ groupLabel(g) }}
-                  </option>
-                }
-              </select>
-            </label>
-          }
-        </div>
+        <app-group-board
+          [groups]="groupsOf(axis)"
+          [answers]="axisOptions(axis)"
+          [placements]="placementsOf(axis)"
+          [minGroups]="axis === 'row' ? 1 : 2"
+          [isAr]="isAr"
+          (renamed)="renameGroup(axis, $event.key, $event.labelEn, $event.labelAr)"
+          (added)="addGroup(axis)"
+          (removed)="removeGroup(axis, $event)"
+          (placed)="place(axis, $event.code, $event.group)"
+        />
       </div>
     </ng-template>
   `,
@@ -396,23 +426,42 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       :host {
         display: block;
       }
-      .page {
+      .aside {
         display: flex;
-        flex-direction: column;
-        gap: var(--space-4);
-        padding-block: var(--space-4) var(--space-8);
+        align-items: center;
+        justify-content: flex-end;
+        gap: var(--space-3);
+        flex-wrap: wrap;
       }
-      .back {
+      .src {
+        padding: var(--space-0-5) var(--space-2-5);
+        border-radius: var(--radius-pill);
+        background: var(--color-surface-muted);
         color: var(--color-text-secondary);
-        text-decoration: none;
-        font-size: var(--text-sm);
-        align-self: flex-start;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
       }
-      h1 {
-        margin: 0;
-        font-size: var(--text-2xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--color-text-primary);
+      .src.own {
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent-ink);
+      }
+      .skel {
+        gap: var(--space-3);
+      }
+      .bar {
+        display: block;
+        block-size: var(--space-3);
+        border-radius: var(--radius-sm);
+        background: var(--color-surface-muted);
+      }
+      .w40 {
+        inline-size: 40%;
+      }
+      .w55 {
+        inline-size: 55%;
+      }
+      .w70 {
+        inline-size: 70%;
       }
       h2 {
         margin: 0;
@@ -428,15 +477,53 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       }
       .err {
         margin: 0;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
         color: var(--color-error);
       }
       .used {
-        margin: 0;
-        padding: var(--space-2-5) var(--space-3);
-        border-radius: var(--radius-md);
-        background: var(--color-warning-bg);
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+        background: var(--color-surface-muted);
         color: var(--color-text-primary);
         font-size: var(--text-sm);
+      }
+      .used p {
+        margin: 0;
+      }
+      .used-i {
+        margin-block-start: var(--space-0-5);
+        color: var(--color-brand-primary);
+      }
+      .chips {
+        list-style: none;
+        margin: var(--space-2) 0 0;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1-5);
+      }
+      .chips a {
+        display: inline-block;
+        padding: var(--space-0-5) var(--space-2-5);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-pill);
+        background: var(--color-surface-default);
+        color: var(--color-text-link);
+        font-weight: var(--font-weight-semibold);
+        text-decoration: none;
+      }
+      .chips a:hover {
+        border-color: var(--color-brand-primary);
+      }
+      .blk,
+      .used {
+        margin-block-end: var(--space-4);
       }
       .blk {
         background: var(--color-surface-default);
@@ -459,6 +546,9 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         inline-size: 100%;
         max-inline-size: 40rem;
       }
+      .fl.wide {
+        inline-size: 100%;
+      }
       .fl {
         display: flex;
         flex-direction: column;
@@ -467,8 +557,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
       }
-      input,
-      select {
+      input:not([nz-input]) {
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-sm);
         padding: var(--space-2) var(--space-2-5);
@@ -478,9 +567,6 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         font-weight: var(--font-weight-regular);
         max-inline-size: 100%;
       }
-      select {
-        min-inline-size: 18rem;
-      }
       .row {
         display: flex;
         flex-wrap: wrap;
@@ -489,42 +575,9 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       }
       .groups {
         inline-size: 100%;
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-md);
-        background: var(--color-surface-muted);
-        padding: var(--space-3);
         display: flex;
         flex-direction: column;
-        gap: var(--space-2-5);
-      }
-      .gnames {
-        display: flex;
-        flex-wrap: wrap;
         gap: var(--space-2);
-        align-items: center;
-      }
-      .gname {
-        display: inline-flex;
-        gap: var(--space-1);
-        align-items: center;
-      }
-      .gname input {
-        inline-size: 9rem;
-      }
-      .gplace {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-        gap: var(--space-1-5) var(--space-3);
-      }
-      .gplace label {
-        display: flex;
-        justify-content: space-between;
-        gap: var(--space-2);
-        align-items: center;
-        font-size: var(--text-sm);
-      }
-      .gplace select {
-        min-inline-size: 8rem;
       }
       .seg {
         display: inline-flex;
@@ -683,7 +736,7 @@ export class ReadyMethodEditPage {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly lookups = inject(LookupsApiService);
-  private readonly isAr = inject(LOCALE_ID).startsWith('ar');
+  protected readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   protected readonly key = inject(ActivatedRoute).snapshot.paramMap.get('key') ?? 'new';
   protected readonly isNew = this.key === 'new';
@@ -737,10 +790,88 @@ export class ReadyMethodEditPage {
   protected readonly columnFacts = computed(() =>
     this.facts().filter((f) => f.type === 'choice' && f.key !== this.fact()),
   );
+  /** Every number or one-choice question in the system (v37.0.0), bound or not. */
+  private readonly questions = signal<MethodQuestion[]>([]);
+  /** A question with no fact yet is offered by its code, prefixed; picking it binds one. */
+  private questionOpts(type: 'NUMERIC' | 'SINGLE_SELECT' | null, skip: string) {
+    const seen = new Set<string>();
+    const out: SearchSelectOption[] = [];
+    for (const f of type === 'SINGLE_SELECT' ? this.columnFacts() : this.askable()) {
+      seen.add(f.key);
+      out.push({ value: f.key, label: f.label });
+    }
+    for (const q of this.questions()) {
+      if (q.type !== 'NUMERIC' && q.type !== 'SINGLE_SELECT') continue;
+      if (type !== null && q.type !== type) continue;
+      if (q.factKey !== null && (seen.has(q.factKey) || q.factKey === skip)) continue;
+      out.push({
+        value: q.factKey ?? UNBOUND + q.code,
+        label: (this.isAr ? q.labelAr : q.labelEn).trim() || q.labelEn,
+      });
+    }
+    return out;
+  }
+  protected readonly askableOpts = computed(() => this.questionOpts(null, ''));
+  protected readonly columnOpts = computed(() => this.questionOpts('SINGLE_SELECT', this.fact()));
+  protected readonly binding = signal(false);
+
+  /** A pick from the list: a question with no fact gets one first, then is read as usual. */
+  protected async pickQuestion(axis: 'row' | 'col', value: string): Promise<void> {
+    let key = value;
+    if (value.startsWith(UNBOUND)) {
+      this.binding.set(true);
+      try {
+        key = (await this.api.ensureMethodFact(value.slice(UNBOUND.length))).data.factKey;
+        await this.enums.refresh('surrogate_fact');
+        this.questions.set((await this.api.listMethodQuestions()).data);
+      } catch (err) {
+        const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })
+          ?.error;
+        this.error.set(
+          this.errors.toLocalizedMessage(
+            (envelope?.code ?? 'INTERNAL_ERROR') as ErrorCode,
+            envelope?.meta,
+          ),
+        );
+        return;
+      } finally {
+        this.binding.set(false);
+      }
+    }
+    if (axis === 'row') this.setFact(key);
+    else this.setColumn(key);
+  }
+  protected readonly source = signal<MethodTemplate['source']>('operator');
+  protected readonly pageTitle = computed(() => {
+    this.nameRev();
+    if (this.isNew) return $localize`:@@rm.new_title:New surrogate method`;
+    const v = this.nameForm.controls;
+    return (this.isAr ? v.labelAr.value : v.labelEn.value) || v.labelEn.value || this.key;
+  });
+  protected readonly pageLede = $localize`:@@rm.page_lede:Name it, pick the question that decides the amount, and set the default amounts a product starts from.`;
+  protected readonly backLabel = $localize`:@@rm.back:All surrogate methods`;
+  protected readonly cancelLabel = $localize`:@@rm.cancel:Cancel`;
+  protected readonly saveLabel = $localize`:@@rm.save:Save method`;
+  protected readonly q1Aria = $localize`:@@rm.q1:Question`;
+  protected readonly q2Aria = $localize`:@@rm.q2:Different amounts by a second answer (optional)`;
+  protected readonly noSecond = $localize`:@@rm.q2_none:No`;
+  protected usedHint(): string {
+    const n = this.usedBy().length;
+    return n === 1
+      ? $localize`:@@rm.used_hint_one:Saving changes 1 product.`
+      : $localize`:@@rm.used_hint:Saving changes ${n}:N: products.`;
+  }
+  protected deleteBlocked(): string {
+    return $localize`:@@rm.delete_blocked:A product uses it. Unlink it on the product first.`;
+  }
+  protected leave(): void {
+    void this.router.navigateByUrl('/surrogate-methods');
+  }
 
   constructor() {
     this.nameForm.valueChanges.subscribe(() => this.nameRev.update((n) => n + 1));
     void this.enums.load('surrogate_fact');
+    void this.api.listMethodQuestions().then((r) => this.questions.set(r.data));
     if (!this.isNew) void this.load();
   }
 
@@ -802,10 +933,6 @@ export class ReadyMethodEditPage {
     return (this.isAr ? g.labelAr : g.labelEn).trim() || g.labelEn || g.labelAr;
   }
 
-  protected groupNameLabel(index: number): string {
-    return $localize`:@@spt.groups.name_aria:Name of group ${index + 1}:N:`;
-  }
-
   /** The list's row ids and where each answer sits on the shared list, read once per question. */
   private async ensureList(fact: string): Promise<void> {
     const f = this.factOf(fact);
@@ -825,20 +952,19 @@ export class ReadyMethodEditPage {
 
   /**
    * Make the groups the method's own: a list that has groups is copied as it stands (same keys,
-   * each answer where it sits today); any other list starts with two groups.
+   * each answer where it sits today); any other list starts with none.
    */
   private async seedGroups(axis: 'row' | 'col'): Promise<void> {
     const fact = this.axisFact(axis);
     const f = this.factOf(fact);
     if (!f) return;
     await this.ensureList(fact);
-    const groups: TemplateGroup[] =
-      f.groups.length > 0
-        ? f.groups.map((g) => ({ key: g.code, labelEn: g.label, labelAr: g.label }))
-        : [
-            { key: 'g1', labelEn: 'Group 1', labelAr: 'المجموعة 1' },
-            { key: 'g2', labelEn: 'Group 2', labelAr: 'المجموعة 2' },
-          ];
+    // A list with no groups of its own starts with none: the operator adds and names them.
+    const groups: TemplateGroup[] = f.groups.map((g) => ({
+      key: g.code,
+      labelEn: g.label,
+      labelAr: g.label,
+    }));
     // Both names from the list when it carries them.
     const enums = registryFacts(this.enums.membersFor('surrogate_fact')(), false);
     const parents = enums.find((x) => x.key === fact)?.question?.parentOptions ?? [];
@@ -854,9 +980,9 @@ export class ReadyMethodEditPage {
     this.placements.set({
       ...this.placements(),
       [fact]: Object.fromEntries(
-        f.options.map((o) => {
+        f.options.flatMap((o) => {
           const at = now[o.code];
-          return [o.code, at !== undefined && keys.has(at) ? at : groups[0]!.key];
+          return at !== undefined && keys.has(at) ? [[o.code, at]] : [];
         }),
       ),
     });
@@ -909,8 +1035,8 @@ export class ReadyMethodEditPage {
     this.figures.set(next);
   }
 
-  protected placeOf(axis: 'row' | 'col', code: string): string {
-    return this.placements()[this.axisFact(axis)]?.[code] ?? '';
+  protected placementsOf(axis: 'row' | 'col'): Record<string, string> {
+    return this.placements()[this.axisFact(axis)] ?? {};
   }
 
   protected place(axis: 'row' | 'col', code: string, group: string): void {
@@ -921,40 +1047,132 @@ export class ReadyMethodEditPage {
     this.placements.set({ ...this.placements(), [fact]: mine });
   }
 
+  /**
+   * Every setup tried while the page is open, so switching back (per answer ↔ per group, one
+   * way of working it out ↔ another, a second question on ↔ off) restores its amounts and
+   * groups instead of starting empty.
+   */
+  private readonly tried = new Map<
+    string,
+    {
+      figures: Record<string, StepFigures>;
+      rowGroups: TemplateGroup[] | undefined;
+      colGroups: TemplateGroup[] | undefined;
+      storedBranches: string[] | null;
+      placements: Record<string, Record<string, string>>;
+    }
+  >();
+
+  private setupKey(): string {
+    return [this.fact(), this.kind(), this.colFact(), this.colMode()].join('|');
+  }
+
+  private remember(): void {
+    this.tried.set(this.setupKey(), {
+      figures: structuredClone(this.figures()),
+      rowGroups: structuredClone(this.rowGroups()),
+      colGroups: structuredClone(this.colGroups()),
+      storedBranches: this.storedBranches() ? [...this.storedBranches()!] : null,
+      placements: structuredClone(this.placements()),
+    });
+  }
+
+  /** Bring back the setup now selected, if it was tried before. Says whether it did. */
+  private recall(): boolean {
+    const was = this.tried.get(this.setupKey());
+    if (!was) return false;
+    this.figures.set(structuredClone(was.figures));
+    this.rowGroups.set(structuredClone(was.rowGroups));
+    this.colGroups.set(structuredClone(was.colGroups));
+    this.storedBranches.set(was.storedBranches ? [...was.storedBranches] : null);
+    this.placements.set(structuredClone(was.placements));
+    return true;
+  }
+
   protected setFact(key: string): void {
+    if (key === this.fact()) return;
+    this.remember();
+    const before = this.factOf(this.fact());
+    const was = this.figures();
+    const wasKind = this.kind();
     this.fact.set(key);
     const f = this.factOf(key);
-    this.kind.set(f?.type === 'number' ? 'numberBand' : 'choiceTable');
-    if (this.colFact() === key) {
-      this.colFact.set('');
+    // Same kind of answer, same way of working it out: the amounts carry over.
+    const sameShape = before !== undefined && f !== undefined && before.type === f.type;
+    this.kind.set(sameShape && wasKind !== 'classTable' ? wasKind : f?.type === 'number' ? 'numberBand' : 'choiceTable');
+    if (this.colFact() === key) this.colFact.set('');
+    this.editorOpen.set(null);
+    if (this.recall()) return;
+    if (this.colFact() === '') {
       this.storedBranches.set(null);
       this.colGroups.set(undefined);
     }
     this.rowGroups.set(undefined);
-    this.editorOpen.set(null);
-    this.figures.set({});
+    this.figures.set(sameShape ? this.carried(was, f!) : {});
+  }
+
+  /**
+   * What of the amounts survives a new question: ranges and single figures as they are, and a
+   * per-answer table's rows for the answers the new question shares.
+   */
+  private carried(was: Record<string, StepFigures>, f: MethodFact): Record<string, StepFigures> {
+    if (this.kind() !== 'choiceTable') return structuredClone(was);
+    const codes = new Set(f.options.map((o) => o.code));
+    const out: Record<string, StepFigures> = {};
+    for (const [col, fig] of Object.entries(was)) {
+      const rows = (fig.keyTable ?? []).filter((r) => codes.has(r.key));
+      if (rows.length > 0) out[col] = { ...fig, keyTable: rows };
+    }
+    return out;
   }
 
   protected setKind(k: TemplateMechanismKind): void {
+    if (k === this.kind()) return;
+    this.remember();
+    const wasScalar = SCALAR_KINDS.includes(this.kind());
+    const was = this.figures();
     this.kind.set(k);
+    if (this.recall()) {
+      if (k !== 'classTable' && this.editorOpen() === 'row') this.editorOpen.set(null);
+      return;
+    }
     this.rowGroups.set(undefined);
-    this.figures.set({});
+    // One figure per column either way (% of it ↔ multiplied ↔ divided): it stays.
+    this.figures.set(wasScalar && SCALAR_KINDS.includes(k) ? structuredClone(was) : {});
     if (k === 'classTable') void this.seedGroups('row');
     else this.editorOpen.set(null);
   }
 
   protected setColumn(key: string): void {
-    this.storedBranches.set(null);
-    this.colGroups.set(undefined);
+    if (key === this.colFact()) return;
+    this.remember();
+    const first = this.firstColumn();
     this.colFact.set(key);
     this.colMode.set('answer');
-    this.figures.set({});
+    if (this.editorOpen() === 'col') this.editorOpen.set(null);
+    if (this.recall()) return;
+    this.storedBranches.set(null);
+    this.colGroups.set(undefined);
+    // The first column's amounts stay where they are; only the new columns start empty.
+    this.figures.set(first ? { '': first } : {});
+  }
+
+  /** The amounts in the first column, wherever the stored order keeps them. */
+  private firstColumn(): StepFigures | undefined {
+    const f = this.figures();
+    return f[''] ?? f[this.storedBranches()?.[0] ?? ''];
   }
 
   protected setColMode(mode: ColMode): void {
+    if (mode === this.colMode()) return;
+    this.remember();
+    this.colMode.set(mode);
+    if (this.recall()) {
+      if (mode !== 'groups' && this.editorOpen() === 'col') this.editorOpen.set(null);
+      return;
+    }
     this.storedBranches.set(null);
     this.colGroups.set(undefined);
-    this.colMode.set(mode);
     this.figures.set({});
     if (mode === 'groups') void this.seedGroups('col');
     else if (this.editorOpen() === 'col') this.editorOpen.set(null);
@@ -1191,7 +1409,7 @@ export class ReadyMethodEditPage {
     const names = this.usedByNames();
     this.modal.confirm({
       nzTitle: $localize`:@@rm.confirm_title:Change it on every product that uses it?`,
-      nzContent: $localize`:@@rm.confirm_body:These products are changed from the next quote: ${names}:NAMES:. Offers already issued keep their own figures.`,
+      nzContent: $localize`:@@rm.confirm_body2:These products get the change from the next quote: ${names}:NAMES:. They keep their own amounts; only new boxes take your default amounts. Offers already issued keep their own figures.`,
       nzOkText: $localize`:@@rm.save:Save method`,
       nzOnOk: () => this.doSave(),
     });
@@ -1230,7 +1448,7 @@ export class ReadyMethodEditPage {
             : $localize`:@@rm.saved:Method saved.`,
         );
       }
-      void this.router.navigate(['/ready-methods']);
+      void this.router.navigate(['/surrogate-methods']);
     } catch (err) {
       const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })
         ?.error;
@@ -1255,7 +1473,7 @@ export class ReadyMethodEditPage {
       nzOnOk: async () => {
         await this.api.deleteMethodTemplate(this.key);
         this.message.success($localize`:@@rm.deleted:Method deleted.`);
-        void this.router.navigate(['/ready-methods']);
+        void this.router.navigate(['/surrogate-methods']);
       },
     });
   }
@@ -1270,6 +1488,7 @@ export class ReadyMethodEditPage {
       }
       this.nameForm.reset({ labelEn: m.labelEn, labelAr: m.labelAr });
       this.usedBy.set(m.usedBy ?? []);
+      this.source.set(m.source);
       const mech = m.mechanism;
       if (mech.kind !== 'flatAmount') this.fact.set(mech.fact);
       this.kind.set(mech.kind);

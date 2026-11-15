@@ -90,7 +90,12 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
   template: `
     <section class="studio-page">
       <a class="back" [routerLink]="backLink.commands" [queryParams]="backLink.queryParams">
-        <span aria-hidden="true">←</span> <span i18n="@@spd.back">All surrogate products</span>
+        <svg class="back-i" viewBox="64 64 896 896" fill="currentColor" aria-hidden="true">
+          <path
+            d="M872 474H286.9l350.2-304c5.6-4.9 2.2-14-5.2-14h-88.5c-3.9 0-7.6 1.4-10.5 3.9L155 487.8a31.96 31.96 0 000 48.3L535.1 866c1.5 1.3 3.3 2 5.2 2h91.5c7.4 0 10.8-9.2 5.2-14L286.9 550H872c4.4 0 8-3.6 8-8v-60c0-4.4-3.6-8-8-8z"
+          />
+        </svg>
+        <span i18n="@@spd.back">All surrogate products</span>
       </a>
 
       @if (loading()) {
@@ -118,33 +123,44 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
               >
                 Discard
               </button>
+            }
+            <!-- Going live or off is a separate act: it waits until the edits are saved. -->
+            @if (p.active) {
               <button
                 type="button"
-                class="btn primary"
-                (click)="requestSave()"
-                [disabled]="saving() || saveBlock() !== null"
-                [attr.title]="saveBlock()"
+                class="btn"
+                (click)="confirmOff()"
+                [disabled]="changeCount() > 0"
+                [attr.title]="changeCount() > 0 ? saveFirst : null"
+                i18n="@@ps.switch_off"
               >
-                @if (saving()) {
-                  <span i18n="@@ps.saving">Saving…</span>
-                } @else {
-                  <span i18n="@@ps.save">Save changes</span>
-                }
-              </button>
-            } @else if (p.active) {
-              <button type="button" class="btn" (click)="confirmOff()" i18n="@@ps.switch_off">
                 Switch off
               </button>
             } @else {
               <button
                 type="button"
-                class="btn primary"
+                class="btn"
                 (click)="setActive(true)"
+                [disabled]="changeCount() > 0"
+                [attr.title]="changeCount() > 0 ? saveFirst : null"
                 i18n="@@ps.go_live"
               >
                 Go live
               </button>
             }
+            <button
+              type="button"
+              class="btn primary"
+              (click)="requestSave()"
+              [disabled]="saving() || changeCount() === 0 || saveBlock() !== null"
+              [attr.title]="changeCount() === 0 ? nothingToSave : saveBlock()"
+            >
+              @if (saving()) {
+                <span i18n="@@ps.saving">Saving…</span>
+              } @else {
+                <span i18n="@@ps.save">Save changes</span>
+              }
+            </button>
             <div class="menu">
               <button
                 type="button"
@@ -491,10 +507,20 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
         padding-block: var(--space-4) var(--space-8);
       }
       .back {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
         color: var(--color-text-secondary);
         text-decoration: none;
         font-size: var(--text-sm);
         align-self: flex-start;
+      }
+      .back-i {
+        inline-size: 1em;
+        block-size: 1em;
+      }
+      :host-context([dir='rtl']) .back-i {
+        transform: scaleX(-1);
       }
       .back:hover {
         color: var(--color-text-link);
@@ -725,7 +751,6 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
         grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
         gap: var(--space-3);
         inline-size: 100%;
-        max-inline-size: 40rem;
       }
       .fl {
         display: flex;
@@ -984,6 +1009,8 @@ export class ProductStudioPage {
   protected readonly removeAria = $localize`:@@ps.remove:Remove`;
   protected readonly searchAria = $localize`:@@ps.search_q:Search questions…`;
   protected readonly moreAria = $localize`:@@ps.more:More actions`;
+  protected readonly saveFirst = $localize`:@@ps.save_first:Save your changes first.`;
+  protected readonly nothingToSave = $localize`:@@ps.nothing_to_save:Nothing changed yet.`;
   protected readonly meansAria = $localize`:@@ps.means:What does the amount mean?`;
   protected readonly bankSets = $localize`:@@ps.bank_sets:bank sets`;
   protected readonly dbrAria = $localize`:@@ps.dbr:Debt burden`;

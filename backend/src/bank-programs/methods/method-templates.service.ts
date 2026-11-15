@@ -162,7 +162,14 @@ export class MethodTemplatesService implements OnApplicationBootstrap {
     const refused: Array<{ key: string; code: string; meta?: Record<string, unknown> }> = [];
     if (dto.mechanism !== undefined || dto.figures !== undefined || dto.placements !== undefined) {
       for (const product of await this.linkedProducts(key)) {
-        const next = withMethod(product, key, mechanism, figures);
+        const next = withMethod(
+          product,
+          key,
+          mechanism,
+          figures,
+          current.mechanism as TemplateMechanism,
+          (current.figures ?? {}) as Figures,
+        );
         try {
           await this.programs.setSurrogateProductTemplate(
             product.key,
@@ -253,18 +260,23 @@ function waysOfTemplate(t: ProductTemplate): TemplateMechanism[] {
 }
 
 /**
- * The product with every way linked to `methodKey` replaced by the method: the way itself and
- * the figures in its slots. A one-way product keeps its split on `secondColumn`, the shape it
- * was stored in, so a link never reshapes what is around the way.
+ * The product with every way linked to `methodKey` given the method's SHAPE — its question(s),
+ * how, columns and groups — while the AMOUNTS stay the product's own (v37.0.0): a box the
+ * product already had keeps the product's figure; a box new to it (a new column, a new row
+ * group, a way that had none) takes the method's default. A one-way product keeps its split on
+ * `secondColumn`, the shape it was stored in, so a link never reshapes what is around the way.
  */
 function withMethod(
   product: LinkedProduct,
   methodKey: string,
   mechanism: TemplateMechanism,
   figures: Figures,
+  previous: TemplateMechanism,
+  previousFigures: Figures,
 ): { template: ProductTemplate; stepParams: Figures } {
   const template: ProductTemplate = structuredClone(product.template);
-  const stepParams: Figures = { ...product.stepParams };
+  const before: Figures = product.stepParams;
+  const stepParams: Figures = { ...before };
   const single = template.alternatives === undefined && template.alternative === undefined;
   const ways = waysOfTemplate(template);
   ways.forEach((way, i) => {
@@ -273,6 +285,17 @@ function withMethod(
     const oldHead = waySlot(way, i);
     delete stepParams[oldHead];
     for (const b of oldColumn?.branches.slice(1) ?? []) delete stepParams[columnSlot(oldHead, b)];
+    // The row groups that existed before this save — on the product or on the method — so
+    // only a group added NOW is filled from the method's default.
+    const oldRowGroups = new Set([
+      ...(way.kind === 'classTable' ? (way.groups ?? []).map((g) => g.key) : []),
+      ...(previous.kind === 'classTable' ? (previous.groups ?? []).map((g) => g.key) : []),
+      // A shared list's groups are not named on the method: the rows it had figures for are.
+      ...Object.values(previousFigures).flatMap((f) =>
+        ((f as StepFigureShape).keyTable ?? []).map((r) => r.key),
+      ),
+    ]);
+    const methodHadGroups = previous.kind === 'classTable' || way.kind === 'classTable';
 
     const { methodKey: _drop, column, ...shape } = structuredClone(mechanism);
     const next = {
@@ -289,11 +312,31 @@ function withMethod(
     }
 
     const head = waySlot(next, i);
-    for (const [col, figure] of Object.entries(figures)) {
-      stepParams[col === '' ? head : columnSlot(head, col)] = structuredClone(figure);
+    const columns = ['', ...(column?.branches.slice(1) ?? [])];
+    for (const col of columns) {
+      const slot = col === '' ? head : columnSlot(head, col);
+      const mine = before[slot] as StepFigureShape | undefined;
+      const theirs = figures[col] as StepFigureShape | undefined;
+      if (mine === undefined) {
+        if (theirs !== undefined) stepParams[slot] = structuredClone(theirs);
+        continue;
+      }
+      const kept: StepFigureShape = structuredClone(mine);
+      // A row group the product did not have yet starts from the method's default amount.
+      if (theirs?.keyTable && methodHadGroups && mechanism.kind === 'classTable') {
+        const have = new Set((mine.keyTable ?? []).map((r) => r.key));
+        const added = theirs.keyTable.filter((r) => !have.has(r.key) && !oldRowGroups.has(r.key));
+        if (added.length > 0) kept.keyTable = [...(mine.keyTable ?? []), ...structuredClone(added)];
+      }
+      stepParams[slot] = kept;
     }
   });
   return { template, stepParams };
+}
+
+interface StepFigureShape {
+  keyTable?: Array<{ key: string; incomeEGP: string }>;
+  [k: string]: unknown;
 }
 
 function toDto(row: MethodTemplateRow, linked: readonly LinkedProduct[]): MethodTemplateDto {

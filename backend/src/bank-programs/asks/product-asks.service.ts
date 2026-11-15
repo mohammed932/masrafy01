@@ -513,6 +513,79 @@ export class ProductAsksService {
   }
 
   /**
+   * Every question a surrogate method may be built on (v37.0.0): the whole pool, with the fact
+   * already bound to each one, or `null` when picking it will bind one (`ensureFact`).
+   */
+  async methodQuestions(): Promise<
+    Array<{ code: string; labelAr: string; labelEn: string; type: string; factKey: string | null }>
+  > {
+    const [pool, factRows, boundQuestions] = await Promise.all([
+      this.repo.factCandidateQuestions(),
+      this.enums.listAll({ type: FACT_TYPE }),
+      this.repo.boundQuestions({ type: FACT_TYPE }),
+    ]);
+    const factKeyByQuestion = new Map<string, string>();
+    for (const row of factRows) {
+      const bound = boundQuestions.get(row.id);
+      if (bound && !factKeyByQuestion.has(bound.code)) factKeyByQuestion.set(bound.code, row.key);
+    }
+    return pool
+      .filter((q) => isBindableQuestionType(q.type))
+      .map((q) => ({
+        code: q.code,
+        labelAr: q.labelAr,
+        labelEn: q.labelEn,
+        type: q.type,
+        factKey: factKeyByQuestion.get(q.code) ?? null,
+      }));
+  }
+
+  /**
+   * The fact a surrogate method reads a pool question by — the one already bound to it, or a
+   * new one created and bound now. The same plan a product's tick runs, without the tick: no
+   * product starts asking anything here, and nothing is filed under a product.
+   */
+  async ensureFact(questionCode: string, actor: AskActor): Promise<{ factKey: string }> {
+    const [pool, factRows, boundQuestions] = await Promise.all([
+      this.repo.factCandidateQuestions(),
+      this.enums.listAll({ type: FACT_TYPE }),
+      this.repo.boundQuestions({ type: FACT_TYPE }),
+    ]);
+    const question = pool.find((q) => q.code === questionCode);
+    const facts: AskFactInput[] = factRows.map((row) => ({
+      id: row.id,
+      key: row.key,
+      active: row.active,
+      systemOnly: row.systemOnly,
+      surrogateProductKey: row.surrogateProductKey,
+      boundQuestionCode: boundQuestions.get(row.id)?.code ?? null,
+    }));
+    const plan = planAttach({
+      productKey: '',
+      question,
+      facts,
+      askedFactKeys: [],
+      blueprintsAsking: question === undefined ? [] : blueprintKeysAsking(derivedFactKey(question)),
+    });
+    if (plan.kind === 'refuse') throw await this.refusalToException(plan.refusal, questionCode);
+    const changed = {
+      factKey: plan.factKey,
+      factCreated: false,
+      factBound: false,
+      askAdded: false,
+      askRemoved: false,
+      factDeleted: false,
+      published: false,
+    };
+    for (const step of plan.steps) {
+      if (step.op === 'addAsk') continue;
+      const own = step.op === 'createFact' ? { ...step, fileUnderProduct: false } : step;
+      await this.runAttachStep(own, '', changed, actor);
+    }
+    return { factKey: plan.factKey };
+  }
+
+  /**
    * Untick: this product stops reading the answer — and its programs stop asking it unless
    * something else there reads it or a program ticked it. The question itself is untouched.
    */

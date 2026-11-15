@@ -11,7 +11,7 @@ export function productStepLabels(): string[] {
     $localize`:@@spd.step_name2:Name`,
     $localize`:@@spd.step_asks2:Questions`,
     $localize`:@@spd.step_amount:Amount`,
-    $localize`:@@spd.step_rules:Who can't get it`,
+    // "Who can't get it" — hidden for now (operator, 2026-11-14), as on the product page.
     // Try & go live — hidden for now (operator, 2026-11-14).
   ];
 }

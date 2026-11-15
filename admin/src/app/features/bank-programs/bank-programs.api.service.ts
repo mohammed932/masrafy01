@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type {
+  MethodQuestion,
   MethodTemplate,
   MethodTemplateSaved,
   MethodTemplateWrite,
@@ -424,6 +425,23 @@ export class BankProgramsApiService {
   async listMethodTemplates(): Promise<SuccessEnvelope<MethodTemplate[]>> {
     return firstValueFrom(
       this.http.get<SuccessEnvelope<MethodTemplate[]>>(`${this.base}/method-templates`),
+    );
+  }
+
+  /** Every question a method may read, with the fact bound to it when it has one. */
+  async listMethodQuestions(): Promise<SuccessEnvelope<MethodQuestion[]>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<MethodQuestion[]>>(`${this.base}/method-templates/questions`),
+    );
+  }
+
+  /** The fact a method reads a question by; binds one when the question has none yet. */
+  async ensureMethodFact(code: string): Promise<SuccessEnvelope<{ factKey: string }>> {
+    return firstValueFrom(
+      this.http.post<SuccessEnvelope<{ factKey: string }>>(
+        `${this.base}/method-templates/questions/${encodeURIComponent(code)}/fact`,
+        {},
+      ),
     );
   }
 

@@ -1276,6 +1276,16 @@ export interface MethodTemplate {
   usedBy: Array<{ key: string; labelEn: string; labelAr: string }>;
 }
 
+/** A question a surrogate method may be built on (v37.0.0). */
+export interface MethodQuestion {
+  code: string;
+  labelAr: string;
+  labelEn: string;
+  type: string;
+  /** The fact bound to it, or null when picking it binds one. */
+  factKey: string | null;
+}
+
 /** A save, and what it did to the products linked to the method. */
 export interface MethodTemplateSaved extends MethodTemplate {
   propagation: {

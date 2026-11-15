@@ -81,10 +81,13 @@ export const APP_ROUTES: Routes = [
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
     loadChildren: () => import('./features/lookups/lookups.routes').then((m) => m.LOOKUPS_ROUTES),
   },
+  // The address it had before it was named (v37.0.0).
+  { path: 'ready-methods', redirectTo: 'surrogate-methods' },
+  { path: 'ready-methods/:key', redirectTo: 'surrogate-methods/:key' },
   {
-    // Ready methods (v37.0.0) — the ways a product's amount can be worked out, picked on a
+    // Surrogate methods (v37.0.0) — the ways a product's amount can be worked out, picked on a
     // product's Amount step and copied into it.
-    path: 'ready-methods',
+    path: 'surrogate-methods',
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
     loadChildren: () =>
