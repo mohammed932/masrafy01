@@ -5,6 +5,7 @@
  * The same building blocks as a product's Amount step, for ONE method, with no product behind
  * it: the boxes are drawn from the questions' own answers, not from a compiled product.
  */
+import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -66,7 +67,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
   selector: 'app-ready-method-edit-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [MoneyInputDirective, 
     RouterLink,
     ReactiveFormsModule,
     NgTemplateOutlet,
@@ -173,7 +174,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         <section class="blk">
           <h2 i18n="@@ps.decides">What decides the amount?</h2>
           <div class="fl wide">
-            <span i18n="@@rm.q1">Question</span>
+            <span i18n="@@rm.q_rows">Rows: the question that decides the amount</span>
             <app-search-select
               [options]="askableOpts()"
               [value]="fact()"
@@ -183,35 +184,8 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
           </div>
 
           @if (factOf(fact()); as f) {
-            <div class="row">
-              <div class="seg" role="radiogroup" [attr.aria-label]="howAria">
-                @for (k of kindsFor(f); track k) {
-                  <button
-                    type="button"
-                    role="radio"
-                    [attr.aria-checked]="kind() === k"
-                    (click)="setKind(k)"
-                  >
-                    {{ how(k) }}
-                  </button>
-                }
-              </div>
-              @if (kind() === 'classTable') {
-                <button type="button" class="link" (click)="toggleEditor('row')">
-                  @if (editorOpen() === 'row') {
-                    <span i18n="@@ps.groups_done">Done with groups</span>
-                  } @else {
-                    <span i18n="@@ps.groups_edit">Edit groups</span>
-                  }
-                </button>
-              }
-            </div>
-            @if (kind() === 'classTable' && editorOpen() === 'row') {
-              <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'row' }" />
-            }
-
             <div class="fl wide">
-              <span i18n="@@rm.q2">Different amounts by a second answer (optional)</span>
+              <span i18n="@@rm.q_cols">Columns (optional): split the amounts by another answer</span>
               <app-search-select
                 [options]="columnOpts()"
                 [value]="colFact()"
@@ -220,44 +194,76 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                 (changed)="pickQuestion('col', $event)"
               />
             </div>
-            @if (factOf(colFact()); as c) {
-              @if (groupable(c)) {
-                <div class="row">
-                  <div class="seg" role="radiogroup" [attr.aria-label]="colAria">
+
+            <div class="axes">
+              <div class="axis">
+                <span class="axis-l" i18n="@@rm.axis_rows">Rows</span>
+                <div class="seg" role="radiogroup" [attr.aria-label]="howAria">
+                  @for (k of kindsFor(f); track k) {
                     <button
                       type="button"
                       role="radio"
-                      [attr.aria-checked]="colMode() === 'answer'"
-                      (click)="setColMode('answer')"
-                      i18n="@@ps.col_answer"
+                      [attr.aria-checked]="kind() === k"
+                      (click)="setKind(k)"
                     >
-                      one per answer
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      [attr.aria-checked]="colMode() === 'groups'"
-                      (click)="setColMode('groups')"
-                      i18n="@@ps.col_groups"
-                    >
-                      one per group
-                    </button>
-                  </div>
-                  @if (colMode() === 'groups') {
-                    <button type="button" class="link" (click)="toggleEditor('col')">
-                      @if (editorOpen() === 'col') {
-                        <span i18n="@@ps.groups_done">Done with groups</span>
-                      } @else {
-                        <span i18n="@@ps.groups_edit">Edit groups</span>
-                      }
+                      {{ how(k) }}
                     </button>
                   }
                 </div>
-                @if (colMode() === 'groups' && editorOpen() === 'col') {
-                  <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'col' }" />
+                @if (kind() === 'classTable') {
+                  <button type="button" class="link" (click)="toggleEditor('row')">
+                    @if (editorOpen() === 'row') {
+                      <span i18n="@@ps.groups_done">Done with groups</span>
+                    } @else {
+                      <span i18n="@@ps.groups_edit">Edit groups</span>
+                    }
+                  </button>
+                }
+              </div>
+              @if (kind() === 'classTable' && editorOpen() === 'row') {
+                <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'row' }" />
+              }
+
+              @if (factOf(colFact()); as c) {
+                @if (groupable(c)) {
+                  <div class="axis">
+                    <span class="axis-l" i18n="@@rm.axis_cols">Columns</span>
+                    <div class="seg" role="radiogroup" [attr.aria-label]="colAria">
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="colMode() === 'answer'"
+                        (click)="setColMode('answer')"
+                        i18n="@@ps.col_answer"
+                      >
+                        one per answer
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="colMode() === 'groups'"
+                        (click)="setColMode('groups')"
+                        i18n="@@ps.col_groups"
+                      >
+                        one per group
+                      </button>
+                    </div>
+                    @if (colMode() === 'groups') {
+                      <button type="button" class="link" (click)="toggleEditor('col')">
+                        @if (editorOpen() === 'col') {
+                          <span i18n="@@ps.groups_done">Done with groups</span>
+                        } @else {
+                          <span i18n="@@ps.groups_edit">Edit groups</span>
+                        }
+                      </button>
+                    }
+                  </div>
+                  @if (colMode() === 'groups' && editorOpen() === 'col') {
+                    <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'col' }" />
+                  }
                 }
               }
-            }
+            </div>
 
             <p class="hint" i18n="@@rm.figures_hint2">
               Default amounts: a product that picks this method starts from them, then sets its own.
@@ -282,7 +288,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                           @for (c of cols(); track c.code) {
                             <td class="n">
                               <input
-                                class="amt"
+                                appMoneyInput class="amt"
                                 inputmode="decimal"
                                 [value]="cell(c.code, r.code)"
                                 (change)="setCell(c.code, r.code, val($event))"
@@ -315,7 +321,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                           <td>
                             <div class="rng">
                               <input
-                                class="edge"
+                                appMoneyInput class="edge"
                                 inputmode="decimal"
                                 [value]="fmt(b.fromInclusive ?? '')"
                                 (change)="setEdge(k, 'fromInclusive', val($event))"
@@ -323,7 +329,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                               />
                               <span i18n="@@ps.to">to</span>
                               <input
-                                class="edge"
+                                appMoneyInput class="edge"
                                 inputmode="decimal"
                                 [value]="fmt(b.toExclusive ?? '')"
                                 (change)="setEdge(k, 'toExclusive', val($event))"
@@ -335,7 +341,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                           @for (c of cols(); track c.code) {
                             <td class="n">
                               <input
-                                class="amt"
+                                appMoneyInput class="amt"
                                 inputmode="decimal"
                                 [value]="bandAmount(c.code, k)"
                                 (change)="setBandAmount(c.code, k, val($event))"
@@ -375,7 +381,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                       }
                       <span>{{ f.label }} {{ kind() === 'dividedBy' ? '÷' : '×' }}</span>
                       <input
-                        class="amt sm"
+                        appMoneyInput class="amt sm"
                         inputmode="decimal"
                         [value]="scalar(c.code)"
                         (change)="setScalar(c.code, val($event))"
@@ -411,7 +417,9 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
           [groups]="groupsOf(axis)"
           [answers]="axisOptions(axis)"
           [placements]="placementsOf(axis)"
-          [minGroups]="axis === 'row' ? 1 : 2"
+          [minGroups]="0"
+          [question]="factOf(axisFact(axis))?.label ?? null"
+          [listType]="factOf(axisFact(axis))?.listType ?? null"
           [isAr]="isAr"
           (renamed)="renameGroup(axis, $event.key, $event.labelEn, $event.labelAr)"
           (added)="addGroup(axis)"
@@ -573,6 +581,28 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         gap: var(--space-2) var(--space-3);
         align-items: center;
       }
+      .axes {
+        inline-size: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-muted);
+      }
+      .axis {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
+      }
+      .axis-l {
+        min-inline-size: 5rem;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-secondary);
+      }
       .groups {
         inline-size: 100%;
         display: flex;
@@ -630,12 +660,12 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       }
       th.n,
       td.n {
-        text-align: end;
+        text-align: start;
       }
       .amt,
       .edge {
         inline-size: 10rem;
-        text-align: end;
+        text-align: start;
         font-variant-numeric: tabular-nums;
       }
       .amt.sm {
@@ -852,8 +882,8 @@ export class ReadyMethodEditPage {
   protected readonly backLabel = $localize`:@@rm.back:All surrogate methods`;
   protected readonly cancelLabel = $localize`:@@rm.cancel:Cancel`;
   protected readonly saveLabel = $localize`:@@rm.save:Save method`;
-  protected readonly q1Aria = $localize`:@@rm.q1:Question`;
-  protected readonly q2Aria = $localize`:@@rm.q2:Different amounts by a second answer (optional)`;
+  protected readonly q1Aria = $localize`:@@rm.axis_rows:Rows`;
+  protected readonly q2Aria = $localize`:@@rm.axis_cols:Columns`;
   protected readonly noSecond = $localize`:@@rm.q2_none:No`;
   protected usedHint(): string {
     const n = this.usedBy().length;
@@ -862,7 +892,7 @@ export class ReadyMethodEditPage {
       : $localize`:@@rm.used_hint:Saving changes ${n}:N: products.`;
   }
   protected deleteBlocked(): string {
-    return $localize`:@@rm.delete_blocked:A product uses it. Unlink it on the product first.`;
+    return $localize`:@@rm.delete_blocked:A product uses it. Pick another method on that product first.`;
   }
   protected leave(): void {
     void this.router.navigateByUrl('/surrogate-methods');
@@ -909,7 +939,7 @@ export class ReadyMethodEditPage {
     this.editorOpen.set(axis);
   }
 
-  private axisFact(axis: 'row' | 'col'): string {
+  protected axisFact(axis: 'row' | 'col'): string {
     return axis === 'row' ? this.fact() : this.colFact();
   }
 
@@ -1333,6 +1363,9 @@ export class ReadyMethodEditPage {
     }
     if (this.fact() === '')
       return $localize`:@@rm.need_q:Pick the question that decides the amount.`;
+    if (this.kind() === 'classTable' && (this.rowGroups()?.length ?? 1) === 0) {
+      return $localize`:@@ps.block_no_group:Add at least one group.`;
+    }
     if (this.colFact() !== '' && this.branches().length < 2) {
       return $localize`:@@rm.need_cols:The second question needs at least two answers.`;
     }

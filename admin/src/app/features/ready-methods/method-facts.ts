@@ -97,6 +97,11 @@ export function methodSummary(m: MethodTemplate, facts: readonly MethodFact[]): 
   return parts.filter((p) => p !== '').join(' · ');
 }
 
+/** Most recently added or changed first; ties keep the list's own order. */
+export function newestFirst<T extends { updatedAt: string }>(list: readonly T[]): T[] {
+  return [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
 export function methodName(m: MethodTemplate, isAr: boolean): string {
   return (isAr ? m.labelAr : m.labelEn).trim() || m.labelEn;
 }

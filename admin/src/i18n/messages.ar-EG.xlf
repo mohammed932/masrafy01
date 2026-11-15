@@ -5271,10 +5271,10 @@
       <trans-unit id="ps.called" datatype="html"><source>What is it called?</source><target>ما اسمه؟</target></trans-unit>
       <trans-unit id="ps.name_en" datatype="html"><source>Name in English</source><target>الاسم بالإنجليزية</target></trans-unit>
       <trans-unit id="ps.name_ar" datatype="html"><source>Name in Arabic</source><target>الاسم بالعربية</target></trans-unit>
-      <trans-unit id="ps.means" datatype="html"><source>What does the amount mean?</source><target>ماذا يعني المبلغ؟</target></trans-unit>
+      <trans-unit id="ps.means" datatype="html"><source>What does this product work out?</source><target>ماذا يحسب هذا المنتج؟</target></trans-unit>
       <trans-unit id="ps.means_cap" datatype="html"><source> A limit on a payslip loan: customers bring a payslip, and each bank sets the biggest loan for each answer. </source><target> حدّ على قرض بمفردات مرتب: يقدّم العملاء مفردات مرتب، ويحدد كل بنك أكبر قرض لكل إجابة. </target></trans-unit>
-      <trans-unit id="ps.means_income" datatype="html"><source> A salary we count for them </source><target> راتب نحسبه له </target></trans-unit>
-      <trans-unit id="ps.means_limit" datatype="html"><source> The biggest loan they can get </source><target> أكبر قرض يمكنه الحصول عليه </target></trans-unit>
+      <trans-unit id="ps.means_income" datatype="html"><source>Monthly income</source><target>الدخل الشهري</target></trans-unit>
+      <trans-unit id="ps.means_limit" datatype="html"><source>Maximum loan</source><target>أقصى مبلغ للقرض</target></trans-unit>
       <trans-unit id="ps.means_limit_eg" datatype="html"><source> The loan itself: e.g. a Mivida owner can borrow up to EGP 6,000,000. </source><target> القرض نفسه: مثلًا مالك وحدة في ميفيدا يمكنه اقتراض حتى 6,000,000 جنيه. </target></trans-unit>
       <trans-unit id="ps.means_income_eg" datatype="html"><source> Like a payslip: e.g. a Colonel counts as earning EGP 45,000 a month. Each bank then works out the loan from it. </source><target> مثل مفردات المرتب: مثلًا العقيد يُحسب له دخل 45,000 جنيه شهريًا، ثم يحسب كل بنك القرض منه. </target></trans-unit>
       <trans-unit id="ps.asked_title" datatype="html"><source>What applicants are asked</source><target>ما يُسأل عنه المتقدمون</target></trans-unit>
@@ -5463,7 +5463,7 @@
       <trans-unit id="rm.page_lede" datatype="html"><source>Name it, pick the question that decides the amount, and set the default amounts a product starts from.</source><target>سمِّها، واختر السؤال الذي يحدد المبلغ، وحدد المبالغ الافتراضية التي يبدأ منها المنتج.</target></trans-unit>
       <trans-unit id="rm.used_hint_one" datatype="html"><source>Saving changes 1 product.</source><target>الحفظ يغيّر منتجًا واحدًا.</target></trans-unit>
       <trans-unit id="rm.used_hint" datatype="html"><source>Saving changes <x id="N" equiv-text="n"/> products.</source><target>الحفظ يغيّر <x id="N" equiv-text="n"/> منتجات.</target></trans-unit>
-      <trans-unit id="rm.delete_blocked" datatype="html"><source>A product uses it. Unlink it on the product first.</source><target>منتج يستخدمها. افصلها عن المنتج أولًا.</target></trans-unit>
+      <trans-unit id="rm.delete_blocked" datatype="html"><source>A product uses it. Pick another method on that product first.</source><target>منتج يستخدمها. اختر طريقة أخرى لذلك المنتج أولًا.</target></trans-unit>
       <trans-unit id="rm.lede3" datatype="html"><source>Ways of working out a product&apos;s amount. A product linked to a method takes its questions, how and groups from it, and keeps its own amounts.</source><target>طرق حساب مبلغ المنتج. المنتج المرتبط بطريقة يأخذ منها أسئلتها وطريقتها ومجموعاتها، ويحتفظ بمبالغه.</target></trans-unit>
       <trans-unit id="rm.new2" datatype="html"><source>New method</source><target>طريقة جديدة</target></trans-unit>
       <trans-unit id="rm.search" datatype="html"><source>Search methods or products…</source><target>ابحث في الطرق أو المنتجات…</target></trans-unit>
@@ -5472,6 +5472,15 @@
       <trans-unit id="rm.no_match" datatype="html"><source>No method matches your search.</source><target>لا توجد طريقة تطابق البحث.</target></trans-unit>
       <trans-unit id="gb.empty" datatype="html"><source>No groups yet. Add one, name it, then move answers into it.</source><target>لا توجد مجموعات بعد. أضف مجموعة وسمِّها، ثم انقل الإجابات إليها.</target></trans-unit>
       <trans-unit id="ss.none" datatype="html"><source>Nothing matches.</source><target>لا توجد نتائج.</target></trans-unit>
+      <trans-unit id="gb.source_q" datatype="html"><source>The answers are the answers to</source><target>الإجابات هي إجابات سؤال</target></trans-unit>
+      <trans-unit id="gb.source_list" datatype="html"><source>They come from its list in Manage values: add or rename one there and it shows up here.</source><target>وهي تأتي من قائمته في إدارة القيم: أضف أو أعد تسمية إجابة هناك وستظهر هنا.</target></trans-unit>
+      <trans-unit id="gb.source_open" datatype="html"><source>Open the list</source><target>افتح القائمة</target></trans-unit>
+      <trans-unit id="gb.source_own" datatype="html"><source>They are set on the question itself.</source><target>وهي محددة في السؤال نفسه.</target></trans-unit>
+      <trans-unit id="ps.dbr_a2" datatype="html"><source>Debt burden (DBR): the monthly payment can be up to</source><target>عبء الدين (DBR): القسط الشهري يصل إلى</target></trans-unit>
+      <trans-unit id="rm.q_rows" datatype="html"><source>Rows: the question that decides the amount</source><target>الصفوف: السؤال الذي يحدد المبلغ</target></trans-unit>
+      <trans-unit id="rm.q_cols" datatype="html"><source>Columns (optional): split the amounts by another answer</source><target>الأعمدة (اختياري): قسّم المبالغ حسب إجابة أخرى</target></trans-unit>
+      <trans-unit id="rm.axis_rows" datatype="html"><source>Rows</source><target>الصفوف</target></trans-unit>
+      <trans-unit id="rm.axis_cols" datatype="html"><source>Columns</source><target>الأعمدة</target></trans-unit>
     </body>
   </file>
 </xliff>

@@ -33,7 +33,7 @@ import { EmptyStateComponent } from '@shared/empty-state.component';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import { registryFacts, type MethodTemplate } from '@features/bank-programs/bank-programs.types';
-import { methodFacts, methodName, methodSummary } from './method-facts';
+import { methodFacts, methodName, methodSummary, newestFirst } from './method-facts';
 
 @Component({
   selector: 'app-ready-methods-page',
@@ -365,7 +365,7 @@ export class ReadyMethodsPage {
 
   protected readonly editLabel = $localize`:@@rm.edit:Edit`;
   protected readonly deleteLabel = $localize`:@@rm.delete:Delete`;
-  protected readonly inUse = $localize`:@@rm.delete_blocked:A product uses it. Unlink it on the product first.`;
+  protected readonly inUse = $localize`:@@rm.delete_blocked:A product uses it. Pick another method on that product first.`;
   protected readonly usedAria = $localize`:@@rm.used_by:Used by:`;
 
   private readonly facts = computed(() =>
@@ -418,7 +418,7 @@ export class ReadyMethodsPage {
   private async load(): Promise<void> {
     this.loading.set(true);
     try {
-      this.methods.set((await this.api.listMethodTemplates()).data);
+      this.methods.set(newestFirst((await this.api.listMethodTemplates()).data));
     } finally {
       this.loading.set(false);
     }

@@ -26,6 +26,8 @@
  * above are dirty, with a line saying why. The alternative — compiling here to preview — is
  * the second authority this file exists without.
  */
+import { newestFirst } from '@features/ready-methods/method-facts';
+import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -116,7 +118,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
   selector: 'app-product-template-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, ReactiveFormsModule, RouterLink, GroupBoardComponent, SearchSelectComponent],
+  imports: [MoneyInputDirective, NgTemplateOutlet, ReactiveFormsModule, RouterLink, GroupBoardComponent, SearchSelectComponent],
   template: `
     <!-- The product page's Amount and "Who can't get it" steps (v37.0.0, the one-page rate sheet).
          One instance, mounted once by the product page, so an edit survives moving between steps;
@@ -205,9 +207,6 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                   >or build it: pick the questions below.</span
                 >
               }
-              <a class="link" routerLink="/surrogate-methods" i18n="@@ps.manage_ready"
-                >Manage surrogate methods</a
-              >
             </div>
           }
           @if (linkedKey(i) !== '') {
@@ -221,17 +220,6 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                 Its questions, how and groups come from the method. The amounts below are this
                 product's own: change them here.
               </p>
-              <div class="mact">
-                <a
-                  class="link"
-                  [routerLink]="['/surrogate-methods', linkedKey(i)]"
-                  i18n="@@ps.edit_method"
-                  >Edit method</a
-                >
-                <button type="button" class="link" (click)="unlink(i)" i18n="@@ps.unlink">
-                  Unlink (make it this product's own)
-                </button>
-              </div>
             </div>
           }
           <!-- The shape (questions, how, columns, groups): the product's own, or the method's. -->
@@ -400,22 +388,13 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                     </button>
                   </div>
                   @if (wayKind(i) === 'classTable') {
-                    @if (linkedKey(i) !== '') {
-                      <a
-                        class="link"
-                        [routerLink]="['/surrogate-methods', linkedKey(i)]"
-                        i18n="@@ps.groups_on_method"
-                        >Edit groups on the method</a
-                      >
-                    } @else {
-                      <button type="button" class="link" (click)="toggleEditor(i, 'row')">
-                        @if (editorOpen() === i + ':row') {
-                          <span i18n="@@ps.groups_done">Done with groups</span>
-                        } @else {
-                          <span i18n="@@ps.groups_edit">Edit groups</span>
-                        }
-                      </button>
-                    }
+                    <button type="button" class="link" (click)="toggleEditor(i, 'row')">
+                      @if (editorOpen() === i + ':row') {
+                        <span i18n="@@ps.groups_done">Done with groups</span>
+                      } @else {
+                        <span i18n="@@ps.groups_edit">Edit groups</span>
+                      }
+                    </button>
                   }
                 </div>
                 @if (wayKind(i) === 'classTable' && editorOpen() === i + ':row') {
@@ -447,22 +426,13 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                       </button>
                     </div>
                     @if (columnMode(column) === 'groups') {
-                      @if (linkedKey(i) !== '') {
-                        <a
-                          class="link"
-                          [routerLink]="['/surrogate-methods', linkedKey(i)]"
-                          i18n="@@ps.groups_on_method"
-                          >Edit groups on the method</a
-                        >
-                      } @else {
-                        <button type="button" class="link" (click)="toggleEditor(i, 'col')">
-                          @if (editorOpen() === i + ':col') {
-                            <span i18n="@@ps.groups_done">Done with groups</span>
-                          } @else {
-                            <span i18n="@@ps.groups_edit">Edit groups</span>
-                          }
-                        </button>
-                      }
+                      <button type="button" class="link" (click)="toggleEditor(i, 'col')">
+                        @if (editorOpen() === i + ':col') {
+                          <span i18n="@@ps.groups_done">Done with groups</span>
+                        } @else {
+                          <span i18n="@@ps.groups_edit">Edit groups</span>
+                        }
+                      </button>
                     }
                   </div>
                   @if (columnMode(column) === 'groups' && editorOpen() === i + ':col') {
@@ -494,7 +464,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                             @for (c of colsOf(i); track c.slot) {
                               <td class="n">
                                 <input
-                                  class="amt"
+                                  appMoneyInput class="amt"
                                   inputmode="decimal"
                                   [value]="cell(c.slot, r.key)"
                                   (change)="setCell(c.slot, r.key, val($event))"
@@ -527,7 +497,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                             <td>
                               <div class="rng">
                                 <input
-                                  class="edge"
+                                  appMoneyInput class="edge"
                                   inputmode="decimal"
                                   [value]="fmt(b.fromInclusive ?? '')"
                                   (change)="setEdge(i, k, 'fromInclusive', val($event))"
@@ -535,7 +505,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                                 />
                                 <span i18n="@@ps.to">to</span>
                                 <input
-                                  class="edge"
+                                  appMoneyInput class="edge"
                                   inputmode="decimal"
                                   [value]="fmt(b.toExclusive ?? '')"
                                   (change)="setEdge(i, k, 'toExclusive', val($event))"
@@ -547,7 +517,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                             @for (c of colsOf(i); track c.slot) {
                               <td class="n">
                                 <input
-                                  class="amt"
+                                  appMoneyInput class="amt"
                                   inputmode="decimal"
                                   [value]="bandAmount(c.slot, k)"
                                   (change)="setBandAmount(i, c.slot, k, val($event))"
@@ -587,7 +557,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                           {{ scalarSign(i) }}</span
                         >
                         <input
-                          class="amt sm"
+                          appMoneyInput class="amt sm"
                           inputmode="decimal"
                           [value]="scalarOf(c.slot)"
                           (change)="setScalar(i, c.slot, val($event))"
@@ -605,7 +575,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                   <p class="formula-line">
                     <span>{{ amountWord() }}</span>
                     <input
-                      class="amt"
+                      appMoneyInput class="amt"
                       inputmode="decimal"
                       [value]="flatOf(i)"
                       (change)="setFlat(i, val($event))"
@@ -696,7 +666,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                 @switch (v.op) {
                   @case ('atLeast') {
                     <input
-                      class="amt sm"
+                      appMoneyInput class="amt sm"
                       inputmode="decimal"
                       [value]="ruleFigure(v.id, 'minValue')"
                       (change)="setRuleFigure(v.id, 'minValue', val($event))"
@@ -706,7 +676,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                   }
                   @case ('atMost') {
                     <input
-                      class="amt sm"
+                      appMoneyInput class="amt sm"
                       inputmode="decimal"
                       [value]="ruleFigure(v.id, 'maxValue')"
                       (change)="setRuleFigure(v.id, 'maxValue', val($event))"
@@ -716,7 +686,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                   }
                   @case ('between') {
                     <input
-                      class="amt sm"
+                      appMoneyInput class="amt sm"
                       inputmode="decimal"
                       [value]="ruleFigure(v.id, 'minValue')"
                       (change)="setRuleFigure(v.id, 'minValue', val($event))"
@@ -725,7 +695,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                     />
                     <span i18n="@@ps.and">and</span>
                     <input
-                      class="amt sm"
+                      appMoneyInput class="amt sm"
                       inputmode="decimal"
                       [value]="ruleFigure(v.id, 'maxValue')"
                       (change)="setRuleFigure(v.id, 'maxValue', val($event))"
@@ -735,7 +705,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                   }
                   @case ('atLeastShareOf') {
                     <input
-                      class="amt sm"
+                      appMoneyInput class="amt sm"
                       inputmode="decimal"
                       [value]="ruleShare(v.id)"
                       (change)="setRuleShare(v.id, val($event))"
@@ -845,7 +815,9 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
           [groups]="groupsOf(i, axis)"
           [answers]="boardAnswers(axisFact(i, axis))"
           [placements]="placementsFor(axisFact(i, axis))"
-          [minGroups]="axis === 'row' ? 1 : 2"
+          [minGroups]="0"
+          [question]="factOf(axisFact(i, axis))?.question?.label ?? null"
+          [listType]="factOf(axisFact(i, axis))?.question?.optionsEnumerationType ?? null"
           [isAr]="isAr"
           (renamed)="renameGroup(i, axis, $event.key, $event.labelEn, $event.labelAr)"
           (added)="addGroup(i, axis)"
@@ -1056,14 +1028,6 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
         margin: 0;
         color: var(--color-text-primary);
         font-size: var(--text-sm);
-      }
-      .mact {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-4);
-      }
-      .mact .link {
-        text-decoration: none;
       }
       .linked {
         display: flex;
@@ -1328,7 +1292,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
       }
       th.n,
       td.n {
-        text-align: end;
+        text-align: start;
       }
       .amt,
       .edge {
@@ -1336,7 +1300,7 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-sm);
         padding: var(--space-1-5) var(--space-2-5);
-        text-align: end;
+        text-align: start;
         background: var(--color-surface-default);
         color: var(--color-text-primary);
         font: inherit;
@@ -1758,7 +1722,7 @@ export class ProductTemplatePage implements OnInit {
       : (this.alternatives.at(i - 1)?.controls.fact.value ?? '');
   }
 
-  private factOf(key: string): RegistryFact | undefined {
+  protected factOf(key: string): RegistryFact | undefined {
     return this.allFacts().find((f) => f.key === key);
   }
 
@@ -3276,11 +3240,6 @@ export class ProductTemplatePage implements OnInit {
     return m ? this.methodLabel2(m) : key;
   }
 
-  /** The method becomes this product's own copy: editable here, no longer changed by the ready method. */
-  protected unlink(i: number): void {
-    this.setLinked(i, '');
-  }
-
   /** The box shows the ready method the way is linked to; picking another one replaces it. */
   protected pickMethod(i: number, key: string): void {
     if (key !== '' && key !== this.linkedKey(i)) this.useMethod(i, key);
@@ -3289,7 +3248,7 @@ export class ProductTemplatePage implements OnInit {
   protected readonly pickOne = $localize`:@@ps.pick_ready:Pick one…`;
   protected readonly methodAria = $localize`:@@ps.ready_method:Surrogate method`;
   protected readonly methodOpts = computed<SearchSelectOption[]>(() =>
-    this.methods().map((m) => ({ value: m.key, label: this.methodLabel2(m) })),
+    newestFirst(this.methods()).map((m) => ({ value: m.key, label: this.methodLabel2(m) })),
   );
   protected readonly numericOpts = computed<SearchSelectOption[]>(() =>
     this.numericFacts().map((f) => ({ value: f.key, label: f.label })),

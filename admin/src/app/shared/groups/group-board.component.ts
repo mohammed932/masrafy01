@@ -21,11 +21,13 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import {
   ArrowRightOutline,
+  UnorderedListOutline,
   DeleteOutline,
   ExclamationCircleOutline,
   PlusOutline,
   SearchOutline,
 } from '@ant-design/icons-angular/icons';
+import { RouterLink } from '@angular/router';
 import { RailTabsComponent, type RailTabItem } from '@shared/ui';
 
 export interface BoardGroup {
@@ -43,10 +45,11 @@ export interface BoardAnswer {
   selector: 'app-group-board',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzButtonModule, NzIconModule, NzInputModule, RailTabsComponent],
+  imports: [NzButtonModule, NzIconModule, NzInputModule, RailTabsComponent, RouterLink],
   providers: [
     provideNzIconsPatch([
       ArrowRightOutline,
+      UnorderedListOutline,
       DeleteOutline,
       ExclamationCircleOutline,
       PlusOutline,
@@ -54,6 +57,26 @@ export interface BoardAnswer {
     ]),
   ],
   template: `
+    @if (question(); as q) {
+      <p class="source">
+        <span nz-icon nzType="unordered-list" nzTheme="outline" aria-hidden="true"></span>
+        <span>
+          <span i18n="@@gb.source_q">The answers are the answers to</span>{{ ' ' }}
+          <b>“{{ q }}”</b>.
+          @if (listType(); as t) {
+            <span i18n="@@gb.source_list"
+              >They come from its list in Manage values: add or rename one there and it shows up
+              here.</span
+            >
+            <a [routerLink]="['/lookups']" [queryParams]="{ type: t }" i18n="@@gb.source_open"
+              >Open the list</a
+            >
+          } @else {
+            <span i18n="@@gb.source_own">They are set on the question itself.</span>
+          }
+        </span>
+      </p>
+    }
     @if (unplaced().length > 0) {
       <p class="notice" role="status">
         <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
@@ -424,6 +447,33 @@ export interface BoardAnswer {
         background: color-mix(in srgb, var(--color-warning) 18%, var(--color-surface-page));
         color: var(--color-text-primary);
       }
+      .source {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-3);
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+      }
+      .source b {
+        color: var(--color-text-primary);
+        font-weight: var(--font-weight-semibold);
+      }
+      .source [nz-icon] {
+        margin-block-start: var(--space-1);
+        color: var(--color-brand-primary);
+      }
+      .source a {
+        margin-inline-start: var(--space-1);
+        color: var(--color-text-link);
+        font-weight: var(--font-weight-semibold);
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
+      .source a:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
       .foot {
         margin: var(--space-5) 0 0;
         padding-block-start: var(--space-3);
@@ -472,7 +522,10 @@ export class GroupBoardComponent {
   /** Answer code → group key; a missing code is in no group. */
   readonly placements = input.required<Readonly<Record<string, string>>>();
   /** Groups that must remain (a column split needs two). */
-  readonly minGroups = input(1);
+  readonly minGroups = input(0);
+  /** The question the answers belong to, and the managed list they come from (if any). */
+  readonly question = input<string | null>(null);
+  readonly listType = input<string | null>(null);
   readonly isAr = input(false);
 
   readonly renamed = output<{ key: string; labelEn: string | null; labelAr: string | null }>();

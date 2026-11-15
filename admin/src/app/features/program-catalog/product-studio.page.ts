@@ -10,6 +10,7 @@
  * the loan size and the plan tables. One Save, in dependency order: a question is asked before
  * the calculation reads it, and stops being asked only after the calculation stops reading it.
  */
+import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -77,7 +78,7 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
   selector: 'app-product-studio-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [MoneyInputDirective, 
     RouterLink,
     ReactiveFormsModule,
     ProductTemplatePage,
@@ -303,7 +304,7 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
               @case ('amount') {
                 @if (!p.capOnly) {
                   <section class="blk">
-                    <h2 i18n="@@ps.means">What does the amount mean?</h2>
+                    <h2 i18n="@@ps.means">What does this product work out?</h2>
                     @if (calc()) {
                       @let c = calc()!;
                       <div class="seg" role="radiogroup" [attr.aria-label]="meansAria">
@@ -314,7 +315,7 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                           (click)="setOutput('monthlyIncome')"
                           i18n="@@ps.means_income"
                         >
-                          A salary we count for them
+                          Monthly income
                         </button>
                         <button
                           type="button"
@@ -323,7 +324,7 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                           (click)="setOutput('maxAmount')"
                           i18n="@@ps.means_limit"
                         >
-                          The biggest loan they can get
+                          Maximum loan
                         </button>
                       </div>
                       @if (c.form.controls.outputKind.value === 'maxAmount') {
@@ -387,9 +388,9 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                   @if (calc(); as c) {
                     @if (c.form.controls.outputKind.value === 'maxAmount') {
                       <p class="line">
-                        <span i18n="@@ps.dbr_a">A monthly payment can take up to</span>
+                        <span i18n="@@ps.dbr_a2">Debt burden (DBR): the monthly payment can be up to</span>
                         <input
-                          class="edge"
+                          appMoneyInput class="edge"
                           inputmode="decimal"
                           [value]="c.form.controls.baselineDbrPercent.value"
                           (change)="c.form.controls.baselineDbrPercent.setValue(val($event))"
@@ -403,7 +404,7 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                   <p class="line">
                     <span i18n="@@ps.months_a">Pay back over</span>
                     <input
-                      class="edge"
+                      appMoneyInput class="edge"
                       inputmode="numeric"
                       [value]="tenorMin()"
                       (change)="setTerm('tenorMin', val($event))"
@@ -411,7 +412,7 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                     />
                     <span i18n="@@ps.to">to</span>
                     <input
-                      class="edge"
+                      appMoneyInput class="edge"
                       inputmode="numeric"
                       [value]="tenorMax()"
                       (change)="setTerm('tenorMax', val($event))"
@@ -422,7 +423,7 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                   <p class="line">
                     <span i18n="@@ps.lend_a">Lend from EGP</span>
                     <input
-                      class="edge wide"
+                      appMoneyInput class="edge wide"
                       inputmode="decimal"
                       [value]="fmt(amountMin())"
                       (change)="setTerm('amountMin', val($event))"
@@ -430,7 +431,7 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                     />
                     <span i18n="@@ps.to">to</span>
                     <input
-                      class="edge wide"
+                      appMoneyInput class="edge wide"
                       inputmode="decimal"
                       [value]="fmt(amountMax())"
                       (change)="setTerm('amountMax', val($event))"
@@ -1011,7 +1012,7 @@ export class ProductStudioPage {
   protected readonly moreAria = $localize`:@@ps.more:More actions`;
   protected readonly saveFirst = $localize`:@@ps.save_first:Save your changes first.`;
   protected readonly nothingToSave = $localize`:@@ps.nothing_to_save:Nothing changed yet.`;
-  protected readonly meansAria = $localize`:@@ps.means:What does the amount mean?`;
+  protected readonly meansAria = $localize`:@@ps.means:What does this product work out?`;
   protected readonly bankSets = $localize`:@@ps.bank_sets:bank sets`;
   protected readonly dbrAria = $localize`:@@ps.dbr:Debt burden`;
   protected readonly fromAria = $localize`:@@spt.v2.from_col:From`;

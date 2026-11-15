@@ -1427,3 +1427,12 @@ textarea.ant-input {
     min-block-size: 0;
   }
 }
+
+/* In the English UI every field reads left to right and starts at the left edge — numbers
+   included — so typed values line up with their labels (operator, 2026-11-16). A field
+   marked dir="rtl" (an Arabic name) keeps its own direction. */
+html[dir='ltr'] input:not([dir='rtl']):not([type='checkbox']):not([type='radio']),
+html[dir='ltr'] textarea:not([dir='rtl']) {
+  direction: ltr;
+  text-align: start !important;
+}
