@@ -260,6 +260,24 @@ export class ProgramNameHasOwnRuleException extends DomainException {
   }
 }
 
+export class MethodTemplateNotFoundException extends DomainException {
+  constructor(meta: { key: string }) {
+    super(ERROR_CODES.METHOD_TEMPLATE_NOT_FOUND, meta);
+  }
+}
+
+export class MethodTemplateInUseException extends DomainException {
+  constructor(meta: { products: string; count: number }) {
+    super(ERROR_CODES.METHOD_TEMPLATE_IN_USE, meta);
+  }
+}
+
+export class MethodTemplateNameTakenException extends DomainException {
+  constructor(meta: { labelEn: string }) {
+    super(ERROR_CODES.METHOD_TEMPLATE_NAME_TAKEN, meta);
+  }
+}
+
 export class SurrogateProductNotFoundException extends DomainException {
   constructor(meta: { key: string; activeKeys: readonly string[] }) {
     super(ERROR_CODES.SURROGATE_PRODUCT_NOT_FOUND, meta);

@@ -15,6 +15,7 @@ import {
   AuditOutline,
   ExperimentOutline,
   AppstoreOutline,
+  FunctionOutline,
   ClockCircleOutline,
 } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
@@ -43,6 +44,7 @@ import { CanDirective } from '../../shared/can.directive';
       AuditOutline,
       ExperimentOutline,
       AppstoreOutline,
+      FunctionOutline,
       ClockCircleOutline,
     ]),
   ],
@@ -144,6 +146,16 @@ import { CanDirective } from '../../shared/can.directive';
               aria-hidden="true"
             ></span>
             <span class="item-label" i18n="@@sidebar.program_catalog">Program catalog</span>
+          </a>
+          <a routerLink="/ready-methods" routerLinkActive="active" class="item">
+            <span
+              nz-icon
+              nzType="function"
+              nzTheme="outline"
+              class="item-icon"
+              aria-hidden="true"
+            ></span>
+            <span class="item-label" i18n="@@sidebar.ready_methods">Ready methods</span>
           </a>
         </nav>
       }

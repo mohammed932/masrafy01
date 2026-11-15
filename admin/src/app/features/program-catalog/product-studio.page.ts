@@ -45,6 +45,7 @@ import { BankProgramsApiService } from '@features/bank-programs/bank-programs.ap
 import {
   registryFacts,
   type PlanDefaults,
+  type MethodTemplate,
   type ProductAsksBoard,
   type SurrogateProductDetail,
 } from '@features/bank-programs/bank-programs.types';
@@ -342,6 +343,8 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                   [part]="step() === 'rules' ? 'rules' : 'amount'"
                   [askedCodes]="askedCodes()"
                   [fixedCodes]="fixedCodeList()"
+                  [methods]="methods()"
+                  (asksNeeded)="askFor($event)"
                   (goQuestions)="goTo(1)"
                 />
               </div>
@@ -1210,6 +1213,15 @@ export class ProductStudioPage {
     this.addSheetRef?.close();
   }
 
+  /** The ready methods an empty method can start from. */
+  protected readonly methods = signal<readonly MethodTemplate[]>([]);
+
+  /** A picked ready method reads these questions: ask the ones not asked yet. */
+  protected askFor(codes: readonly string[]): void {
+    const asked = new Set([...this.fixedCodeList(), ...this.ownCards().map((c) => c.code)]);
+    for (const code of codes) if (!asked.has(code)) this.addByCode(code);
+  }
+
   protected addByCode(code: string): void {
     const card = (this.sections().find((sec) => sec.key === 'rest')?.cards ?? []).find(
       (c) => c.code === code,
@@ -1578,6 +1590,10 @@ export class ProductStudioPage {
     void this.load();
     void this.loadAsks();
     void this.loadFixedAsks();
+    void this.api
+      .listMethodTemplates()
+      .then((res) => this.methods.set(res.data))
+      .catch(() => this.methods.set([]));
   }
 
   private async load(opts: { silent?: boolean } = {}): Promise<void> {

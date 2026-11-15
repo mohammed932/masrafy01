@@ -5377,6 +5377,55 @@
       <trans-unit id="ps.block_rule_q" datatype="html"><source>Rule <x id="N" equiv-text="n"/> — pick a question.</source><target>القاعدة <x id="N" equiv-text="n"/> — اختر سؤالًا.</target></trans-unit>
       <trans-unit id="ps.block_rule_pct" datatype="html"><source>Rule <x id="N" equiv-text="n"/> — pick the answer it is a % of.</source><target>القاعدة <x id="N" equiv-text="n"/> — اختر الإجابة التي هي نسبة منها.</target></trans-unit>
       <trans-unit id="ps.block_rule_per" datatype="html"><source>Rule <x id="N" equiv-text="n"/> — pick what the figure depends on.</source><target>القاعدة <x id="N" equiv-text="n"/> — اختر ما يعتمد عليه الرقم.</target></trans-unit>
+      <trans-unit id="ps.use_ready" datatype="html"><source>Use a ready method</source><target>استخدم طريقة جاهزة</target></trans-unit>
+      <trans-unit id="ps.pick_ready" datatype="html"><source>Pick one…</source><target>اختر واحدة…</target></trans-unit>
+      <trans-unit id="ps.or_build" datatype="html"><source>or build it: pick the questions below.</source><target>أو ابنها بنفسك: اختر الأسئلة بالأسفل.</target></trans-unit>
+      <trans-unit id="ps.manage_ready" datatype="html"><source>Manage ready methods</source><target>إدارة الطرق الجاهزة</target></trans-unit>
+      <trans-unit id="rm.columns_by" datatype="html"><source>columns by <x id="NAME" equiv-text="col"/></source><target>الأعمدة حسب <x id="NAME" equiv-text="col"/></target></trans-unit>
+      <trans-unit id="rm.back" datatype="html"><source>All ready methods</source><target>كل الطرق الجاهزة</target></trans-unit>
+      <trans-unit id="rm.new_title" datatype="html"><source>New ready method</source><target>طريقة جاهزة جديدة</target></trans-unit>
+      <trans-unit id="rm.q1" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
+      <trans-unit id="rm.q2" datatype="html"><source>Different amounts by a second answer (optional)</source><target>مبالغ مختلفة حسب إجابة ثانية (اختياري)</target></trans-unit>
+      <trans-unit id="rm.q2_none" datatype="html"><source>No</source><target>لا</target></trans-unit>
+      <trans-unit id="rm.figures_hint" datatype="html"><source> Default amounts. A box left empty is filled in by each bank. </source><target> المبالغ الافتراضية. الخانة الفارغة يملؤها كل بنك. </target></trans-unit>
+      <trans-unit id="rm.delete" datatype="html"><source> Delete </source><target> حذف </target></trans-unit>
+      <trans-unit id="rm.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="rm.save" datatype="html"><source>Save method</source><target>حفظ الطريقة</target></trans-unit>
+      <trans-unit id="rm.how" datatype="html"><source>How</source><target>الطريقة</target></trans-unit>
+      <trans-unit id="rm.col_value" datatype="html"><source>Value</source><target>القيمة</target></trans-unit>
+      <trans-unit id="rm.col_amount" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
+      <trans-unit id="rm.need_names" datatype="html"><source>Give the method a name in English and Arabic.</source><target>أعطِ الطريقة اسمًا بالإنجليزية والعربية.</target></trans-unit>
+      <trans-unit id="rm.need_q" datatype="html"><source>Pick the question that decides the amount.</source><target>اختر السؤال الذي يحدد المبلغ.</target></trans-unit>
+      <trans-unit id="rm.need_cols" datatype="html"><source>The second question needs at least two answers.</source><target>السؤال الثاني يحتاج إلى إجابتين على الأقل.</target></trans-unit>
+      <trans-unit id="rm.saved" datatype="html"><source>Method saved.</source><target>تم حفظ الطريقة.</target></trans-unit>
+      <trans-unit id="rm.delete_title" datatype="html"><source>Delete “<x id="NAME" equiv-text="name"/>”?</source><target>حذف «<x id="NAME" equiv-text="name"/>»؟</target></trans-unit>
+      <trans-unit id="rm.delete_body" datatype="html"><source>It leaves the list. Products that already use it keep their own copy.</source><target>ستُزال من القائمة. المنتجات التي تستخدمها تحتفظ بنسختها.</target></trans-unit>
+      <trans-unit id="rm.deleted" datatype="html"><source>Method deleted.</source><target>تم حذف الطريقة.</target></trans-unit>
+      <trans-unit id="rm.title" datatype="html"><source>Ready methods</source><target>الطرق الجاهزة</target></trans-unit>
+      <trans-unit id="rm.lede" datatype="html"><source> Ways of working out a product&apos;s amount. On a product&apos;s Amount step, pick one instead of building it by hand — it is copied into the product, so changing or deleting a method here never changes a product that already uses it. </source><target> طرق حساب مبلغ المنتج. في خطوة المبلغ لأي منتج، اختر واحدة بدل بنائها يدويًا — تُنسخ في المنتج، لذا تعديل طريقة هنا أو حذفها لا يغيّر أي منتج يستخدمها. </target></trans-unit>
+      <trans-unit id="rm.new" datatype="html"><source>+ New method</source><target>+ طريقة جديدة</target></trans-unit>
+      <trans-unit id="rm.empty" datatype="html"><source>No ready methods yet.</source><target>لا توجد طرق جاهزة بعد.</target></trans-unit>
+      <trans-unit id="rm.shipped" datatype="html"><source>Shipped</source><target>مرفقة</target></trans-unit>
+      <trans-unit id="rm.added" datatype="html"><source>Added</source><target>مضافة</target></trans-unit>
+      <trans-unit id="rm.edit" datatype="html"><source>Edit</source><target>تعديل</target></trans-unit>
+      <trans-unit id="sidebar.ready_methods" datatype="html"><source>Ready methods</source><target>الطرق الجاهزة</target></trans-unit>
+      <trans-unit id="ps.replace_ready" datatype="html"><source>Replace with a ready method</source><target>استبدلها بطريقة جاهزة</target></trans-unit>
+      <trans-unit id="ps.linked_to" datatype="html"><source>Linked to the ready method</source><target>مرتبطة بالطريقة الجاهزة</target></trans-unit>
+      <trans-unit id="ps.linked_note" datatype="html"><source>Its questions and amounts are changed on the method, for every product that uses it.</source><target>تُعدَّل أسئلتها ومبالغها من الطريقة نفسها، لكل منتج يستخدمها.</target></trans-unit>
+      <trans-unit id="ps.edit_method" datatype="html"><source>Edit method</source><target>تعديل الطريقة</target></trans-unit>
+      <trans-unit id="ps.unlink" datatype="html"><source> Unlink (make it this product&apos;s own) </source><target> فك الربط (اجعلها خاصة بهذا المنتج) </target></trans-unit>
+      <trans-unit id="rm.used_note" datatype="html"><source>Saving changes this method on every product that uses it:</source><target>الحفظ يغيّر هذه الطريقة في كل منتج يستخدمها:</target></trans-unit>
+      <trans-unit id="rm.confirm_title" datatype="html"><source>Change it on every product that uses it?</source><target>تغييرها في كل منتج يستخدمها؟</target></trans-unit>
+      <trans-unit id="rm.confirm_body" datatype="html"><source>These products are changed from the next quote: <x id="NAMES" equiv-text="names"/>. Offers already issued keep their own figures.</source><target>تتغير هذه المنتجات بدءًا من العرض التالي: <x id="NAMES" equiv-text="names"/>. العروض الصادرة تحتفظ بأرقامها.</target></trans-unit>
+      <trans-unit id="rm.refused" datatype="html"><source>Saved, but these products could not take the change and kept their old copy: <x id="NAMES" equiv-text="names"/>.</source><target>تم الحفظ، لكن هذه المنتجات لم تقبل التغيير واحتفظت بنسختها القديمة: <x id="NAMES" equiv-text="names"/>.</target></trans-unit>
+      <trans-unit id="rm.saved_n" datatype="html"><source>Method saved and <x id="N" equiv-text="n"/> product(s) updated.</source><target>تم حفظ الطريقة وتحديث <x id="N" equiv-text="n"/> منتج.</target></trans-unit>
+      <trans-unit id="rm.used_by" datatype="html"><source>Used by:</source><target>مستخدمة في:</target></trans-unit>
+      <trans-unit id="rm.used_none" datatype="html"><source>Not used by any product</source><target>غير مستخدمة في أي منتج</target></trans-unit>
+      <trans-unit id="rm.delete_body2" datatype="html"><source>It leaves the list. No product uses it.</source><target>ستُزال من القائمة. لا يستخدمها أي منتج.</target></trans-unit>
+      <trans-unit id="ps.ready_tag" datatype="html"><source>Ready method</source><target>طريقة جاهزة</target></trans-unit>
+      <trans-unit id="ps.show_amounts" datatype="html"><source>Show amounts</source><target>عرض المبالغ</target></trans-unit>
+      <trans-unit id="ps.hide_amounts" datatype="html"><source>Hide amounts</source><target>إخفاء المبالغ</target></trans-unit>
+      <trans-unit id="ps.ready_method" datatype="html"><source>Ready method</source><target>الطريقة الجاهزة</target></trans-unit>
     </body>
   </file>
 </xliff>

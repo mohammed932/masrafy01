@@ -20,6 +20,10 @@ import { ProductAsksService } from './asks/product-asks.service';
 import { ProductAsksRepository } from './asks/product-asks.repository';
 import { SurrogateProductLifecycleService } from './products/surrogate-product-lifecycle.service';
 
+import { MethodTemplatesController } from './methods/method-templates.controller';
+import { MethodTemplatesService } from './methods/method-templates.service';
+import { MethodTemplatesRepository } from './methods/method-templates.repository';
+
 @Module({
   // `QuestionnaireModule` because building a predefined product creates the questions it
   // asks — the same service an operator's clicks go through, so every refusal and every
@@ -35,6 +39,9 @@ import { SurrogateProductLifecycleService } from './products/surrogate-product-l
     forwardRef(() => QuestionnaireModule),
   ],
   controllers: [
+    // Before BankProgramsController: its `:programCode` route would otherwise take
+    // `method-templates` for a program code.
+    MethodTemplatesController,
     BankProgramsController,
     BankProgramsMobileController,
     ProgramOptionsController,
@@ -49,6 +56,8 @@ import { SurrogateProductLifecycleService } from './products/surrogate-product-l
     ProgramOptionsService,
     SeedService,
     BlueprintService,
+    MethodTemplatesService,
+    MethodTemplatesRepository,
     // The ask door on a product's step ①. Its own provider rather than methods on
     // `BankProgramsService`, which deliberately injects no `QuestionnaireService` — a tick
     // publishes the questionnaire, and that service's positional constructor is pinned by

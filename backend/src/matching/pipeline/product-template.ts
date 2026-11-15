@@ -175,7 +175,15 @@ type MechanismShape =
  * would (`<head>__<branch>`, `<head>_pick`), so moving a column from the product onto its one
  * way that needs it is not a rename either.
  */
-export type TemplateMechanism = MechanismShape & { column?: TemplateColumn };
+export type TemplateMechanism = MechanismShape & {
+  column?: TemplateColumn;
+  /**
+   * The ready method this way is LINKED to (v37.0.0, `method_template.key`). Saving that
+   * method rewrites this way and its figures on every product linked to it. The compiler
+   * never reads it: a quote prices the way stored here, linked or not.
+   */
+  methodKey?: string;
+};
 
 /**
  * What an adjustment acts on.
@@ -535,6 +543,7 @@ export const TEMPLATE_INVALID_REASONS = [
   'second_column_branch_on_invalid',
   'second_column_groups_invalid',
   'class_groups_invalid',
+  'method_key_invalid',
   'condition_id_invalid',
   'condition_duplicate_id',
   'unknown_condition_test',
@@ -746,6 +755,12 @@ function columnProblem(column: TemplateColumn): TemplateViolation | undefined {
 function validateMechanism(mechanism: TemplateMechanism): TemplateViolation | undefined {
   if (!(TEMPLATE_MECHANISMS as readonly string[]).includes(mechanism.kind)) {
     return { reason: 'unknown_mechanism', detail: String(mechanism.kind) };
+  }
+  if (
+    mechanism.methodKey !== undefined &&
+    (typeof mechanism.methodKey !== 'string' || !/^[a-z0-9_]{1,64}$/.test(mechanism.methodKey))
+  ) {
+    return { reason: 'method_key_invalid' };
   }
   if (mechanism.kind === 'flatAmount') return undefined;
   if (!mechanism.fact) return { reason: 'mechanism_needs_fact', detail: mechanism.kind };

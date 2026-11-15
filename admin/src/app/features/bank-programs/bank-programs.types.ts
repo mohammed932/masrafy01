@@ -1256,6 +1256,39 @@ export interface TemplateColumn {
 }
 
 /** One of a product's own groups. `key` never changes on a rename: figures hang off it. */
+/**
+ * A ready method (v37.0.0): one way of working out a product's amount, picked on the product
+ * page and COPIED into it. `figures` is keyed by column: `''` = the first, else a branch key.
+ */
+export interface MethodTemplate {
+  key: string;
+  labelEn: string;
+  labelAr: string;
+  mechanism: TemplateMechanism;
+  figures: Record<string, StepFigures>;
+  /** `seed` = shipped with the platform, `operator` = added on the dashboard. */
+  source: string;
+  sortOrder: number;
+  updatedAt: string;
+  /** Products with a method linked to it: a save changes them, and a delete is refused. */
+  usedBy: Array<{ key: string; labelEn: string; labelAr: string }>;
+}
+
+/** A save, and what it did to the products linked to the method. */
+export interface MethodTemplateSaved extends MethodTemplate {
+  propagation: {
+    updated: string[];
+    refused: Array<{ key: string; code: string; meta?: Record<string, unknown> }>;
+  };
+}
+
+export interface MethodTemplateWrite {
+  labelEn: string;
+  labelAr: string;
+  mechanism: TemplateMechanism;
+  figures: Record<string, StepFigures>;
+}
+
 export interface TemplateGroup {
   key: string;
   labelEn: string;
@@ -1276,7 +1309,11 @@ type MechanismShape =
  * One way, optionally split into columns of its own. `column` is carried by the form and
  * never authored there yet — see `product-template.page.ts` `wayGroup`.
  */
-export type TemplateMechanism = MechanismShape & { column?: TemplateColumn };
+export type TemplateMechanism = MechanismShape & {
+  column?: TemplateColumn;
+  /** The ready method this way is linked to (v37.0.0); saving that method rewrites the way. */
+  methodKey?: string;
+};
 
 export type ConditionMeasure = { of: 'fact'; fact: string } | { of: 'answer' };
 

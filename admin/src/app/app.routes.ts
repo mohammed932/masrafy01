@@ -82,6 +82,15 @@ export const APP_ROUTES: Routes = [
     loadChildren: () => import('./features/lookups/lookups.routes').then((m) => m.LOOKUPS_ROUTES),
   },
   {
+    // Ready methods (v37.0.0) — the ways a product's amount can be worked out, picked on a
+    // product's Amount step and copied into it.
+    path: 'ready-methods',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
+    loadChildren: () =>
+      import('./features/ready-methods/ready-methods.routes').then((m) => m.READY_METHODS_ROUTES),
+  },
+  {
     // Program catalog — CRUD for predefined loan program names (program_name enum).
     path: 'program-catalog',
     canActivate: [authGuardFn],

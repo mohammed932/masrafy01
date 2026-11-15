@@ -1874,3 +1874,28 @@ model ApplicationAnswer {
   @@index([applicationId], name: "idx_application_answer_application")
   @@map("application_answer")
 }
+
+/// A ready-made way of working out a product's amount (v37.0.0) — picked from a list on the
+/// product page and COPIED into the product, so editing or deleting one here never moves a
+/// live product. `seed` rows come from `METHOD_TEMPLATE_SEEDS` and are inserted only when
+/// their key is missing; a deleted one is tombstoned (`deletedAt`) so it is never put back.
+model MethodTemplate {
+  id         String    @id @default(cuid()) @db.VarChar(30)
+  key        String    @unique @db.VarChar(64)
+  labelEn    String    @db.VarChar(120)
+  labelAr    String    @db.VarChar(120)
+  /// The way itself: `TemplateMechanism` (kind, fact, column, own groups).
+  mechanism  Json
+  /// Default figures by column: `''` = the first column, else the column's branch key.
+  figures    Json      @default("{}")
+  /// `seed` | `operator`.
+  source     String    @db.VarChar(16)
+  sortOrder  Int       @default(0)
+  deletedAt  DateTime? @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedBy  String?   @db.VarChar(30)
+
+  @@index([deletedAt, sortOrder], name: "idx_method_template_live_order")
+  @@map("method_template")
+}

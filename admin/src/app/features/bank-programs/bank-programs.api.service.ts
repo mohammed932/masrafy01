@@ -3,6 +3,9 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type {
+  MethodTemplate,
+  MethodTemplateSaved,
+  MethodTemplateWrite,
   BankProgramCreatePayload,
   BankProgramListRow,
   BankProgramResponse,
@@ -411,6 +414,42 @@ export class BankProgramsApiService {
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/template`,
         payload,
+      ),
+    );
+  }
+
+  // --- Ready methods (v37.0.0) ---------------------------------------------------
+
+  /** Every ready method, in list order. */
+  async listMethodTemplates(): Promise<SuccessEnvelope<MethodTemplate[]>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<MethodTemplate[]>>(`${this.base}/method-templates`),
+    );
+  }
+
+  async createMethodTemplate(body: MethodTemplateWrite): Promise<SuccessEnvelope<MethodTemplate>> {
+    return firstValueFrom(
+      this.http.post<SuccessEnvelope<MethodTemplate>>(`${this.base}/method-templates`, body),
+    );
+  }
+
+  /** Rewrites the method on every product linked to it; the response says which. */
+  async updateMethodTemplate(
+    key: string,
+    body: Partial<MethodTemplateWrite>,
+  ): Promise<SuccessEnvelope<MethodTemplateSaved>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<MethodTemplateSaved>>(
+        `${this.base}/method-templates/${encodeURIComponent(key)}`,
+        body,
+      ),
+    );
+  }
+
+  async deleteMethodTemplate(key: string): Promise<SuccessEnvelope<{ key: string }>> {
+    return firstValueFrom(
+      this.http.delete<SuccessEnvelope<{ key: string }>>(
+        `${this.base}/method-templates/${encodeURIComponent(key)}`,
       ),
     );
   }

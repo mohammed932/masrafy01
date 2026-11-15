@@ -104,7 +104,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      primary: { kind: 'choiceTable', fact: 'military_grade' },
+      primary: { kind: 'choiceTable', fact: 'military_grade', methodKey: 'military_grade' },
       conditions: [],
     },
   },
@@ -157,7 +157,11 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      primary: { kind: 'choiceTable', fact: 'academic_rank' },
+      primary: {
+        kind: 'choiceTable',
+        fact: 'academic_rank',
+        methodKey: 'academic_rank_university',
+      },
       // A bank that publishes one column leaves the second blank and reads the first. The
       // column exists because one sheet prints two.
       secondColumn: { fact: 'university_type', branches: ['uni_government', 'uni_private'] },
@@ -220,7 +224,11 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      primary: { kind: 'numberBand', fact: 'years_in_practice' },
+      primary: {
+        kind: 'numberBand',
+        fact: 'years_in_practice',
+        methodKey: 'years_in_practice_city',
+      },
       // Keyed by the TIER, not by the governorate. One bank groups Cairo and Alexandria
       // against everywhere else, another groups eight governorates against everywhere else,
       // and neither "everywhere else" is the other's — so the branches are whole classes and
@@ -309,7 +317,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      primary: { kind: 'numberBand', fact: 'years_in_practice' },
+      primary: { kind: 'numberBand', fact: 'years_in_practice', methodKey: 'years_in_practice' },
       // `not_at_a_hospital` is in the allow-list on purpose: the exclusion is about a
       // GOVERNMENT hospital, and everyone else is already priced out by the years band and
       // this programme's accepted employment types. Allow-listing only `private_hospital`
@@ -340,7 +348,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      primary: { kind: 'shareOf', fact: 'credit_card_limit' },
+      primary: { kind: 'shareOf', fact: 'credit_card_limit', methodKey: 'card_limit_share' },
       conditions: [],
     },
   },
@@ -406,8 +414,12 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       outputKind: 'monthlyIncome',
       // The genuine same-unit `minOf` the design keeps inside the rule: income against
       // income, three times the instalment or a share of the loan, whichever is lower.
-      primary: { kind: 'multipleOf', fact: 'car_loan_installment' },
-      alternatives: [{ kind: 'shareOf', fact: 'auto_loan_amount' }],
+      primary: {
+        kind: 'multipleOf',
+        fact: 'car_loan_installment',
+        methodKey: 'car_instalment_times',
+      },
+      alternatives: [{ kind: 'shareOf', fact: 'auto_loan_amount', methodKey: 'car_loan_share' }],
       combine: 'lower',
       // ONE way with two terms, not two ways: the sheet's whole sentence is the method and a
       // bank fills both halves of it. `waysOfRule` folds the heads into one way, so a program
@@ -472,7 +484,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'monthlyIncome',
-      primary: { kind: 'shareOf', fact: 'pledged_free_amount' },
+      primary: { kind: 'shareOf', fact: 'pledged_free_amount', methodKey: 'pledged_share' },
       conditions: [
         {
           id: 'heldlongenough',
@@ -726,6 +738,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       primary: {
         kind: 'classTable',
         fact: 'compound_name',
+        methodKey: 'compound_class',
         // The class table's second column IS new-loan/top-up: spec §7 prints the worked
         // example and `sheet-figures.ts` seeds both of its columns. Per-way now rather than
         // product-level, which is the whole correction — one column reaching all five ways is
@@ -736,6 +749,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         {
           kind: 'numberBand',
           fact: 'unit_down_payment',
+          methodKey: 'compound_down_payment',
           // FABMISR's second column, on THIS way and not on the product.
           //
           // It was `secondColumn: loan_is_topup` at product level, reaching all five ways —
@@ -760,10 +774,11 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
         // catalog's and `ABK-PERSONAL-7110`'s own (that duplicate was deleted 2026-10-26) —
         // held 15%, byte-identical to the standard column beside them, so the column stated
         // nothing and a slot every bank is expected to fill is worse than no slot at all.
-        { kind: 'shareOf', fact: 'unit_paid_to_date' },
+        { kind: 'shareOf', fact: 'unit_paid_to_date', methodKey: 'compound_paid_share' },
         {
           kind: 'choiceTable',
           fact: 'owned_unit_type',
+          methodKey: 'unit_type',
           // A real top-up column too — the catalog's two sets differ (2M/3M/4M against
           // 3M/3.5M/4.5M), so this one says something.
           column: { fact: 'loan_is_topup', branches: ['new_loan', 'top_up'] },
@@ -911,7 +926,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'maxAmount',
-      primary: { kind: 'choiceTable', fact: 'school_stage' },
+      primary: { kind: 'choiceTable', fact: 'school_stage', methodKey: 'school_stage_type' },
       secondColumn: {
         fact: 'school_type',
         branches: ['school_national', 'school_international'],
@@ -960,7 +975,7 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
     template: {
       version: 1,
       outputKind: 'maxAmount',
-      primary: { kind: 'choiceTable', fact: 'club_branch' },
+      primary: { kind: 'choiceTable', fact: 'club_branch', methodKey: 'club_branch' },
       conditions: [],
     },
     openQuestion: 'DBR_PERCENT_UNCONFIRMED',
@@ -1110,11 +1125,16 @@ const BLUEPRINTS: readonly ProductBlueprint[] = Object.freeze([
       // a share of income — so income = down payment ÷ (months × share). ONE divisor, and it
       // is the number the sheet prints. Way 1 keeps the bare `primary` slot the five
       // down-payment programmes have always filed under (§5.4).
-      primary: { kind: 'dividedBy', fact: 'car_down_payment' },
+      primary: {
+        kind: 'dividedBy',
+        fact: 'car_down_payment',
+        methodKey: 'car_down_payment_divided',
+      },
       alternatives: [
         {
           kind: 'dividedBy',
           fact: 'total_savings',
+          methodKey: 'savings_divided',
           // The two divisors are a different sentence per BUYER, not a different mechanism:
           // an instalment buyer's savings are read over one horizon and a cash buyer's over
           // another, and the applicant's answer picks the column at quote time. On THIS way

@@ -44,6 +44,20 @@ The names were typed when you created it; change them here if needed.
 2. At the top, under "What does the amount mean?", click **The biggest loan they can get**. This is
    what makes the share checkbox and the debt-burden line appear further down.
 
+**Shortcut — ready methods.** Each of the four methods below is also a ready method. Instead of
+building one by hand, choose it in **Use a ready method** (shown on an empty method) and its
+questions, columns, groups and amounts are filled in; then skip to the next method:
+
+| Method | Pick in "Use a ready method" |
+| --- | --- |
+| 1 | By compound class (new loan or top-up) |
+| 2 | By down payment on the unit (holds a product here or not) |
+| 3 | A share of what was paid for the unit |
+| 4 | By kind of unit (new loan or top-up) |
+
+For methods 2–4, click **+ Add another method (some banks work it out differently)** (or **+ Method**)
+first to get an empty method. The steps below are the same thing by hand.
+
 **Method 1: by compound**
 
 1. Click **+ Pick questions**.
@@ -144,6 +158,9 @@ Nothing to do: the names were typed when you created it.
 
 1. Click **Amount**.
 2. Under "What does the amount mean?" leave **A salary we count for them** (the default).
+
+**Shortcut:** in **Use a ready method** choose **By years in practice** — it fills steps 3–7.
+
 3. Click **+ Pick questions**.
 4. Tick **Years in practice**.
 5. Click **Done**.
@@ -168,3 +185,6 @@ product.
 
 "Who can't get it" (the rules that turn a customer away) is hidden on the product page for now.
 The live products' rules stay stored and are not touched by a save.
+
+Ready methods are managed under **Ready methods** in the sidebar (add, change, delete). A pick is
+a copy: changing a ready method later does not change a product that already used it.

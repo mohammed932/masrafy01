@@ -364,6 +364,12 @@ export const ERROR_CODES = {
    * product's own URL when this fires.
    */
   SURROGATE_PRODUCT_NOT_FOUND: 'SURROGATE_PRODUCT_NOT_FOUND',
+  /** A ready method (v37.0.0) that does not exist, or was deleted. */
+  METHOD_TEMPLATE_NOT_FOUND: 'METHOD_TEMPLATE_NOT_FOUND',
+  /** Another ready method already has that English name. */
+  METHOD_TEMPLATE_NAME_TAKEN: 'METHOD_TEMPLATE_NAME_TAKEN',
+  /** A ready method products are linked to: unlink them first (meta.products). */
+  METHOD_TEMPLATE_IN_USE: 'METHOD_TEMPLATE_IN_USE',
   /**
    * A catalog program name was linked to a product that guesses NO income — one of the
    * cap-only products, which ask their question and leave the maximum to each bank's own
@@ -1196,6 +1202,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   SURROGATE_PRODUCT_REQUIRED: 422,
   // 409, like the two above: state, not shape.
   SURROGATE_PRODUCT_IN_USE: 409,
+  METHOD_TEMPLATE_NOT_FOUND: 404,
+  METHOD_TEMPLATE_NAME_TAKEN: 409,
+  METHOD_TEMPLATE_IN_USE: 409,
   SURROGATE_PRODUCT_NOT_READY: 409,
   PROGRAM_NAME_RULE_LINKED: 422,
   SURROGATE_PRODUCT_NOT_FOUND: 404,
