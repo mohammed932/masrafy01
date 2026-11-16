@@ -118,6 +118,8 @@ export interface TemplateColumn {
    * or classes of a shared list.
    */
   groups?: TemplateGroup[];
+  /** The Manage values list the column's answers are read from (v37.0.0); see the mechanism's. */
+  listType?: string;
 }
 
 /** One of a product's own groups. `key` is a slot id fragment, so it never changes on a rename. */
@@ -183,6 +185,14 @@ export type TemplateMechanism = MechanismShape & {
    * never reads it: a quote prices the way stored here, linked or not.
    */
   methodKey?: string;
+  /**
+   * The Manage values list this way's answers are read from (v37.0.0), when the operator
+   * picked one: its values are the rows (per answer) or what is filed into groups (per
+   * group). The engine never reads it — an answer finds its row or group by its CODE — so it
+   * only decides which list's rows a product's groups are filed by. Absent = the list the
+   * question's answers match, found by coverage.
+   */
+  listType?: string;
 };
 
 /**
@@ -542,6 +552,7 @@ export const TEMPLATE_INVALID_REASONS = [
   'unknown_adjustment_scope',
   'second_column_branch_on_invalid',
   'second_column_groups_invalid',
+  'list_type_invalid',
   'class_groups_invalid',
   'method_key_invalid',
   'condition_id_invalid',
@@ -752,6 +763,12 @@ function columnProblem(column: TemplateColumn): TemplateViolation | undefined {
   return undefined;
 }
 
+const LIST_TYPE = /^[a-zA-Z0-9_-]{1,48}$/;
+
+function validListType(value: unknown): boolean {
+  return value === undefined || (typeof value === 'string' && LIST_TYPE.test(value));
+}
+
 function validateMechanism(mechanism: TemplateMechanism): TemplateViolation | undefined {
   if (!(TEMPLATE_MECHANISMS as readonly string[]).includes(mechanism.kind)) {
     return { reason: 'unknown_mechanism', detail: String(mechanism.kind) };
@@ -761,6 +778,9 @@ function validateMechanism(mechanism: TemplateMechanism): TemplateViolation | un
     (typeof mechanism.methodKey !== 'string' || !/^[a-z0-9_]{1,64}$/.test(mechanism.methodKey))
   ) {
     return { reason: 'method_key_invalid' };
+  }
+  if (!validListType(mechanism.listType) || !validListType(mechanism.column?.listType)) {
+    return { reason: 'list_type_invalid' };
   }
   if (mechanism.kind === 'flatAmount') return undefined;
   if (!mechanism.fact) return { reason: 'mechanism_needs_fact', detail: mechanism.kind };

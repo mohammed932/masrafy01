@@ -5481,6 +5481,28 @@
       <trans-unit id="rm.q_cols" datatype="html"><source>Columns (optional): split the amounts by another answer</source><target>الأعمدة (اختياري): قسّم المبالغ حسب إجابة أخرى</target></trans-unit>
       <trans-unit id="rm.axis_rows" datatype="html"><source>Rows</source><target>الصفوف</target></trans-unit>
       <trans-unit id="rm.axis_cols" datatype="html"><source>Columns</source><target>الأعمدة</target></trans-unit>
+      <trans-unit id="rm.src_list" datatype="html"><source>Values: the <x id="INTERPOLATION" equiv-text="{{ listName(t) }}"/> list in Manage values (<x id="INTERPOLATION_1" equiv-text="{{ f.options.length }}"/>)</source><target>القيم: قائمة <x id="INTERPOLATION" equiv-text="{{ listName(t) }}"/> في إدارة القيم (<x id="INTERPOLATION_1" equiv-text="{{ f.options.length }}"/>)</target></trans-unit>
+      <trans-unit id="rm.src_open" datatype="html"><source>Open</source><target>فتح</target></trans-unit>
+      <trans-unit id="rm.src_derived" datatype="html"><source>Values: worked out by the platform (<x id="INTERPOLATION" equiv-text="{{ f.options.length }}"/>)</source><target>القيم: تحسبها المنصة (<x id="INTERPOLATION" equiv-text="{{ f.options.length }}"/>)</target></trans-unit>
+      <trans-unit id="rm.src_own" datatype="html"><source>Values: the question&apos;s own answers (<x id="INTERPOLATION" equiv-text="{{ f.options.length }}"/>)</source><target>القيم: إجابات السؤال نفسه (<x id="INTERPOLATION" equiv-text="{{ f.options.length }}"/>)</target></trans-unit>
+      <trans-unit id="ps.linked_note3" datatype="html"><source> Its questions and how come from the method. Its groups and amounts were copied from it and are this product&apos;s own: changes here are for this product only. </source><target> أسئلته وطريقته تأتي من الطريقة. مجموعاته ومبالغه نُسخت منها وأصبحت خاصة بهذا المنتج: التغييرات هنا لهذا المنتج فقط. </target></trans-unit>
+      <trans-unit id="ps.row_groups_edit" datatype="html"><source>Edit row groups</source><target>تعديل مجموعات الصفوف</target></trans-unit>
+      <trans-unit id="ps.col_groups_edit" datatype="html"><source>Edit column groups</source><target>تعديل مجموعات الأعمدة</target></trans-unit>
+      <trans-unit id="rm.rows_from" datatype="html"><source>Rows: values from</source><target>الصفوف: القيم من</target></trans-unit>
+      <trans-unit id="rm.rows_q" datatype="html"><source>Rows: question</source><target>الصفوف: السؤال</target></trans-unit>
+      <trans-unit id="rm.cols_from" datatype="html"><source>Columns (optional): values from</source><target>الأعمدة (اختياري): القيم من</target></trans-unit>
+      <trans-unit id="rm.cols_q" datatype="html"><source>Columns: question</source><target>الأعمدة: السؤال</target></trans-unit>
+      <trans-unit id="rm.open_list" datatype="html"><source>Open the list in Manage values</source><target>افتح القائمة في إدارة القيم</target></trans-unit>
+      <trans-unit id="rm.src_number" datatype="html"><source>A number the customer types</source><target>رقم يكتبه العميل</target></trans-unit>
+      <trans-unit id="rm.src_own_opt" datatype="html"><source>A question&apos;s own answers</source><target>إجابات السؤال نفسه</target></trans-unit>
+      <trans-unit id="rm.src_derived_opt" datatype="html"><source>Worked out by the platform</source><target>تحسبها المنصة</target></trans-unit>
+      <trans-unit id="rm.no_columns" datatype="html"><source>No columns</source><target>بدون أعمدة</target></trans-unit>
+      <trans-unit id="rm.src_list_opt" datatype="html"><source><x id="LIST" equiv-text="l.label"/> (Manage values)</source><target><x id="LIST" equiv-text="l.label"/> (إدارة القيم)</target></trans-unit>
+      <trans-unit id="ps.rows_values_from" datatype="html"><source>Rows: values from</source><target>الصفوف: القيم من</target></trans-unit>
+      <trans-unit id="ps.cols_values_from" datatype="html"><source>Columns: values from</source><target>الأعمدة: القيم من</target></trans-unit>
+      <trans-unit id="rm.values_from" datatype="html"><source>Values from</source><target>القيم من</target></trans-unit>
+      <trans-unit id="rm.src_derived_note" datatype="html"><source>Worked out by the platform: no list.</source><target>تحسبها المنصة: بدون قائمة.</target></trans-unit>
+      <trans-unit id="rm.src_own_note" datatype="html"><source> The question&apos;s own answers: no list in Manage values has them all. </source><target> إجابات السؤال نفسه: لا توجد قائمة في إدارة القيم تحتويها كلها. </target></trans-unit>
     </body>
   </file>
 </xliff>

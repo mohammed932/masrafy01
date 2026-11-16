@@ -1253,6 +1253,8 @@ export interface TemplateColumn {
   branchOn?: 'answer' | 'parentClass';
   /** The product's own groups, one per branch in branch order (v36.1.0). */
   groups?: TemplateGroup[];
+  /** The Manage values list its answers are read from (v37.0.0). */
+  listType?: string;
 }
 
 /** One of a product's own groups. `key` never changes on a rename: figures hang off it. */
@@ -1282,6 +1284,10 @@ export interface MethodQuestion {
   labelAr: string;
   labelEn: string;
   type: string;
+  /** The Manage values list whose values are its answers, or null. */
+  listType: string | null;
+  /** Every list whose values cover all of its answers. */
+  listTypes: string[];
   /** The fact bound to it, or null when picking it binds one. */
   factKey: string | null;
 }
@@ -1326,6 +1332,8 @@ export type TemplateMechanism = MechanismShape & {
   column?: TemplateColumn;
   /** The ready method this way is linked to (v37.0.0); saving that method rewrites the way. */
   methodKey?: string;
+  /** The Manage values list its answers are read from (v37.0.0); absent = the one that matches. */
+  listType?: string;
 };
 
 export type ConditionMeasure = { of: 'fact'; fact: string } | { of: 'answer' };

@@ -44,6 +44,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { GroupBoardComponent, type BoardAnswer } from '@shared/groups/group-board.component';
 import { SearchSelectComponent, type SearchSelectOption } from '@shared/ui/search-select.component';
+import type { MethodQuestion } from '@features/bank-programs/bank-programs.types';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DERIVED_FACTS, derivedFactByKey } from '@core/surrogate-facts';
 import { suggestedBandsBySlot } from '@shared/income-rule/suggested-bands';
@@ -216,11 +217,39 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                 <b>{{ linkedName(i) }}</b>
               </div>
               <p class="msum">{{ linkedSummary(i) }}</p>
-              <p class="hint" i18n="@@ps.linked_note2">
-                Its questions, how and groups come from the method. The amounts below are this
-                product's own: change them here.
+              <p class="hint" i18n="@@ps.linked_note3">
+                Its questions and how come from the method. Its groups and amounts were copied
+                from it and are this product's own: changes here are for this product only.
               </p>
+              @if (wayKind(i) === 'classTable' || colGrouped(i)) {
+                <div class="mgroups">
+                  @if (wayKind(i) === 'classTable') {
+                    <button type="button" class="link" (click)="toggleEditor(i, 'row')">
+                      @if (editorOpen() === i + ':row') {
+                        <span i18n="@@ps.groups_done">Done with groups</span>
+                      } @else {
+                        <span i18n="@@ps.row_groups_edit">Edit row groups</span>
+                      }
+                    </button>
+                  }
+                  @if (colGrouped(i)) {
+                    <button type="button" class="link" (click)="toggleEditor(i, 'col')">
+                      @if (editorOpen() === i + ':col') {
+                        <span i18n="@@ps.groups_done">Done with groups</span>
+                      } @else {
+                        <span i18n="@@ps.col_groups_edit">Edit column groups</span>
+                      }
+                    </button>
+                  }
+                </div>
+              }
             </div>
+            @if (wayKind(i) === 'classTable' && editorOpen() === i + ':row') {
+              <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'row' }" />
+            }
+            @if (colGrouped(i) && editorOpen() === i + ':col') {
+              <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'col' }" />
+            }
           }
           <!-- The shape (questions, how, columns, groups): the product's own, or the method's. -->
           @if (linkedKey(i) === '') {
@@ -438,6 +467,35 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                   @if (columnMode(column) === 'groups' && editorOpen() === i + ':col') {
                     <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'col' }" />
                   }
+                }
+              }
+            </div>
+          }
+          <!-- Where the answers come from: a Manage values list, picked per product. -->
+          @if (listsOf(wayFactValue(i)).length > 0 || (wayColumn(i) && listsOf(wayColumn(i)!.fact).length > 0)) {
+            <div class="vfrom">
+              @if (listsOf(wayFactValue(i)).length > 0) {
+                <div class="vf">
+                  <span class="vf-l" i18n="@@ps.rows_values_from">Rows: values from</span>
+                  <app-search-select
+                    [options]="listOpts(wayFactValue(i))"
+                    [value]="listTypeOf(wayFactValue(i)) ?? ''"
+                    [ariaLabel]="valuesFromAria"
+                    (changed)="setWayList(i, 'row', $event)"
+                  />
+                </div>
+              }
+              @if (wayColumn(i); as column) {
+                @if (listsOf(column.fact).length > 0) {
+                  <div class="vf">
+                    <span class="vf-l" i18n="@@ps.cols_values_from">Columns: values from</span>
+                    <app-search-select
+                      [options]="listOpts(column.fact)"
+                      [value]="listTypeOf(column.fact) ?? ''"
+                      [ariaLabel]="valuesFromAria"
+                      (changed)="setWayList(i, 'col', $event)"
+                    />
+                  </div>
                 }
               }
             </div>
@@ -995,6 +1053,27 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
       .wayset:disabled select {
         background: var(--color-surface-muted);
         color: var(--color-text-primary);
+      }
+      .vfrom {
+        inline-size: 100%;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+        gap: var(--space-3) var(--space-4);
+      }
+      .vf {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+      .vf-l {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .mgroups {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2) var(--space-4);
       }
       .mcard {
         inline-size: 100%;
@@ -1588,6 +1667,20 @@ export class ProductTemplatePage implements OnInit {
   }
 
   ngOnInit(): void {
+    void this.api.listMethodQuestions().then((r) => this.methodQuestions.set(r.data));
+    void this.lookups.listTypes().then((rows) => {
+      this.listNames.set(
+        Object.fromEntries(
+          rows.map((r) => [
+            r.type,
+            (this.isAr ? r.definition?.labelAr : r.definition?.labelEn) ?? r.type,
+          ]),
+        ),
+      );
+      this.listParents.set(
+        Object.fromEntries(rows.map((r) => [r.type, r.definition?.parentTypeKey ?? null])),
+      );
+    });
     this.key = this.embeddedKey() ?? '';
     void this.enums.load('surrogate_fact');
     this.form.valueChanges.subscribe(() => {
@@ -2035,7 +2128,8 @@ export class ProductTemplatePage implements OnInit {
   /** Its answers come from a list long enough to group (or already grouped). */
   protected groupable(key: string): boolean {
     const q = this.factOf(key)?.question;
-    if (q?.type !== 'SINGLE_SELECT' || q.optionsEnumerationType === undefined) return false;
+    if (q?.type !== 'SINGLE_SELECT') return false;
+    if (q.optionsEnumerationType === undefined && this.listsOf(key).length === 0) return false;
     return (q.parentOptions?.length ?? 0) > 0 || (q.options?.length ?? 0) > 3;
   }
 
@@ -2080,6 +2174,12 @@ export class ProductTemplatePage implements OnInit {
 
   protected readonly editorOpen = signal<string | null>(null);
 
+  /** The way's columns are groups of one answer (not one column per answer). */
+  protected colGrouped(i: number): boolean {
+    const column = this.wayColumn(i);
+    return column !== null && this.columnMode(column) === 'groups';
+  }
+
   protected toggleEditor(i: number, axis: 'row' | 'col'): void {
     const id = `${i}:${axis}`;
     this.editorOpen.set(this.editorOpen() === id ? null : id);
@@ -2092,14 +2192,18 @@ export class ProductTemplatePage implements OnInit {
    */
   private async seedGroups(i: number, axis: 'row' | 'col'): Promise<void> {
     const fact = this.axisFact(i, axis);
-    const shared = this.factOf(fact)?.question?.parentOptions ?? [];
     await this.ensureList(fact);
-    // A list with no groups of its own starts with none: the operator adds and names them.
-    const groups: TemplateGroup[] = shared.map((o) => ({
-      key: o.code,
-      labelEn: o.labelEn,
-      labelAr: o.labelAr,
-    }));
+    // The chosen list's own classes, the ones its answers are filed under, in the list's order;
+    // a list with none starts with none: the operator adds and names them.
+    const list = this.listTypeOf(fact);
+    const parentType = list !== null ? (this.listParents()[list] ?? null) : null;
+    const used = new Set(Object.values(this.pricedIn()[fact] ?? {}));
+    const groups: TemplateGroup[] =
+      parentType === null
+        ? []
+        : (await this.lookups.list(parentType))
+            .filter((r) => r.active && used.has(r.key))
+            .map((r) => ({ key: r.key, labelEn: r.labelEn, labelAr: r.labelAr }));
     if (this.placements()[fact] === undefined) {
       const keys = new Set(groups.map((g) => g.key));
       const now = this.pricedIn()[fact] ?? {};
@@ -2218,8 +2322,75 @@ export class ProductTemplatePage implements OnInit {
     this.dirty.set(true);
   }
 
-  private listTypeOf(key: string): string | null {
-    return this.facts().find((f) => f.key === key)?.question?.optionsEnumerationType ?? null;
+  /**
+   * The list each way reads its answers from (v37.0.0): any Manage values list whose values
+   * cover ALL of the question's answers. Picked per way and saved on the product (row:
+   * `listType` on the way, column: on the column); unpicked = the first that covers.
+   */
+  private readonly methodQuestions = signal<MethodQuestion[]>([]);
+  private readonly listNames = signal<Record<string, string>>({});
+  /** Each list's class list (the one its values are filed under), by list key. */
+  private readonly listParents = signal<Record<string, string | null>>({});
+  /** Per way index: the row list picked, or null for the default. */
+  private readonly wayLists = signal<(string | null)[]>([]);
+  protected readonly valuesFromAria = $localize`:@@rm.values_from:Values from`;
+
+  protected listsOf(fact: string): string[] {
+    if (fact === '' || fact === '__flat__') return [];
+    return this.methodQuestions().find((q) => q.factKey === fact)?.listTypes ?? [];
+  }
+
+  protected listOpts(fact: string): SearchSelectOption[] {
+    return this.listsOf(fact).map((t) => ({ value: t, label: this.listNames()[t] ?? t }));
+  }
+
+  protected listTypeOf(key: string): string | null {
+    const lists = this.listsOf(key);
+    for (const i of this.wayIndexes()) {
+      const picked = this.wayFactValue(i) === key ? this.wayLists()[i] : null;
+      if (picked && lists.includes(picked)) return picked;
+      const column = this.wayColumn(i);
+      if (column?.fact === key && column.listType && lists.includes(column.listType)) {
+        return column.listType;
+      }
+    }
+    return (
+      lists[0] ??
+      this.facts().find((f) => f.key === key)?.question?.optionsEnumerationType ??
+      null
+    );
+  }
+
+  /** Another list for one way: its values are the ones placed now, so the groups start over. */
+  protected setWayList(i: number, axis: 'row' | 'col', type: string): void {
+    const fact = axis === 'row' ? this.wayFactValue(i) : (this.wayColumn(i)?.fact ?? '');
+    if (fact === '' || type === this.listTypeOf(fact)) return;
+    if (axis === 'row') {
+      const next = [...this.wayLists()];
+      next[i] = type;
+      this.wayLists.set(next);
+    } else {
+      const column = this.wayColumn(i);
+      if (column) this.setWayColumn(i, { ...column, listType: type });
+    }
+    const drop = <T>(m: Record<string, T>): Record<string, T> => {
+      const { [fact]: _gone, ...rest } = m;
+      return rest;
+    };
+    this.valueIds.set(drop(this.valueIds()));
+    this.pricedIn.set(drop(this.pricedIn()));
+    this.placements.set(drop(this.placements()));
+    const grouped =
+      axis === 'row'
+        ? this.wayKind(i) === 'classTable'
+        : this.wayColumn(i) !== null && this.columnMode(this.wayColumn(i)!) === 'groups';
+    if (grouped) void this.seedGroups(i, axis);
+    this.dirty.set(true);
+  }
+
+  private rowListField(i: number): { listType?: string } {
+    const picked = this.wayLists()[i];
+    return picked && this.listsOf(this.wayFactValue(i)).includes(picked) ? { listType: picked } : {};
   }
 
   /** The list's row ids and where each answer is priced today, read once per list. */
@@ -2308,6 +2479,16 @@ export class ProductTemplatePage implements OnInit {
       for (const o of this.optionsOf(fact)) {
         const id = ids[o.code];
         if (id !== undefined) assignments.push({ valueId: id, parentKey: placed[o.code] ?? null });
+      }
+      // Placements left on another list for the same answers come off: an answer finds its
+      // group by its code, and two lists filing one code would leave the group to chance.
+      const chosen = this.listTypeOf(fact);
+      for (const other of this.listsOf(fact)) {
+        if (other === chosen) continue;
+        const own = await this.lookups.productGroups(this.key, other);
+        if (Object.keys(own).length === 0) continue;
+        const rows = await this.lookups.list(other);
+        for (const r of rows) if (own[r.key] !== undefined) assignments.push({ valueId: r.id, parentKey: null });
       }
     }
     if (assignments.length > 0) await this.lookups.setProductGroups(this.key, assignments);
@@ -2966,18 +3147,25 @@ export class ProductTemplatePage implements OnInit {
         : {}),
       // ONE way: its split is stated on the product, which is how every one-way product was
       // stored and compiles to the very same steps. Several: each way carries its own.
-      primary: mechanism(
-        v.primaryKind,
-        v.primaryFact,
-        single ? null : v.primaryColumn,
-        v.primaryGroups,
-        v.primaryMethod,
-      ),
+      primary: {
+        ...mechanism(
+          v.primaryKind,
+          v.primaryFact,
+          single ? null : v.primaryColumn,
+          v.primaryGroups,
+          v.primaryMethod,
+        ),
+        ...(v.primaryKind !== 'flatAmount' ? this.rowListField(0) : {}),
+      } as TemplateMechanism,
       ...(single && v.primaryColumn ? { secondColumn: v.primaryColumn } : {}),
       ...(!single
         ? {
-            alternatives: v.alternatives.map((way) =>
-              mechanism(way.kind, way.fact, way.column, way.groups, way.method),
+            alternatives: v.alternatives.map(
+              (way, k) =>
+                ({
+                  ...mechanism(way.kind, way.fact, way.column, way.groups, way.method),
+                  ...(way.kind !== 'flatAmount' ? this.rowListField(k + 1) : {}),
+                }) as TemplateMechanism,
             ),
           }
         : {}),
@@ -3070,6 +3258,9 @@ export class ProductTemplatePage implements OnInit {
     const productColumn = template.secondColumn ?? null;
     const ways =
       template.alternatives ?? (template.alternative === undefined ? [] : [template.alternative]);
+    this.wayLists.set(
+      [template.primary, ...ways].map((w) => (w.kind === 'flatAmount' ? null : (w.listType ?? null))),
+    );
     this.alternatives.clear({ emitEvent: false });
     for (const way of ways) {
       this.alternatives.push(
@@ -3268,6 +3459,9 @@ export class ProductTemplatePage implements OnInit {
     if (!m || m.mechanism.kind === 'flatAmount') return;
     const mech = m.mechanism;
     this.writeWay(i, mech.kind, mech.fact);
+    const lists = [...this.wayLists()];
+    lists[i] = mech.listType ?? null;
+    this.wayLists.set(lists);
     this.toSeed.add(i);
     const column = mech.column ? structuredClone(mech.column) : null;
     this.setWayColumn(i, column);

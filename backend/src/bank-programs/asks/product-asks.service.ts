@@ -517,13 +517,52 @@ export class ProductAsksService {
    * already bound to each one, or `null` when picking it will bind one (`ensureFact`).
    */
   async methodQuestions(): Promise<
-    Array<{ code: string; labelAr: string; labelEn: string; type: string; factKey: string | null }>
+    Array<{
+      code: string;
+      labelAr: string;
+      labelEn: string;
+      type: string;
+      factKey: string | null;
+      /** The Manage values list whose values ARE this question's answers, or null. */
+      listType: string | null;
+      /** Every list whose values cover all of its answers — what a method may read it from. */
+      listTypes: string[];
+    }>
   > {
-    const [pool, factRows, boundQuestions] = await Promise.all([
+    const [pool, factRows, boundQuestions, values] = await Promise.all([
       this.repo.factCandidateQuestions(),
       this.enums.listAll({ type: FACT_TYPE }),
       this.repo.boundQuestions({ type: FACT_TYPE }),
+      this.enums.listAll(),
     ]);
+    // The list a question draws on, by coverage: the one type whose active values cover ALL
+    // of its answer codes (the rule the fact registry uses). Two candidates or none = null.
+    const typesByKey = new Map<string, Set<string>>();
+    for (const v of values) {
+      if (!v.active || v.deprecatedAt !== null || v.type === FACT_TYPE) continue;
+      const set = typesByKey.get(v.key) ?? new Set<string>();
+      set.add(v.type);
+      typesByKey.set(v.key, set);
+    }
+    const listTypesOf = async (code: string): Promise<string[]> => {
+      const codes = await this.repo.questionOptionCodes(code);
+      if (codes.length === 0) return [];
+      let candidates: string[] | null = null;
+      for (const c of codes) {
+        const forCode = typesByKey.get(c);
+        if (!forCode) return [];
+        candidates =
+          candidates === null ? [...forCode] : candidates.filter((t: string) => forCode.has(t));
+        if (candidates.length === 0) return [];
+      }
+      return (candidates ?? []).sort();
+    };
+    const listTypes = new Map<string, string[]>();
+    await Promise.all(
+      pool
+        .filter((q) => q.type === 'SINGLE_SELECT')
+        .map(async (q) => listTypes.set(q.code, await listTypesOf(q.code))),
+    );
     const factKeyByQuestion = new Map<string, string>();
     for (const row of factRows) {
       const bound = boundQuestions.get(row.id);
@@ -537,6 +576,8 @@ export class ProductAsksService {
         labelEn: q.labelEn,
         type: q.type,
         factKey: factKeyByQuestion.get(q.code) ?? null,
+        listType: listTypes.get(q.code)?.length === 1 ? listTypes.get(q.code)![0]! : null,
+        listTypes: listTypes.get(q.code) ?? [],
       }));
   }
 

@@ -29,6 +29,7 @@ import {
   ExclamationCircleOutline,
   LinkOutline,
   PlusOutline,
+  UnorderedListOutline,
 } from '@ant-design/icons-angular/icons';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NzMessageService } from 'ng-zorro-antd/message';
@@ -84,6 +85,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       DeleteOutline,
       PlusOutline,
       CloseOutline,
+      UnorderedListOutline,
       LinkOutline,
       ExclamationCircleOutline,
     ]),
@@ -173,26 +175,32 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
 
         <section class="blk">
           <h2 i18n="@@ps.decides">What decides the amount?</h2>
-          <div class="fl wide">
-            <span i18n="@@rm.q_rows">Rows: the question that decides the amount</span>
-            <app-search-select
-              [options]="askableOpts()"
-              [value]="fact()"
-              [ariaLabel]="q1Aria"
-              (changed)="pickQuestion('row', $event)"
-            />
+          <div class="pick2">
+            <div class="fl">
+              <span i18n="@@rm.q_rows">Rows: the question that decides the amount</span>
+              <app-search-select
+                [options]="askableOpts()"
+                [value]="fact()"
+                [ariaLabel]="q1Aria"
+                (changed)="pickQuestion('row', $event)"
+              />
+            </div>
+            <ng-container *ngTemplateOutlet="listPick; context: { axis: 'row' }" />
           </div>
 
           @if (factOf(fact()); as f) {
-            <div class="fl wide">
-              <span i18n="@@rm.q_cols">Columns (optional): split the amounts by another answer</span>
-              <app-search-select
-                [options]="columnOpts()"
-                [value]="colFact()"
-                [clearLabel]="noSecond"
-                [ariaLabel]="q2Aria"
-                (changed)="pickQuestion('col', $event)"
-              />
+            <div class="pick2">
+              <div class="fl">
+                <span i18n="@@rm.q_cols">Columns (optional): split the amounts by another answer</span>
+                <app-search-select
+                  [options]="columnOpts()"
+                  [value]="colFact()"
+                  [clearLabel]="noSecond"
+                  [ariaLabel]="q2Aria"
+                  (changed)="pickQuestion('col', $event)"
+                />
+              </div>
+              <ng-container *ngTemplateOutlet="listPick; context: { axis: 'col' }" />
             </div>
 
             <div class="axes">
@@ -408,6 +416,53 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       }
     </app-form-page>
 
+    <ng-template #listPick let-axis="axis">
+      @if (factOf(axisFact(axis)); as f) {
+        @if (f.type === 'choice') {
+          <div class="fl">
+            <span i18n="@@rm.values_from">Values from</span>
+            @if (listsOf(axisFact(axis)).length > 0) {
+              <app-search-select
+                [options]="listOpts(axis)"
+                [value]="axisList(axis) ?? ''"
+                [ariaLabel]="valuesFromAria"
+                (changed)="setList(axis, $event)"
+              />
+              @if (axisList(axis); as t) {
+                <a class="vlink" [routerLink]="['/lookups']" [queryParams]="{ type: t }" i18n="@@rm.open_list"
+                  >Open the list in Manage values</a
+                >
+              }
+            } @else if (f.derived) {
+              <p class="vnote" i18n="@@rm.src_derived_note">Worked out by the platform: no list.</p>
+            } @else {
+              <p class="vnote" i18n="@@rm.src_own_note">
+                The question's own answers: no list in Manage values has them all.
+              </p>
+            }
+          </div>
+        }
+      }
+    </ng-template>
+
+    <ng-template #srcLine let-fact="fact">
+      @if (factOf(fact); as f) {
+        @if (f.type === 'choice') {
+          <p class="vsrc">
+            <span nz-icon nzType="unordered-list" nzTheme="outline" aria-hidden="true"></span>
+            @if (f.listType; as t) {
+              <span i18n="@@rm.src_list">Values: the {{ listName(t) }} list in Manage values ({{ f.options.length }})</span>
+              <a [routerLink]="['/lookups']" [queryParams]="{ type: t }" i18n="@@rm.src_open">Open</a>
+            } @else if (f.derived) {
+              <span i18n="@@rm.src_derived">Values: worked out by the platform ({{ f.options.length }})</span>
+            } @else {
+              <span i18n="@@rm.src_own">Values: the question's own answers ({{ f.options.length }})</span>
+            }
+          </p>
+        }
+      }
+    </ng-template>
+
     <ng-template #groupsEd let-axis="axis">
       <div class="groups">
         <p class="hint" i18n="@@rm.groups_own">
@@ -419,7 +474,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
           [placements]="placementsOf(axis)"
           [minGroups]="0"
           [question]="factOf(axisFact(axis))?.label ?? null"
-          [listType]="factOf(axisFact(axis))?.listType ?? null"
+          [listType]="axisList(axis)"
           [isAr]="isAr"
           (renamed)="renameGroup(axis, $event.key, $event.labelEn, $event.labelAr)"
           (added)="addGroup(axis)"
@@ -580,6 +635,53 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         flex-wrap: wrap;
         gap: var(--space-2) var(--space-3);
         align-items: center;
+      }
+      .pick2 {
+        inline-size: 100%;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+        gap: var(--space-3) var(--space-4);
+        align-items: start;
+      }
+      .vnote {
+        margin: 0;
+        padding: var(--space-2) var(--space-3);
+        border: 1px dashed var(--color-border-default);
+        border-radius: var(--radius-md);
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-regular);
+      }
+      .vlink {
+        align-self: flex-start;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-link);
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
+      .vlink:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .vsrc {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-1-5);
+        margin: 0;
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-regular);
+      }
+      .vsrc [nz-icon] {
+        color: var(--color-brand-primary);
+      }
+      .vsrc a {
+        color: var(--color-text-link);
+        font-weight: var(--font-weight-semibold);
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
       }
       .axes {
         inline-size: 100%;
@@ -820,6 +922,12 @@ export class ReadyMethodEditPage {
   protected readonly columnFacts = computed(() =>
     this.facts().filter((f) => f.type === 'choice' && f.key !== this.fact()),
   );
+  /** Manage values list names, by key — what "Values: the … list" names. */
+  private readonly listNames = signal<Record<string, string>>({});
+  protected listName(type: string): string {
+    return this.listNames()[type] ?? type;
+  }
+
   /** Every number or one-choice question in the system (v37.0.0), bound or not. */
   private readonly questions = signal<MethodQuestion[]>([]);
   /** A question with no fact yet is offered by its code, prefixed; picking it binds one. */
@@ -842,7 +950,59 @@ export class ReadyMethodEditPage {
     return out;
   }
   protected readonly askableOpts = computed(() => this.questionOpts(null, ''));
+
+  /**
+   * The list each axis's answers are read from (v37.0.0): any Manage values list whose values
+   * cover ALL of the question's answers. The picked one is saved on the method; unpicked, the
+   * first that covers. Its values are the rows (per answer) or what is filed into groups.
+   */
+  private readonly rowListPick = signal<string | null>(null);
+  private readonly colListPick = signal<string | null>(null);
+  /** Manage values lists by key: their names and the class list each is filed under. */
+  private readonly typeDefs = signal<Record<string, { name: string; parent: string | null }>>({});
+
+  protected listsOf(fact: string): string[] {
+    if (fact === '') return [];
+    const q = this.questions().find((x) =>
+      fact.startsWith(UNBOUND) ? x.code === fact.slice(UNBOUND.length) : x.factKey === fact,
+    );
+    return q?.listTypes ?? [];
+  }
+
+  protected axisList(axis: 'row' | 'col'): string | null {
+    const lists = this.listsOf(this.axisFact(axis));
+    const pick = axis === 'row' ? this.rowListPick() : this.colListPick();
+    return pick !== null && lists.includes(pick) ? pick : (lists[0] ?? null);
+  }
+
+  private listFor(fact: string): string | null {
+    if (fact === this.fact()) return this.axisList('row');
+    if (fact === this.colFact()) return this.axisList('col');
+    return this.listsOf(fact)[0] ?? null;
+  }
+
+  protected listOpts(axis: 'row' | 'col'): SearchSelectOption[] {
+    return this.listsOf(this.axisFact(axis)).map((t) => ({ value: t, label: this.listName(t) }));
+  }
+
+  /** Another list: its values are now the ones placed, so the groups start over from it. */
+  protected setList(axis: 'row' | 'col', type: string): void {
+    if (type === this.axisList(axis)) return;
+    const fact = this.axisFact(axis);
+    (axis === 'row' ? this.rowListPick : this.colListPick).set(type);
+    const drop = <T>(m: Record<string, T>): Record<string, T> => {
+      const { [fact]: _gone, ...rest } = m;
+      return rest;
+    };
+    this.valueIds.set(drop(this.valueIds()));
+    this.shared.set(drop(this.shared()));
+    this.placements.set(drop(this.placements()));
+    const grouped = axis === 'row' ? this.kind() === 'classTable' : this.colMode() === 'groups';
+    if (grouped) void this.seedGroups(axis);
+  }
+  protected readonly valuesFromAria = $localize`:@@rm.values_from:Values from`;
   protected readonly columnOpts = computed(() => this.questionOpts('SINGLE_SELECT', this.fact()));
+
   protected readonly binding = signal(false);
 
   /** A pick from the list: a question with no fact gets one first, then is read as usual. */
@@ -868,8 +1028,13 @@ export class ReadyMethodEditPage {
         this.binding.set(false);
       }
     }
-    if (axis === 'row') this.setFact(key);
-    else this.setColumn(key);
+    if (axis === 'row') {
+      this.setFact(key);
+      this.rowListPick.set(null);
+    } else {
+      this.setColumn(key);
+      this.colListPick.set(null);
+    }
   }
   protected readonly source = signal<MethodTemplate['source']>('operator');
   protected readonly pageTitle = computed(() => {
@@ -902,6 +1067,27 @@ export class ReadyMethodEditPage {
     this.nameForm.valueChanges.subscribe(() => this.nameRev.update((n) => n + 1));
     void this.enums.load('surrogate_fact');
     void this.api.listMethodQuestions().then((r) => this.questions.set(r.data));
+    void this.lookups.listTypes().then((rows) => {
+      this.listNames.set(
+        Object.fromEntries(
+          rows.map((r) => [
+            r.type,
+            (this.isAr ? r.definition?.labelAr : r.definition?.labelEn) ?? r.type,
+          ]),
+        ),
+      );
+      this.typeDefs.set(
+        Object.fromEntries(
+          rows.map((r) => [
+            r.type,
+            {
+              name: (this.isAr ? r.definition?.labelAr : r.definition?.labelEn) ?? r.type,
+              parent: r.definition?.parentTypeKey ?? null,
+            },
+          ]),
+        ),
+      );
+    });
     if (!this.isNew) void this.load();
   }
 
@@ -924,7 +1110,7 @@ export class ReadyMethodEditPage {
 
   /** Its answers come from a list long enough to group, or already grouped. */
   protected groupable(f: MethodFact): boolean {
-    return f.listType !== null && (f.groups.length > 0 || f.options.length > 3);
+    return this.listsOf(f.key).length > 0 && (f.groups.length > 0 || f.options.length > 3);
   }
 
   protected toggleEditor(axis: 'row' | 'col'): void {
@@ -965,9 +1151,9 @@ export class ReadyMethodEditPage {
 
   /** The list's row ids and where each answer sits on the shared list, read once per question. */
   private async ensureList(fact: string): Promise<void> {
-    const f = this.factOf(fact);
-    if (!f || f.listType === null || this.valueIds()[fact] !== undefined) return;
-    const rows = await this.lookups.list(f.listType);
+    const list = this.listFor(fact);
+    if (list === null || this.valueIds()[fact] !== undefined) return;
+    const rows = await this.lookups.list(list);
     this.valueIds.set({
       ...this.valueIds(),
       [fact]: Object.fromEntries(rows.map((r) => [r.key, r.id])),
@@ -989,22 +1175,16 @@ export class ReadyMethodEditPage {
     const f = this.factOf(fact);
     if (!f) return;
     await this.ensureList(fact);
-    // A list with no groups of its own starts with none: the operator adds and names them.
-    const groups: TemplateGroup[] = f.groups.map((g) => ({
-      key: g.code,
-      labelEn: g.label,
-      labelAr: g.label,
-    }));
-    // Both names from the list when it carries them.
-    const enums = registryFacts(this.enums.membersFor('surrogate_fact')(), false);
-    const parents = enums.find((x) => x.key === fact)?.question?.parentOptions ?? [];
-    for (const g of groups) {
-      const p = parents.find((o) => o.code === g.key);
-      if (p) {
-        g.labelEn = p.labelEn;
-        g.labelAr = p.labelAr;
-      }
-    }
+    // The chosen list's own classes, in their order; a list with none starts with none.
+    const list = this.listFor(fact);
+    const parentType = list !== null ? (this.typeDefs()[list]?.parent ?? null) : null;
+    const used = new Set(Object.values(this.shared()[fact] ?? {}));
+    const groups: TemplateGroup[] =
+      parentType === null
+        ? []
+        : (await this.lookups.list(parentType))
+            .filter((r) => r.active && used.has(r.key))
+            .map((r) => ({ key: r.key, labelEn: r.labelEn, labelAr: r.labelAr }));
     const keys = new Set(groups.map((g) => g.key));
     const now = this.shared()[fact] ?? {};
     this.placements.set({
@@ -1380,6 +1560,7 @@ export class ReadyMethodEditPage {
       kind: this.kind(),
       fact: this.fact(),
       ...(this.kind() === 'classTable' && own ? { groups: own } : {}),
+      ...this.listField('row'),
       ...(this.colFact() !== ''
         ? {
             column: {
@@ -1387,6 +1568,7 @@ export class ReadyMethodEditPage {
               branches,
               ...(this.colMode() === 'groups' ? { branchOn: 'parentClass' as const } : {}),
               ...(cols ? { groups: cols } : {}),
+              ...this.listField('col'),
             },
           }
         : {}),
@@ -1410,6 +1592,13 @@ export class ReadyMethodEditPage {
         .map(([code, group]) => ({ valueId: ids[code]!, code, group }));
     }
     return out;
+  }
+
+  /** The list an axis is read from, when the operator chose one other than the default. */
+  private listField(axis: 'row' | 'col'): { listType?: string } {
+    const lists = this.listsOf(this.axisFact(axis));
+    const t = this.axisList(axis);
+    return t !== null && lists.length > 0 ? { listType: t } : {};
   }
 
   /** Blank rows out, and only the columns the method has. */
@@ -1524,6 +1713,8 @@ export class ReadyMethodEditPage {
       this.source.set(m.source);
       const mech = m.mechanism;
       if (mech.kind !== 'flatAmount') this.fact.set(mech.fact);
+      this.rowListPick.set(mech.kind !== 'flatAmount' ? (mech.listType ?? null) : null);
+      this.colListPick.set(mech.column?.listType ?? null);
       this.kind.set(mech.kind);
       if (mech.kind === 'classTable' && mech.groups) this.rowGroups.set(mech.groups);
       if (mech.column?.groups) this.colGroups.set(mech.column.groups);

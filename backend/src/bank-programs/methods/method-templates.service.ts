@@ -181,9 +181,12 @@ export class MethodTemplatesService implements OnApplicationBootstrap {
           );
           // Then who sits in which of the method's own groups, for this product too. After the
           // template: that save is what makes the group keys the product's own.
-          const assignments = Object.values(placements).flatMap((list) =>
-            (list as Placement[]).map((p) => ({ valueId: p.valueId, parentKey: p.group })),
-          );
+          // Not for a question whose groups the product keeps as its own.
+          const assignments = Object.entries(placements)
+            .filter(([fact]) => !next.keptFacts.has(fact))
+            .flatMap(([, list]) =>
+              (list as Placement[]).map((p) => ({ valueId: p.valueId, parentKey: p.group })),
+            );
           if (assignments.length > 0) {
             await this.lifecycle.setGroups(product.key, { assignments }, actor);
           }
@@ -273,8 +276,12 @@ function withMethod(
   figures: Figures,
   previous: TemplateMechanism,
   previousFigures: Figures,
-): { template: ProductTemplate; stepParams: Figures } {
+): { template: ProductTemplate; stepParams: Figures; keptFacts: Set<string> } {
   const template: ProductTemplate = structuredClone(product.template);
+  // Questions whose groups stay the product's own: copied from the method once, then edited on
+  // the product for that product only (v37.0.0). A method save never overwrites them while it
+  // still asks the same question the same way.
+  const keptFacts = new Set<string>();
   const before: Figures = product.stepParams;
   const stepParams: Figures = { ...before };
   const single = template.alternatives === undefined && template.alternative === undefined;
@@ -297,12 +304,37 @@ function withMethod(
     ]);
     const methodHadGroups = previous.kind === 'classTable' || way.kind === 'classTable';
 
-    const { methodKey: _drop, column, ...shape } = structuredClone(mechanism);
+    const { methodKey: _drop, column: methodColumn, ...shape } = structuredClone(mechanism);
+    // The product's own column groups, kept while the column still splits the same answer by group.
+    const keepColumn =
+      methodColumn !== undefined &&
+      oldColumn !== undefined &&
+      oldColumn.fact === methodColumn.fact &&
+      oldColumn.branchOn === 'parentClass' &&
+      methodColumn.branchOn === 'parentClass' &&
+      oldColumn.groups !== undefined;
+    const column = keepColumn ? structuredClone(oldColumn) : methodColumn;
+    if (keepColumn) keptFacts.add(oldColumn.fact);
     const next = {
       ...shape,
       ...(column && !single ? { column } : {}),
       methodKey,
     } as TemplateMechanism;
+    // The product's own row groups, kept while the rows are still grouped answers of one question.
+    const keepRows =
+      next.kind === 'classTable' &&
+      way.kind === 'classTable' &&
+      way.fact === next.fact &&
+      way.groups !== undefined;
+    if (keepRows && next.kind === 'classTable' && way.kind === 'classTable') {
+      next.groups = structuredClone(way.groups);
+      keptFacts.add(next.fact);
+    }
+    // The product's own list choice, kept while it reads the same question (v37.0.0).
+    if (way.kind !== 'flatAmount' && next.kind !== 'flatAmount' && way.fact === next.fact) {
+      if (way.listType !== undefined) next.listType = way.listType;
+      else delete next.listType;
+    }
     if (i === 0) template.primary = next;
     else if (template.alternatives) template.alternatives[i - 1] = next;
     else template.alternative = next;
@@ -323,7 +355,7 @@ function withMethod(
       }
       const kept: StepFigureShape = structuredClone(mine);
       // A row group the product did not have yet starts from the method's default amount.
-      if (theirs?.keyTable && methodHadGroups && mechanism.kind === 'classTable') {
+      if (!keepRows && theirs?.keyTable && methodHadGroups && mechanism.kind === 'classTable') {
         const have = new Set((mine.keyTable ?? []).map((r) => r.key));
         const added = theirs.keyTable.filter((r) => !have.has(r.key) && !oldRowGroups.has(r.key));
         if (added.length > 0) kept.keyTable = [...(mine.keyTable ?? []), ...structuredClone(added)];
@@ -331,7 +363,7 @@ function withMethod(
       stepParams[slot] = kept;
     }
   });
-  return { template, stepParams };
+  return { template, stepParams, keptFacts };
 }
 
 interface StepFigureShape {
