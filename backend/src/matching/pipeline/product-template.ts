@@ -120,6 +120,16 @@ export interface TemplateColumn {
   groups?: TemplateGroup[];
   /** The Manage values list the column's answers are read from (v37.0.0); see the mechanism's. */
   listType?: string;
+  /**
+   * Answers read through a list that is not the question's own (v37.0.0): each answer code
+   * mapped to a value of `listType`, amounts set per list value or per group of values. Kept
+   * so the screens can show and edit the mapping; the engine reads the groups and the
+   * product's own placements (the mapping composed), never these.
+   */
+  valueMap?: Record<string, string>;
+  /** Per group of list values only: list value code → group key. */
+  valueGroups?: Record<string, string>;
+  mappedAs?: 'value' | 'group';
 }
 
 /** One of a product's own groups. `key` is a slot id fragment, so it never changes on a rename. */
@@ -193,6 +203,16 @@ export type TemplateMechanism = MechanismShape & {
    * question's answers match, found by coverage.
    */
   listType?: string;
+  /**
+   * Answers read through a list that is not the question's own (v37.0.0): each answer code
+   * mapped to a value of `listType`, amounts set per list value or per group of values. Kept
+   * so the screens can show and edit the mapping; the engine reads the groups and the
+   * product's own placements (the mapping composed), never these.
+   */
+  valueMap?: Record<string, string>;
+  /** Per group of list values only: list value code → group key. */
+  valueGroups?: Record<string, string>;
+  mappedAs?: 'value' | 'group';
 };
 
 /**
@@ -553,6 +573,7 @@ export const TEMPLATE_INVALID_REASONS = [
   'second_column_branch_on_invalid',
   'second_column_groups_invalid',
   'list_type_invalid',
+  'value_map_invalid',
   'class_groups_invalid',
   'method_key_invalid',
   'condition_id_invalid',
@@ -769,6 +790,25 @@ function validListType(value: unknown): boolean {
   return value === undefined || (typeof value === 'string' && LIST_TYPE.test(value));
 }
 
+function stringMap(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const entries = Object.entries(value as Record<string, unknown>);
+  return (
+    entries.length <= 2000 &&
+    entries.every(([k, v]) => k.length > 0 && k.length <= 64 && typeof v === 'string' && v.length <= 64)
+  );
+}
+
+function validMapping(m: {
+  valueMap?: unknown;
+  valueGroups?: unknown;
+  mappedAs?: unknown;
+}): boolean {
+  if (m.mappedAs !== undefined && m.mappedAs !== 'value' && m.mappedAs !== 'group') return false;
+  return stringMap(m.valueMap) && stringMap(m.valueGroups);
+}
+
 function validateMechanism(mechanism: TemplateMechanism): TemplateViolation | undefined {
   if (!(TEMPLATE_MECHANISMS as readonly string[]).includes(mechanism.kind)) {
     return { reason: 'unknown_mechanism', detail: String(mechanism.kind) };
@@ -781,6 +821,9 @@ function validateMechanism(mechanism: TemplateMechanism): TemplateViolation | un
   }
   if (!validListType(mechanism.listType) || !validListType(mechanism.column?.listType)) {
     return { reason: 'list_type_invalid' };
+  }
+  if (!validMapping(mechanism) || (mechanism.column && !validMapping(mechanism.column))) {
+    return { reason: 'value_map_invalid' };
   }
   if (mechanism.kind === 'flatAmount') return undefined;
   if (!mechanism.fact) return { reason: 'mechanism_needs_fact', detail: mechanism.kind };

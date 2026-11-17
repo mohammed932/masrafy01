@@ -35,10 +35,12 @@ import {
   LOCALE_ID,
   OnInit,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -114,6 +116,24 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
   'multipleOf',
   'dividedBy',
 ];
+
+/** A way's rows read through another list (v37.0.0): what the product keeps when it saves. */
+interface WayMapping {
+  listType: string;
+  valueMap: Record<string, string>;
+  mappedAs: 'value' | 'group';
+  valueGroups?: Record<string, string>;
+}
+
+function mappingOf(w: TemplateMechanism): WayMapping | null {
+  if (w.kind === 'flatAmount' || !w.valueMap || !w.listType) return null;
+  return {
+    listType: w.listType,
+    valueMap: { ...w.valueMap },
+    mappedAs: w.mappedAs ?? 'value',
+    ...(w.valueGroups ? { valueGroups: { ...w.valueGroups } } : {}),
+  };
+}
 
 @Component({
   selector: 'app-product-template-page',
@@ -474,7 +494,18 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
           <!-- Where the answers come from: a Manage values list, picked per product. -->
           @if (listsOf(wayFactValue(i)).length > 0 || (wayColumn(i) && listsOf(wayColumn(i)!.fact).length > 0)) {
             <div class="vfrom">
-              @if (listsOf(wayFactValue(i)).length > 0) {
+              @if (wayMaps()[i]; as wm) {
+                <div class="vf">
+                  <span class="vf-l" i18n="@@ps.rows_values_from">Rows: values from</span>
+                  <p class="vf-mapped">
+                    <b>{{ listNames()[wm.listType] ?? wm.listType }}</b>
+                    <span i18n="@@ps.mapped_note"
+                      >Answers are mapped to its values. Move an answer for this product in Edit
+                      groups.</span
+                    >
+                  </p>
+                </div>
+              } @else if (listsOf(wayFactValue(i)).length > 0) {
                 <div class="vf">
                   <span class="vf-l" i18n="@@ps.rows_values_from">Rows: values from</span>
                   <app-search-select
@@ -486,7 +517,18 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
                 </div>
               }
               @if (wayColumn(i); as column) {
-                @if (listsOf(column.fact).length > 0) {
+                @if (column.valueMap && column.listType) {
+                  <div class="vf">
+                    <span class="vf-l" i18n="@@ps.cols_values_from">Columns: values from</span>
+                    <p class="vf-mapped">
+                      <b>{{ listNames()[column.listType] ?? column.listType }}</b>
+                      <span i18n="@@ps.mapped_note"
+                        >Answers are mapped to its values. Move an answer for this product in Edit
+                        groups.</span
+                      >
+                    </p>
+                  </div>
+                } @else if (listsOf(column.fact).length > 0) {
                   <div class="vf">
                     <span class="vf-l" i18n="@@ps.cols_values_from">Columns: values from</span>
                     <app-search-select
@@ -1064,6 +1106,17 @@ const NUMBER_WAYS: readonly TemplateMechanismKind[] = [
         display: flex;
         flex-direction: column;
         gap: var(--space-1);
+      }
+      .vf-mapped {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-0-5);
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+      .vf-mapped b {
+        color: var(--color-text-primary);
       }
       .vf-l {
         font-size: var(--text-sm);
@@ -1666,6 +1719,18 @@ export class ProductTemplatePage implements OnInit {
     });
   }
 
+  private readonly loadPicked = effect(() => {
+    const lists = [
+      ...this.wayLists().filter((t): t is string => !!t),
+      ...this.wayIndexes()
+        .map((i) => this.wayColumn(i)?.listType)
+        .filter((t): t is string => !!t),
+    ];
+    untracked(() => {
+      for (const t of lists) void this.loadListValues(t);
+    });
+  });
+
   ngOnInit(): void {
     void this.api.listMethodQuestions().then((r) => this.methodQuestions.set(r.data));
     void this.lookups.listTypes().then((rows) => {
@@ -1679,6 +1744,14 @@ export class ProductTemplatePage implements OnInit {
       );
       this.listParents.set(
         Object.fromEntries(rows.map((r) => [r.type, r.definition?.parentTypeKey ?? null])),
+      );
+      this.listRail.set(
+        Object.fromEntries(
+          rows.map((r) => [
+            r.type,
+            (r.definition?.onValuesRail ?? false) && (r.definition?.active ?? true),
+          ]),
+        ),
       );
     });
     this.key = this.embeddedKey() ?? '';
@@ -2328,11 +2401,13 @@ export class ProductTemplatePage implements OnInit {
    * `listType` on the way, column: on the column); unpicked = the first that covers.
    */
   private readonly methodQuestions = signal<MethodQuestion[]>([]);
-  private readonly listNames = signal<Record<string, string>>({});
+  protected readonly listNames = signal<Record<string, string>>({});
   /** Each list's class list (the one its values are filed under), by list key. */
   private readonly listParents = signal<Record<string, string | null>>({});
   /** Per way index: the row list picked, or null for the default. */
   private readonly wayLists = signal<(string | null)[]>([]);
+  /** Per way index: its rows read through another list (v37.0.0), kept as saved. */
+  protected readonly wayMaps = signal<(WayMapping | null)[]>([]);
   protected readonly valuesFromAria = $localize`:@@rm.values_from:Values from`;
 
   protected listsOf(fact: string): string[] {
@@ -2340,11 +2415,47 @@ export class ProductTemplatePage implements OnInit {
     return this.methodQuestions().find((q) => q.factKey === fact)?.listTypes ?? [];
   }
 
+  /** Every list in Manage values (v37.0.0): its values fill the rows, columns or groups. */
   protected listOpts(fact: string): SearchSelectOption[] {
-    return this.listsOf(fact).map((t) => ({ value: t, label: this.listNames()[t] ?? t }));
+    const own = new Set(this.listsOf(fact));
+    return Object.entries(this.listNames())
+      .filter(([t]) => this.listRail()[t] || own.has(t))
+      .map(([t, name]) => ({ value: t, label: name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  /** Lists an operator manages (on the Manage values rail), by key. */
+  private readonly listRail = signal<Record<string, boolean>>({});
+  /** The values of each list a way reads, loaded once. */
+  private readonly listValueRows = signal<
+    Record<string, ReadonlyArray<{ code: string; labelAr: string; labelEn: string }>>
+  >({});
+
+  private async loadListValues(type: string): Promise<void> {
+    if (this.listValueRows()[type] !== undefined) return;
+    const rows = await this.lookups.list(type);
+    this.listValueRows.set({
+      ...this.listValueRows(),
+      [type]: rows
+        .filter((r) => r.active && r.deprecatedAt === null)
+        .map((r) => ({ code: r.key, labelAr: r.labelAr, labelEn: r.labelEn })),
+    });
+  }
+
+  /** The list a way picked for this answer that is not one of its own (its values replace them). */
+  private pickedListOf(key: string): string | null {
+    for (const i of this.wayIndexes()) {
+      const picked = this.wayFactValue(i) === key ? this.wayLists()[i] : null;
+      if (picked) return picked;
+      const column = this.wayColumn(i);
+      if (column?.fact === key && column.listType) return column.listType;
+    }
+    return null;
   }
 
   protected listTypeOf(key: string): string | null {
+    const picked = this.pickedListOf(key);
+    if (picked !== null) return picked;
     const lists = this.listsOf(key);
     for (const i of this.wayIndexes()) {
       const picked = this.wayFactValue(i) === key ? this.wayLists()[i] : null;
@@ -2369,9 +2480,15 @@ export class ProductTemplatePage implements OnInit {
       const next = [...this.wayLists()];
       next[i] = type;
       this.wayLists.set(next);
+      const maps = [...this.wayMaps()];
+      maps[i] = null;
+      this.wayMaps.set(maps);
     } else {
       const column = this.wayColumn(i);
-      if (column) this.setWayColumn(i, { ...column, listType: type });
+      if (column) {
+        const { valueMap: _m, valueGroups: _g, mappedAs: _a, ...rest } = column;
+        this.setWayColumn(i, { ...rest, listType: type });
+      }
     }
     const drop = <T>(m: Record<string, T>): Record<string, T> => {
       const { [fact]: _gone, ...rest } = m;
@@ -2388,9 +2505,11 @@ export class ProductTemplatePage implements OnInit {
     this.dirty.set(true);
   }
 
-  private rowListField(i: number): { listType?: string } {
+  private rowListField(i: number): Partial<WayMapping> {
+    const mapped = this.wayMaps()[i];
+    if (mapped && this.wayKind(i) === 'classTable') return { ...mapped };
     const picked = this.wayLists()[i];
-    return picked && this.listsOf(this.wayFactValue(i)).includes(picked) ? { listType: picked } : {};
+    return picked ? { listType: picked } : {};
   }
 
   /** The list's row ids and where each answer is priced today, read once per list. */
@@ -3261,6 +3380,7 @@ export class ProductTemplatePage implements OnInit {
     this.wayLists.set(
       [template.primary, ...ways].map((w) => (w.kind === 'flatAmount' ? null : (w.listType ?? null))),
     );
+    this.wayMaps.set([template.primary, ...ways].map((w) => mappingOf(w)));
     this.alternatives.clear({ emitEvent: false });
     for (const way of ways) {
       this.alternatives.push(
@@ -3462,6 +3582,9 @@ export class ProductTemplatePage implements OnInit {
     const lists = [...this.wayLists()];
     lists[i] = mech.listType ?? null;
     this.wayLists.set(lists);
+    const maps = [...this.wayMaps()];
+    maps[i] = mappingOf(mech);
+    this.wayMaps.set(maps);
     this.toSeed.add(i);
     const column = mech.column ? structuredClone(mech.column) : null;
     this.setWayColumn(i, column);
@@ -3624,6 +3747,10 @@ export class ProductTemplatePage implements OnInit {
     if (derived !== undefined) {
       return derived.options.map((o) => ({ code: o.code, labelAr: o.label, labelEn: o.label }));
     }
+    // A way that reads this answer through a picked list: the list's values are the rows.
+    const picked = this.pickedListOf(factKey);
+    const fromList = picked !== null ? this.listValueRows()[picked] : undefined;
+    if (fromList !== undefined) return fromList;
     return this.allFacts().find((f) => f.key === factKey)?.question?.options ?? [];
   }
 }

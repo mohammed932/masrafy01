@@ -435,6 +435,18 @@ export class BankProgramsApiService {
     );
   }
 
+  /** A list's own question (its answers are the list's values): found, or created and linked. */
+  async ensureMethodListQuestion(
+    type: string,
+  ): Promise<SuccessEnvelope<{ factKey: string; questionCode: string; created: boolean }>> {
+    return firstValueFrom(
+      this.http.post<SuccessEnvelope<{ factKey: string; questionCode: string; created: boolean }>>(
+        `${this.base}/method-templates/lists/${encodeURIComponent(type)}/question`,
+        {},
+      ),
+    );
+  }
+
   /** The fact a method reads a question by; binds one when the question has none yet. */
   async ensureMethodFact(code: string): Promise<SuccessEnvelope<{ factKey: string }>> {
     return firstValueFrom(

@@ -582,6 +582,46 @@ export class ProductAsksService {
   }
 
   /**
+   * A list's own question (v37.0.0): the one that already shows its values as answers, or a
+   * new one created for it — its answers ARE the list's values and stay in step with it
+   * (`optionsFromEnumerationType`, remembered on the list). Answers the fact a method reads.
+   */
+  async ensureListQuestion(
+    listType: string,
+    actor: AskActor,
+  ): Promise<{ factKey: string; questionCode: string; created: boolean }> {
+    const def = (await this.repo.typeDefinitions()).get(listType);
+    if (!def) {
+      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+        field: 'listType',
+        reason: 'unknown_type',
+      });
+    }
+    let code: string | null = null;
+    let created = false;
+    if (def.mirrorQuestionId !== null) {
+      const pool = await this.repo.factCandidateQuestions();
+      code = pool.find((q) => q.id === def.mirrorQuestionId)?.code ?? null;
+    }
+    if (code === null) {
+      const question = await this.questionnaire.createQuestionWithOptions(
+        {
+          questionEn: def.labelEn,
+          questionAr: def.labelAr,
+          type: 'SINGLE_SELECT',
+          isRequired: false,
+          optionsFromEnumerationType: listType,
+        },
+        actor.id,
+      );
+      code = question.code;
+      created = true;
+    }
+    const { factKey } = await this.ensureFact(code, actor);
+    return { factKey, questionCode: code, created };
+  }
+
+  /**
    * The fact a surrogate method reads a pool question by — the one already bound to it, or a
    * new one created and bound now. The same plan a product's tick runs, without the tick: no
    * product starts asking anything here, and nothing is filed under a product.

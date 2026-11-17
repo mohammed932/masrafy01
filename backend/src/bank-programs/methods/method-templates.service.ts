@@ -329,6 +329,11 @@ function withMethod(
     if (keepRows && next.kind === 'classTable' && way.kind === 'classTable') {
       next.groups = structuredClone(way.groups);
       keptFacts.add(next.fact);
+      // Its mapping travels with its groups (v37.0.0): both are the product's own.
+      for (const field of ['valueMap', 'valueGroups', 'mappedAs'] as const) {
+        if (way[field] !== undefined) (next as Record<string, unknown>)[field] = structuredClone(way[field]);
+        else delete (next as Record<string, unknown>)[field];
+      }
     }
     // The product's own list choice, kept while it reads the same question (v37.0.0).
     if (way.kind !== 'flatAmount' && next.kind !== 'flatAmount' && way.fact === next.fact) {

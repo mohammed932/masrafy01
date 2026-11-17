@@ -5503,6 +5503,20 @@
       <trans-unit id="rm.values_from" datatype="html"><source>Values from</source><target>القيم من</target></trans-unit>
       <trans-unit id="rm.src_derived_note" datatype="html"><source>Worked out by the platform: no list.</source><target>تحسبها المنصة: بدون قائمة.</target></trans-unit>
       <trans-unit id="rm.src_own_note" datatype="html"><source> The question&apos;s own answers: no list in Manage values has them all. </source><target> إجابات السؤال نفسه: لا توجد قائمة في إدارة القيم تحتويها كلها. </target></trans-unit>
+      <trans-unit id="ps.mapped_note" datatype="html"><source>Answers are mapped to its values. Move an answer for this product in Edit groups.</source><target> الإجابات مربوطة بقيمها. انقل إجابة لهذا المنتج من تعديل المجموعات. </target></trans-unit>
+      <trans-unit id="rm.per_value_short" datatype="html"><source>one per list value</source><target>واحد لكل قيمة في القائمة</target></trans-unit>
+      <trans-unit id="rm.per_value" datatype="html"><source>One amount per list value</source><target>مبلغ لكل قيمة في القائمة</target></trans-unit>
+      <trans-unit id="rm.list_map_opt" datatype="html"><source><x id="LIST" equiv-text="o.name"/> — map the answers</source><target><x id="LIST" equiv-text="o.name"/> — اربط الإجابات</target></trans-unit>
+      <trans-unit id="rm.need_map" datatype="html"><source>Map every answer to a list value.</source><target>اربط كل إجابة بقيمة من القائمة.</target></trans-unit>
+      <trans-unit id="rm.need_value_groups" datatype="html"><source>Put every list value in use into a group.</source><target>ضع كل قيمة مستخدمة في مجموعة.</target></trans-unit>
+      <trans-unit id="vm.title" datatype="html"><source>Which list value each answer counts as</source><target>قيمة القائمة التي تُحتسب لها كل إجابة</target></trans-unit>
+      <trans-unit id="vm.all" datatype="html"><source>Every answer is mapped.</source><target>كل الإجابات مربوطة.</target></trans-unit>
+      <trans-unit id="vm.pick" datatype="html"><source>Pick a value…</source><target>اختر قيمة…</target></trans-unit>
+      <trans-unit id="vm.missing_one" datatype="html"><source>1 answer is not mapped: a customer giving it gets no amount.</source><target>إجابة واحدة غير مربوطة: العميل الذي يختارها لا يحصل على مبلغ.</target></trans-unit>
+      <trans-unit id="vm.missing" datatype="html"><source><x id="N" equiv-text="n"/> answers are not mapped: a customer giving one gets no amount.</source><target><x id="N" equiv-text="n"/> إجابة غير مربوطة: العميل الذي يختار إحداها لا يحصل على مبلغ.</target></trans-unit>
+      <trans-unit id="rm.asked_as" datatype="html"><source>Asked as</source><target>يُسأل بصيغة</target></trans-unit>
+      <trans-unit id="rm.creating_q" datatype="html"><source>Creating the question for this list…</source><target>جارٍ إنشاء سؤال لهذه القائمة…</target></trans-unit>
+      <trans-unit id="rm.list_mismatch" datatype="html"><source><x id="N" equiv-text="n"/> of the question&apos;s answers are not in this list: customers who give them get no amount.</source><target><x id="N" equiv-text="n"/> من إجابات السؤال ليست في هذه القائمة: العملاء الذين يختارونها لا يحصلون على مبلغ.</target></trans-unit>
     </body>
   </file>
 </xliff>

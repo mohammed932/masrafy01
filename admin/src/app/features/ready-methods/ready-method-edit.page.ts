@@ -11,13 +11,23 @@ import {
   Component,
   LOCALE_ID,
   computed,
+  effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import { GroupBoardComponent } from '@shared/groups/group-board.component';
+import {
+  composePlacements,
+  guessMap,
+  unmapped,
+  valueGroups,
+  type ListValue,
+  type ValueMapping,
+} from '@shared/groups/value-map';
 import { FormPageComponent, SearchSelectComponent, type SearchSelectOption } from '@shared/ui';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -185,7 +195,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                 (changed)="pickQuestion('row', $event)"
               />
             </div>
-            <ng-container *ngTemplateOutlet="listPick; context: { axis: 'row' }" />
+            <ng-container *ngTemplateOutlet="valuesFrom; context: { axis: 'row' }" />
           </div>
 
           @if (factOf(fact()); as f) {
@@ -200,7 +210,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                   (changed)="pickQuestion('col', $event)"
                 />
               </div>
-              <ng-container *ngTemplateOutlet="listPick; context: { axis: 'col' }" />
+              <ng-container *ngTemplateOutlet="valuesFrom; context: { axis: 'col' }" />
             </div>
 
             <div class="axes">
@@ -214,7 +224,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                       [attr.aria-checked]="kind() === k"
                       (click)="setKind(k)"
                     >
-                      {{ how(k) }}
+                      {{ howFor('row', k) }}
                     </button>
                   }
                 </div>
@@ -242,9 +252,12 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                         role="radio"
                         [attr.aria-checked]="colMode() === 'answer'"
                         (click)="setColMode('answer')"
-                        i18n="@@ps.col_answer"
                       >
-                        one per answer
+                        @if (mapOf('col')) {
+                          <span i18n="@@rm.per_value_short">one per list value</span>
+                        } @else {
+                          <span i18n="@@ps.col_answer">one per answer</span>
+                        }
                       </button>
                       <button
                         type="button"
@@ -416,15 +429,18 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       }
     </app-form-page>
 
-    <ng-template #listPick let-axis="axis">
+    <ng-template #valuesFrom let-axis="axis">
       @if (factOf(axisFact(axis)); as f) {
         @if (f.type === 'choice') {
           <div class="fl">
             <span i18n="@@rm.values_from">Values from</span>
-            @if (listsOf(axisFact(axis)).length > 0) {
+            @if (f.derived) {
+              <p class="vnote" i18n="@@rm.src_derived_note">Worked out by the platform: no list.</p>
+            } @else {
               <app-search-select
-                [options]="listOpts(axis)"
+                [options]="allListOpts(axis)"
                 [value]="axisList(axis) ?? ''"
+                [placeholder]="choosePh"
                 [ariaLabel]="valuesFromAria"
                 (changed)="setList(axis, $event)"
               />
@@ -433,32 +449,14 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                   >Open the list in Manage values</a
                 >
               }
-            } @else if (f.derived) {
-              <p class="vnote" i18n="@@rm.src_derived_note">Worked out by the platform: no list.</p>
-            } @else {
-              <p class="vnote" i18n="@@rm.src_own_note">
-                The question's own answers: no list in Manage values has them all.
-              </p>
+              @if (mismatch(axis); as n) {
+                <p class="vwarn" role="status">
+                  <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
+                  <span>{{ mismatchLabel(n) }}</span>
+                </p>
+              }
             }
           </div>
-        }
-      }
-    </ng-template>
-
-    <ng-template #srcLine let-fact="fact">
-      @if (factOf(fact); as f) {
-        @if (f.type === 'choice') {
-          <p class="vsrc">
-            <span nz-icon nzType="unordered-list" nzTheme="outline" aria-hidden="true"></span>
-            @if (f.listType; as t) {
-              <span i18n="@@rm.src_list">Values: the {{ listName(t) }} list in Manage values ({{ f.options.length }})</span>
-              <a [routerLink]="['/lookups']" [queryParams]="{ type: t }" i18n="@@rm.src_open">Open</a>
-            } @else if (f.derived) {
-              <span i18n="@@rm.src_derived">Values: worked out by the platform ({{ f.options.length }})</span>
-            } @else {
-              <span i18n="@@rm.src_own">Values: the question's own answers ({{ f.options.length }})</span>
-            }
-          </p>
         }
       }
     </ng-template>
@@ -473,7 +471,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
           [answers]="axisOptions(axis)"
           [placements]="placementsOf(axis)"
           [minGroups]="0"
-          [question]="factOf(axisFact(axis))?.label ?? null"
+          [question]="mismatch(axis) > 0 ? null : (factOf(axisFact(axis))?.label ?? null)"
           [listType]="axisList(axis)"
           [isAr]="isAr"
           (renamed)="renameGroup(axis, $event.key, $event.labelEn, $event.labelAr)"
@@ -642,6 +640,28 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
         gap: var(--space-3) var(--space-4);
         align-items: start;
+      }
+      .asked {
+        margin: 0;
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-muted);
+        color: var(--color-text-primary);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-regular);
+      }
+      .vwarn {
+        margin: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-1-5);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-regular);
+      }
+      .vwarn [nz-icon] {
+        margin-block-start: var(--space-0-5);
+        color: var(--color-warning);
       }
       .vnote {
         margin: 0;
@@ -959,7 +979,196 @@ export class ReadyMethodEditPage {
   private readonly rowListPick = signal<string | null>(null);
   private readonly colListPick = signal<string | null>(null);
   /** Manage values lists by key: their names and the class list each is filed under. */
-  private readonly typeDefs = signal<Record<string, { name: string; parent: string | null }>>({});
+  private readonly typeDefs = signal<
+    Record<string, { name: string; parent: string | null; rail: boolean }>
+  >({});
+
+  /**
+   * Per axis: answers read through a list that is NOT the question's own (v37.0.0) — each
+   * answer mapped to one of its values. null = the question's own list, nothing to map.
+   */
+  protected readonly maps = signal<{ row: ValueMapping | null; col: ValueMapping | null }>({
+    row: null,
+    col: null,
+  });
+  private readonly listValues = signal<Record<string, ListValue[]>>({});
+
+  protected mapOf(axis: 'row' | 'col'): ValueMapping | null {
+    return this.maps()[axis];
+  }
+
+  private setMap(axis: 'row' | 'col', m: ValueMapping | null): void {
+    this.maps.set({ ...this.maps(), [axis]: m });
+  }
+
+  protected valuesOf(type: string): ListValue[] {
+    return this.listValues()[type] ?? [];
+  }
+
+  private async loadValues(type: string): Promise<ListValue[]> {
+    const have = this.listValues()[type];
+    if (have) return have;
+    const rows = await this.lookups.list(type);
+    const values = rows
+      .filter((r) => r.active && r.deprecatedAt === null)
+      .map((r) => ({ code: r.key, labelEn: r.labelEn, labelAr: r.labelAr }));
+    this.listValues.set({ ...this.listValues(), [type]: values });
+    return values;
+  }
+
+  /**
+   * "Values from" (v37.0.0): a Manage values list — its values ARE the answers the customer
+   * picks from, through the list's own question (found, or created and linked) — or a
+   * number, or a question with its own answers, or what the platform works out.
+   */
+  private readonly srcPick = signal<{ row: string | null; col: string | null }>({
+    row: null,
+    col: null,
+  });
+  protected readonly creatingQuestion = signal(false);
+  protected readonly choosePh = $localize`:@@ps.choose:Choose…`;
+  protected readonly rowsFromAria = $localize`:@@rm.rows_from:Rows: values from`;
+  protected readonly colsFromAria = $localize`:@@rm.cols_from:Columns (optional): values from`;
+  protected readonly askedAria = $localize`:@@rm.asked_as:Asked as`;
+  protected readonly noColumns = $localize`:@@rm.no_columns:No columns`;
+
+  /** Every question a method can read, with where its values come from. */
+  private readonly entries = computed(() => {
+    const out: { value: string; label: string; kind: 'number' | 'choice' | 'derived'; lists: string[] }[] = [];
+    const seen = new Set<string>();
+    for (const f of this.facts()) {
+      seen.add(f.key);
+      out.push({
+        value: f.key,
+        label: f.label,
+        kind: f.type === 'number' ? 'number' : f.derived ? 'derived' : 'choice',
+        lists: this.listsOf(f.key),
+      });
+    }
+    for (const q of this.questions()) {
+      if (q.type !== 'NUMERIC' && q.type !== 'SINGLE_SELECT') continue;
+      if (q.factKey !== null && seen.has(q.factKey)) continue;
+      out.push({
+        value: q.factKey ?? UNBOUND + q.code,
+        label: (this.isAr ? q.labelAr : q.labelEn).trim() || q.labelEn,
+        kind: q.type === 'NUMERIC' ? 'number' : 'choice',
+        lists: q.listTypes ?? [],
+      });
+    }
+    return out;
+  });
+
+  protected listKey(source: string): string | null {
+    return source.startsWith('list:') ? source.slice(5) : null;
+  }
+
+  private sourceOfFact(axis: 'row' | 'col', value: string): string {
+    const e = this.entries().find((x) => x.value === value);
+    if (!e) return '';
+    if (e.kind !== 'choice') return e.kind;
+    const picked = axis === 'row' ? this.rowListPick() : this.colListPick();
+    if (picked !== null && e.lists.includes(picked)) return `list:${picked}`;
+    return e.lists[0] ? `list:${e.lists[0]}` : 'own';
+  }
+
+  protected srcOf(axis: 'row' | 'col'): string {
+    return this.srcPick()[axis] ?? this.sourceOfFact(axis, this.axisFact(axis));
+  }
+
+  protected sourceOpts(axis: 'row' | 'col'): SearchSelectOption[] {
+    const kinds = new Set(this.entries().map((e) => e.kind));
+    const hasOwn = this.entries().some((e) => e.kind === 'choice' && e.lists.length === 0);
+    const lists = Object.entries(this.typeDefs())
+      .filter(([, d]) => d.rail)
+      .map(([t, d]) => ({ value: `list:${t}`, label: d.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return [
+      ...lists,
+      ...(axis === 'row' && kinds.has('number')
+        ? [{ value: 'number', label: $localize`:@@rm.src_number:A number the customer types` }]
+        : []),
+      ...(hasOwn ? [{ value: 'own', label: $localize`:@@rm.src_own_opt:A question's own answers` }] : []),
+      ...(axis === 'col' && kinds.has('derived')
+        ? [{ value: 'derived', label: $localize`:@@rm.src_derived_opt:Worked out by the platform` }]
+        : []),
+    ];
+  }
+
+  /** The questions that ask for this source's values. */
+  protected askedOpts(axis: 'row' | 'col'): SearchSelectOption[] {
+    const src = this.srcOf(axis);
+    const list = this.listKey(src);
+    return this.entries()
+      .filter((e) =>
+        list !== null
+          ? e.kind === 'choice' && e.lists.includes(list)
+          : src === 'own'
+            ? e.kind === 'choice' && e.lists.length === 0
+            : e.kind === src,
+      )
+      .filter((e) => axis === 'row' || e.value !== this.fact())
+      .filter((e) => axis === 'col' || e.kind !== 'derived')
+      .map((e) => ({ value: e.value, label: e.label }));
+  }
+
+  /** A new source: its question is picked for the operator when there is only one. */
+  protected async setSource(axis: 'row' | 'col', source: string): Promise<void> {
+    if (axis === 'col' && source === '') {
+      this.srcPick.set({ ...this.srcPick(), col: '' });
+      this.setColumn('');
+      return;
+    }
+    this.srcPick.set({ ...this.srcPick(), [axis]: source });
+    const list = this.listKey(source);
+    (axis === 'row' ? this.rowListPick : this.colListPick).set(list);
+    const options = this.askedOpts(axis);
+    if (options.some((o) => o.value === this.axisFact(axis))) return;
+    if (axis === 'row') this.setFact('');
+    else this.setColumn('');
+    if (options.length === 1) {
+      await this.pickQuestion(axis, options[0]!.value);
+    } else if (options.length === 0 && list !== null) {
+      // A list nothing asks yet: its own question is created, its answers the list's values.
+      this.creatingQuestion.set(true);
+      try {
+        const made = (await this.api.ensureMethodListQuestion(list)).data;
+        await this.enums.refresh('surrogate_fact');
+        this.questions.set((await this.api.listMethodQuestions()).data);
+        await this.pickQuestion(axis, made.factKey);
+        this.srcPick.set({ ...this.srcPick(), [axis]: source });
+      } catch (err) {
+        const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })
+          ?.error;
+        this.error.set(
+          this.errors.toLocalizedMessage(
+            (envelope?.code ?? 'INTERNAL_ERROR') as ErrorCode,
+            envelope?.meta,
+          ),
+        );
+      } finally {
+        this.creatingQuestion.set(false);
+      }
+    }
+  }
+
+  /** One answer mapped to a list value ('' = unmapped). */
+  protected setMapping(axis: 'row' | 'col', answer: string, value: string): void {
+    const m = this.mapOf(axis);
+    if (!m) return;
+    const map = { ...m.map };
+    if (value === '') delete map[answer];
+    else map[answer] = value;
+    this.setMap(axis, { ...m, map });
+    if (axis === 'col') this.storedBranches.set(null);
+  }
+
+  /** The row "how" choices, named for a mapped list: per list value, or per group of them. */
+  protected howFor(axis: 'row' | 'col', k: TemplateMechanismKind): string {
+    if (this.mapOf(axis) && k === 'choiceTable') {
+      return $localize`:@@rm.per_value:One amount per list value`;
+    }
+    return howLabel(k);
+  }
 
   protected listsOf(fact: string): string[] {
     if (fact === '') return [];
@@ -969,27 +1178,77 @@ export class ReadyMethodEditPage {
     return q?.listTypes ?? [];
   }
 
+  /** The list an axis's values come from: the one picked (any list), else the one that fits. */
   protected axisList(axis: 'row' | 'col'): string | null {
-    const lists = this.listsOf(this.axisFact(axis));
     const pick = axis === 'row' ? this.rowListPick() : this.colListPick();
-    return pick !== null && lists.includes(pick) ? pick : (lists[0] ?? null);
+    if (pick !== null) return pick;
+    return this.listsOf(this.axisFact(axis))[0] ?? null;
   }
 
+  /** Every list in Manage values, the ones that fit the question's answers first. */
+  protected allListOpts(axis: 'row' | 'col' = 'row'): SearchSelectOption[] {
+    const own = new Set(this.listsOf(this.axisFact(axis)));
+    return Object.entries(this.typeDefs())
+      .filter(([t, d]) => d.rail || own.has(t))
+      .map(([t, d]) => ({ value: t, label: d.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  /** The values an axis's rows / columns / groups are made of: the list's, else the answers. */
+  private axisValues(axis: 'row' | 'col'): MethodOption[] | null {
+    const list = this.axisList(axis);
+    const values = list !== null ? this.listValues()[list] : undefined;
+    if (!values) return null;
+    return values.map((v) => ({
+      code: v.code,
+      label: (this.isAr ? v.labelAr : v.labelEn) || v.labelEn || v.code,
+    }));
+  }
+
+  /** How many of the question's answers the list does not have (0 = none missing). */
+  protected mismatch(axis: 'row' | 'col'): number {
+    const values = this.axisValues(axis);
+    if (values === null) return 0;
+    const have = new Set(values.map((v) => v.code));
+    const answers = this.factOf(this.axisFact(axis))?.options ?? [];
+    return answers.filter((a) => !have.has(a.code)).length;
+  }
+
+  protected mismatchLabel(n: number): string {
+    return $localize`:@@rm.list_mismatch:${n}:N: of the question's answers are not in this list: customers who give them get no amount.`;
+  }
+
+  /** The list whose rows the ANSWERS are filed by: the chosen one, or under a mapping the question's own. */
   private listFor(fact: string): string | null {
     if (fact === this.fact()) return this.axisList('row');
     if (fact === this.colFact()) return this.axisList('col');
     return this.listsOf(fact)[0] ?? null;
   }
 
+  /** The lists that hold every answer first, then every other list (its answers get mapped). */
   protected listOpts(axis: 'row' | 'col'): SearchSelectOption[] {
-    return this.listsOf(this.axisFact(axis)).map((t) => ({ value: t, label: this.listName(t) }));
+    const covering = this.listsOf(this.axisFact(axis));
+    const others = Object.entries(this.typeDefs())
+      .filter(([t, d]) => d.rail && !covering.includes(t))
+      .map(([t, d]) => ({ value: t, name: d.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return [
+      ...covering.map((t) => ({ value: t, label: this.listName(t) })),
+      ...others.map((o) => ({
+        value: o.value,
+        label: $localize`:@@rm.list_map_opt:${o.name}:LIST: — map the answers`,
+      })),
+    ];
   }
 
   /** Another list: its values are now the ones placed, so the groups start over from it. */
-  protected setList(axis: 'row' | 'col', type: string): void {
+  protected async setList(axis: 'row' | 'col', type: string): Promise<void> {
     if (type === this.axisList(axis)) return;
     const fact = this.axisFact(axis);
     (axis === 'row' ? this.rowListPick : this.colListPick).set(type);
+    await this.loadValues(type);
+    if (axis === 'col') this.storedBranches.set(null);
+    this.setMap(axis, null);
     const drop = <T>(m: Record<string, T>): Record<string, T> => {
       const { [fact]: _gone, ...rest } = m;
       return rest;
@@ -1028,13 +1287,8 @@ export class ReadyMethodEditPage {
         this.binding.set(false);
       }
     }
-    if (axis === 'row') {
-      this.setFact(key);
-      this.rowListPick.set(null);
-    } else {
-      this.setColumn(key);
-      this.colListPick.set(null);
-    }
+    if (axis === 'row') this.setFact(key);
+    else this.setColumn(key);
   }
   protected readonly source = signal<MethodTemplate['source']>('operator');
   protected readonly pageTitle = computed(() => {
@@ -1064,6 +1318,12 @@ export class ReadyMethodEditPage {
   }
 
   constructor() {
+    effect(() => {
+      for (const axis of ['row', 'col'] as const) {
+        const list = this.axisList(axis);
+        if (list !== null) void untracked(() => this.loadValues(list));
+      }
+    });
     this.nameForm.valueChanges.subscribe(() => this.nameRev.update((n) => n + 1));
     void this.enums.load('surrogate_fact');
     void this.api.listMethodQuestions().then((r) => this.questions.set(r.data));
@@ -1083,6 +1343,7 @@ export class ReadyMethodEditPage {
             {
               name: (this.isAr ? r.definition?.labelAr : r.definition?.labelEn) ?? r.type,
               parent: r.definition?.parentTypeKey ?? null,
+              rail: (r.definition?.onValuesRail ?? false) && (r.definition?.active ?? true),
             },
           ]),
         ),
@@ -1105,12 +1366,15 @@ export class ReadyMethodEditPage {
 
   protected kindsFor(f: MethodFact): readonly TemplateMechanismKind[] {
     if (f.type === 'number') return NUMBER_KINDS;
+    if (this.mapOf('row') && f.key === this.fact()) return ['choiceTable', 'classTable'];
     return this.groupable(f) ? ['choiceTable', 'classTable'] : ['choiceTable'];
   }
 
   /** Its answers come from a list long enough to group, or already grouped. */
   protected groupable(f: MethodFact): boolean {
-    return this.listsOf(f.key).length > 0 && (f.groups.length > 0 || f.options.length > 3);
+    if (f.type !== 'choice' || f.derived) return false;
+    const axis = f.key === this.colFact() ? 'col' : 'row';
+    return this.axisList(axis) !== null && (this.axisValues(axis)?.length ?? f.options.length) >= 2;
   }
 
   protected toggleEditor(axis: 'row' | 'col'): void {
@@ -1130,6 +1394,15 @@ export class ReadyMethodEditPage {
   }
 
   protected axisOptions(axis: 'row' | 'col'): readonly MethodOption[] {
+    const fromList = this.axisValues(axis);
+    if (fromList !== null && !this.mapOf(axis)) return fromList;
+    const m = this.mapOf(axis);
+    if (m) {
+      const used = new Set(Object.values(m.map));
+      return this.valuesOf(m.listType)
+        .filter((v) => used.has(v.code))
+        .map((v) => ({ code: v.code, label: (this.isAr ? v.labelAr : v.labelEn) || v.labelEn }));
+    }
     return this.factOf(this.axisFact(axis))?.options ?? [];
   }
 
@@ -1174,6 +1447,27 @@ export class ReadyMethodEditPage {
     const fact = this.axisFact(axis);
     const f = this.factOf(fact);
     if (!f) return;
+    const mapped = this.mapOf(axis);
+    if (mapped) {
+      // Groups of the LIST VALUES: the list's own classes to start from, or none.
+      const parent = this.typeDefs()[mapped.listType]?.parent ?? null;
+      const valueGroups: Record<string, string> = {};
+      let groups: TemplateGroup[] = [];
+      if (parent !== null) {
+        const used = new Set(Object.values(mapped.map));
+        for (const r of await this.lookups.list(mapped.listType)) {
+          if (r.parentKey && used.has(r.key)) valueGroups[r.key] = r.parentKey;
+        }
+        const keys = new Set(Object.values(valueGroups));
+        groups = (await this.lookups.list(parent))
+          .filter((r) => r.active && keys.has(r.key))
+          .map((r) => ({ key: r.key, labelEn: r.labelEn, labelAr: r.labelAr }));
+      }
+      this.setMap(axis, { ...mapped, mappedAs: 'group', valueGroups });
+      this.setGroups(axis, groups);
+      this.editorOpen.set(axis);
+      return;
+    }
     await this.ensureList(fact);
     // The chosen list's own classes, in their order; a list with none starts with none.
     const list = this.listFor(fact);
@@ -1190,7 +1484,7 @@ export class ReadyMethodEditPage {
     this.placements.set({
       ...this.placements(),
       [fact]: Object.fromEntries(
-        f.options.flatMap((o) => {
+        this.axisOptions(axis).flatMap((o) => {
           const at = now[o.code];
           return at !== undefined && keys.has(at) ? [[o.code, at]] : [];
         }),
@@ -1246,10 +1540,20 @@ export class ReadyMethodEditPage {
   }
 
   protected placementsOf(axis: 'row' | 'col'): Record<string, string> {
+    const m = this.mapOf(axis);
+    if (m) return m.valueGroups ?? {};
     return this.placements()[this.axisFact(axis)] ?? {};
   }
 
   protected place(axis: 'row' | 'col', code: string, group: string): void {
+    const m = this.mapOf(axis);
+    if (m) {
+      const valueGroups = { ...(m.valueGroups ?? {}) };
+      if (group === '') delete valueGroups[code];
+      else valueGroups[code] = group;
+      this.setMap(axis, { ...m, valueGroups });
+      return;
+    }
     const fact = this.axisFact(axis);
     const mine = { ...(this.placements()[fact] ?? {}) };
     if (group === '') delete mine[code];
@@ -1300,6 +1604,10 @@ export class ReadyMethodEditPage {
   }
 
   protected setFact(key: string): void {
+    if (key !== this.fact()) {
+      this.setMap('row', null);
+      this.rowListPick.set(null);
+    }
     if (key === this.fact()) return;
     this.remember();
     const before = this.factOf(this.fact());
@@ -1354,6 +1662,10 @@ export class ReadyMethodEditPage {
   }
 
   protected setColumn(key: string): void {
+    if (key !== this.colFact()) {
+      this.setMap('col', null);
+      this.colListPick.set(null);
+    }
     if (key === this.colFact()) return;
     this.remember();
     const first = this.firstColumn();
@@ -1404,11 +1716,17 @@ export class ReadyMethodEditPage {
         : $localize`:@@rm.col_amount:Amount`;
     if (!c) return [{ code: '', label: amount }];
     const own = this.colMode() === 'groups' ? this.colGroups() : undefined;
-    const list = own
+    const vm = this.maps().col;
+    const list = vm && this.colMode() !== 'groups'
+      ? valueGroups(this.valuesOf(vm.listType), vm).map((g) => ({
+          code: g.key,
+          label: this.groupLabel(g),
+        }))
+      : own
       ? own.map((g) => ({ code: g.key, label: this.groupLabel(g) }))
       : this.colMode() === 'groups'
         ? c.groups
-        : c.options;
+        : (this.axisValues('col') ?? c.options);
     return this.branches().map((code, i) => ({
       code: i === 0 ? '' : code,
       label: list.find((o) => o.code === code)?.label ?? code,
@@ -1416,18 +1734,39 @@ export class ReadyMethodEditPage {
   });
 
   private branches(): string[] {
+    const m = this.maps().col;
+    if (m && this.colMode() !== 'groups') {
+      return (
+        this.storedBranches() ?? valueGroups(this.valuesOf(m.listType), m).map((g) => g.key)
+      );
+    }
     const own = this.colMode() === 'groups' ? this.colGroups() : undefined;
     if (own) return own.map((g) => g.key);
     const stored = this.storedBranches();
     if (stored) return stored;
     const c = this.factOf(this.colFact());
     if (!c) return [];
+    if (this.colMode() !== 'groups') {
+      const fromList = this.axisValues('col');
+      if (fromList !== null) return fromList.map((o) => o.code);
+    }
     return (this.colMode() === 'groups' ? c.groups : c.options).map((o) => o.code);
   }
 
   protected readonly rows = computed<readonly MethodOption[]>(() => {
     const f = this.factOf(this.fact());
     if (!f) return [];
+    const m = this.maps().row;
+    if (m && this.kind() !== 'classTable') {
+      return valueGroups(this.valuesOf(m.listType), m).map((g) => ({
+        code: g.key,
+        label: this.groupLabel(g),
+      }));
+    }
+    if (this.kind() !== 'classTable' && f.type === 'choice') {
+      const fromList = this.axisValues('row');
+      if (fromList !== null) return fromList;
+    }
     if (this.kind() === 'classTable') {
       const own = this.rowGroups();
       return own ? own.map((g) => ({ code: g.key, label: this.groupLabel(g) })) : f.groups;
@@ -1546,6 +1885,18 @@ export class ReadyMethodEditPage {
     if (this.kind() === 'classTable' && (this.rowGroups()?.length ?? 1) === 0) {
       return $localize`:@@ps.block_no_group:Add at least one group.`;
     }
+    for (const axis of ['row', 'col'] as const) {
+      const m = this.maps()[axis];
+      if (!m) continue;
+      const answers = this.factOf(this.axisFact(axis))?.options ?? [];
+      if (unmapped(answers, m).length > 0) {
+        return $localize`:@@rm.need_map:Map every answer to a list value.`;
+      }
+      const grouped = axis === 'row' ? this.kind() === 'classTable' : this.colMode() === 'groups';
+      if (grouped && Object.values(m.map).some((v) => !m.valueGroups?.[v])) {
+        return $localize`:@@rm.need_value_groups:Put every list value in use into a group.`;
+      }
+    }
     if (this.colFact() !== '' && this.branches().length < 2) {
       return $localize`:@@rm.need_cols:The second question needs at least two answers.`;
     }
@@ -1553,6 +1904,41 @@ export class ReadyMethodEditPage {
   });
 
   private mechanism(): TemplateMechanism {
+    const base = this.plainMechanism();
+    const rm = this.maps().row;
+    const cm = this.maps().col;
+    if (!rm && !cm) return base;
+    const out = structuredClone(base) as TemplateMechanism & Record<string, unknown>;
+    // Under a mapping the rows are classes: one per list value (or per group of values), the
+    // answers filed in them as the product's own groups — what the engine already reads.
+    if (rm && out.kind !== 'flatAmount') {
+      const perGroup = this.kind() === 'classTable';
+      Object.assign(out, {
+        kind: 'classTable',
+        groups: perGroup ? (this.rowGroups() ?? []) : valueGroups(this.valuesOf(rm.listType), rm),
+        listType: rm.listType,
+        valueMap: rm.map,
+        mappedAs: perGroup ? 'group' : 'value',
+        ...(perGroup ? { valueGroups: rm.valueGroups ?? {} } : {}),
+      });
+      if (!perGroup) delete out['valueGroups'];
+    }
+    if (cm && out.column) {
+      const perGroup = this.colMode() === 'groups';
+      out.column = {
+        ...out.column,
+        branchOn: 'parentClass',
+        groups: perGroup ? (this.colGroups() ?? []) : valueGroups(this.valuesOf(cm.listType), cm),
+        listType: cm.listType,
+        valueMap: cm.map,
+        mappedAs: perGroup ? 'group' : 'value',
+        ...(perGroup ? { valueGroups: cm.valueGroups ?? {} } : {}),
+      };
+    }
+    return out;
+  }
+
+  private plainMechanism(): TemplateMechanism {
     const branches = this.branches();
     const own = this.rowGroups();
     const cols = this.colMode() === 'groups' ? this.colGroups() : undefined;
@@ -1581,8 +1967,25 @@ export class ReadyMethodEditPage {
   > {
     const out: Record<string, Array<{ valueId: string; code: string; group: string }>> = {};
     const grouped: string[] = [];
-    if (this.kind() === 'classTable' && this.rowGroups()) grouped.push(this.fact());
-    if (this.colMode() === 'groups' && this.colGroups()) grouped.push(this.colFact());
+    if (this.kind() === 'classTable' && this.rowGroups() && !this.mapOf('row')) {
+      grouped.push(this.fact());
+    }
+    if (this.colMode() === 'groups' && this.colGroups() && !this.mapOf('col')) {
+      grouped.push(this.colFact());
+    }
+    // Under a mapping, each answer is filed in its list value's group (or the value itself).
+    for (const axis of ['row', 'col'] as const) {
+      const m = this.mapOf(axis);
+      const fact = this.axisFact(axis);
+      if (!m || fact === '') continue;
+      await this.ensureList(fact);
+      const ids = this.valueIds()[fact] ?? {};
+      const grouped2 = axis === 'row' ? this.kind() === 'classTable' : this.colMode() === 'groups';
+      const placed = composePlacements({ ...m, mappedAs: grouped2 ? 'group' : 'value' });
+      out[fact] = Object.entries(placed)
+        .filter(([code]) => ids[code] !== undefined)
+        .map(([code, group]) => ({ valueId: ids[code]!, code, group }));
+    }
     for (const fact of grouped) {
       await this.ensureList(fact);
       const ids = this.valueIds()[fact] ?? {};
@@ -1596,9 +1999,8 @@ export class ReadyMethodEditPage {
 
   /** The list an axis is read from, when the operator chose one other than the default. */
   private listField(axis: 'row' | 'col'): { listType?: string } {
-    const lists = this.listsOf(this.axisFact(axis));
-    const t = this.axisList(axis);
-    return t !== null && lists.length > 0 ? { listType: t } : {};
+    const picked = axis === 'row' ? this.rowListPick() : this.colListPick();
+    return picked !== null ? { listType: picked } : {};
   }
 
   /** Blank rows out, and only the columns the method has. */
@@ -1726,6 +2128,36 @@ export class ReadyMethodEditPage {
       this.colFact.set(mech.column?.fact ?? '');
       this.colMode.set(mech.column?.branchOn === 'parentClass' ? 'groups' : 'answer');
       this.storedBranches.set(mech.column ? [...mech.column.branches] : null);
+      // Answers read through another list: the mapping comes back as it was saved.
+      const maps: { row: ValueMapping | null; col: ValueMapping | null } = { row: null, col: null };
+      if (mech.kind !== 'flatAmount' && mech.valueMap && mech.listType) {
+        await this.loadValues(mech.listType);
+        maps.row = {
+          listType: mech.listType,
+          map: { ...mech.valueMap },
+          mappedAs: mech.mappedAs ?? 'value',
+          ...(mech.valueGroups ? { valueGroups: { ...mech.valueGroups } } : {}),
+        };
+        if (mech.mappedAs !== 'group') {
+          this.kind.set('choiceTable');
+          this.rowGroups.set(undefined);
+        }
+      }
+      const col = mech.column;
+      if (col?.valueMap && col.listType) {
+        await this.loadValues(col.listType);
+        maps.col = {
+          listType: col.listType,
+          map: { ...col.valueMap },
+          mappedAs: col.mappedAs ?? 'value',
+          ...(col.valueGroups ? { valueGroups: { ...col.valueGroups } } : {}),
+        };
+        if (col.mappedAs !== 'group') {
+          this.colMode.set('answer');
+          this.colGroups.set(undefined);
+        }
+      }
+      this.maps.set(maps);
       this.figures.set(structuredClone(m.figures ?? {}));
     } finally {
       this.loading.set(false);

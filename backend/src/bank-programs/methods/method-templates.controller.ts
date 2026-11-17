@@ -27,6 +27,25 @@ export class MethodTemplatesController {
     return ok(await this.asks.methodQuestions());
   }
 
+  @Post('lists/:type/question')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "A list's own question",
+    description:
+      'The question that shows the list values as its answers; created and linked when the ' +
+      'list has none. Answers the fact a method reads it by.',
+  })
+  async listQuestion(
+    @Param('type') type: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const sourceIp =
+      typeof forwarded === 'string' ? (forwarded.split(',')[0]?.trim() ?? null) : (req.ip ?? null);
+    return ok(await this.asks.ensureListQuestion(type, { id: user.sub, sourceIp }));
+  }
+
   @Post('questions/:code/fact')
   @Roles('super_admin')
   @ApiOperation({

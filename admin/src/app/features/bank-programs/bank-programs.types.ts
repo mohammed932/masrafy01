@@ -1255,6 +1255,11 @@ export interface TemplateColumn {
   groups?: TemplateGroup[];
   /** The Manage values list its answers are read from (v37.0.0). */
   listType?: string;
+  /** Answers read through another list (v37.0.0): answer code → list value code. */
+  valueMap?: Record<string, string>;
+  /** Per group of list values: value code → group key. */
+  valueGroups?: Record<string, string>;
+  mappedAs?: 'value' | 'group';
 }
 
 /** One of a product's own groups. `key` never changes on a rename: figures hang off it. */
@@ -1334,6 +1339,11 @@ export type TemplateMechanism = MechanismShape & {
   methodKey?: string;
   /** The Manage values list its answers are read from (v37.0.0); absent = the one that matches. */
   listType?: string;
+  /** Answers read through another list (v37.0.0): answer code → list value code. */
+  valueMap?: Record<string, string>;
+  /** Per group of list values: value code → group key. */
+  valueGroups?: Record<string, string>;
+  mappedAs?: 'value' | 'group';
 };
 
 export type ConditionMeasure = { of: 'fact'; fact: string } | { of: 'answer' };
