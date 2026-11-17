@@ -4441,6 +4441,7 @@
   <trans-unit id="spd.plan_table.uncovered" datatype="html"><source>Nothing is stated below <x id="from" equiv-text="first.fromInclusive"/>%.</source><target>لا شيء محدد أقل من <x id="from" equiv-text="first.fromInclusive"/>%.</target></trans-unit>
   <trans-unit id="spd.plan_table.uncovered_reject" datatype="html"><source>A customer putting less down is turned away.</source><target>ومن يدفع أقل من ذلك يُرفض طلبه.</target></trans-unit>
   <trans-unit id="spd.plan_table.sec_cases" datatype="html"><source>Some answers get their own figure</source><target>بعض الإجابات لها قيمة خاصة بها</target></trans-unit>
+  <trans-unit id="spd.plan_table.everyone_else" datatype="html"><source>Everyone else</source><target>باقي العملاء</target></trans-unit>
   <trans-unit id="spd.plan_table.per_band" datatype="html"><source>band by band</source><target>لكل شريحة على حدة</target></trans-unit>
   <trans-unit id="spd.plan_table.change" datatype="html"><source>Change</source><target>تعديل</target></trans-unit>
   <trans-unit id="spd.plan_table.delta_hint" datatype="html"><source>A minus takes the figure down for that answer and a plus puts it up. It moves every band at once.</source><target>الإشارة السالبة تخفض القيمة لتلك الإجابة والموجبة ترفعها، والتغيير يسري على كل الشرائح دفعة واحدة.</target></trans-unit>

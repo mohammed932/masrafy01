@@ -67,6 +67,26 @@ interface CardColumn {
   readonly conditional: boolean;
 }
 
+/** A figure's name in the table heading, spanning every column that figure keeps. */
+interface HeadGroup {
+  readonly slot: PlanSlotKey;
+  readonly name: string;
+  readonly span: number;
+}
+
+/** Where a column sits in its figure's group — the frame is drawn on the outer two. */
+interface GroupEdge {
+  readonly start: boolean;
+  readonly end: boolean;
+}
+
+/** One line pair under a figure's name: the question, and the answer this column prices. */
+interface CaseHeadPart {
+  /** `null` on the column every other customer is priced from. */
+  readonly question: string | null;
+  readonly answer: string;
+}
+
 /** Which part of the plans is on stage. */
 type PlanTab = 'steps' | 'figures' | 'cases';
 
@@ -328,20 +348,56 @@ interface CaseGroup {
                      the house measures page overflow at 0 on every screen. -->
                 <div class="prt__scroll">
                   <table class="prt__table">
+                    <!-- TWO ROWS when a figure keeps a column per exception. A column headed
+                         only BELOW 521 said nothing about which figure it prices or which
+                         question it answers, and the only clue was where it happened to sit.
+                         The figure's name now spans its columns, and each column under it
+                         names its question and its answer. One row when no figure needs it. -->
                     <thead>
                       <tr>
-                        <th class="prt__dep-head" scope="col">
+                        <th class="prt__dep-head" scope="col" [attr.rowspan]="headRowspan()">
                           <span class="prt__head-name" i18n="@@spd.plan_table.deposit"
                             >Down payment</span
                           >
                         </th>
-                        @for (column of cardColumns(); track $index) {
-                          <th class="prt__head" scope="col">
-                            <span class="prt__head-name">{{ headName(column) }}</span>
-                          </th>
+                        @for (h of headGroups(); track h.slot) {
+                          @if (h.span > 1) {
+                            <th
+                              class="prt__head prt__grp-head"
+                              scope="colgroup"
+                              [attr.colspan]="h.span"
+                            >
+                              <span class="prt__head-name">{{ h.name }}</span>
+                            </th>
+                          } @else {
+                            <th class="prt__head" scope="col" [attr.rowspan]="headRowspan()">
+                              <span class="prt__head-name">{{ h.name }}</span>
+                            </th>
+                          }
                         }
-                        <th class="prt__act-head"></th>
+                        <th class="prt__act-head" [attr.rowspan]="headRowspan()"></th>
                       </tr>
+                      @if (headRowspan() !== null) {
+                        <tr>
+                          @for (column of cardColumns(); track $index; let c = $index) {
+                            @if (groupEdge(c); as edge) {
+                              <th
+                                class="prt__case-head is-grp"
+                                scope="col"
+                                [class.is-grp-start]="edge.start"
+                                [class.is-grp-end]="edge.end"
+                              >
+                                @for (part of caseHead(column); track $index) {
+                                  @if (part.question !== null) {
+                                    <span class="prt__case-q">{{ part.question }}</span>
+                                  }
+                                  <span class="prt__case-a">{{ part.answer }}</span>
+                                }
+                              </th>
+                            }
+                          }
+                        </tr>
+                      }
                     </thead>
 
                     <tbody>
@@ -367,7 +423,13 @@ interface CaseGroup {
 
                           @for (column of cardColumns(); track $index; let c = $index) {
                             @if (showsCell(r, c)) {
-                              <td class="prt__cell" [attr.rowspan]="spanOf(r, c)">
+                              <td
+                                class="prt__cell"
+                                [attr.rowspan]="spanOf(r, c)"
+                                [class.is-grp]="groupEdge(c) !== null"
+                                [class.is-grp-start]="groupEdge(c)?.start === true"
+                                [class.is-grp-end]="groupEdge(c)?.end === true"
+                              >
                                 <app-figure-field
                                   [fieldId]="'plan-' + column.slot + '-' + c + '-' + r"
                                   [value]="cellValue(r, c)"
@@ -771,6 +833,54 @@ interface CaseGroup {
         border-block-end: 1px solid var(--border-subtle);
       }
 
+      /* ─── A FIGURE THAT KEEPS A COLUMN PER EXCEPTION ───────────────────────────
+         Its name spans its columns, and a tint and a frame run from the name to the last
+         row, so a column headed by an answer is read as part of the figure above it. The
+         tint mixes with transparent, so the row hover still shows through it. */
+      .prt__grp-head {
+        background: color-mix(in oklab, var(--primary) 9%, transparent);
+        border-block-end-color: var(--border-subtle);
+      }
+
+      .prt__grp-head .prt__head-name {
+        color: var(--primary);
+      }
+
+      .prt__table .is-grp {
+        background: color-mix(in oklab, var(--primary) 4%, transparent);
+      }
+
+      .prt__grp-head,
+      .prt__table .is-grp-start {
+        border-inline-start: 1px solid color-mix(in oklab, var(--primary) 35%, transparent);
+      }
+
+      .prt__grp-head,
+      .prt__table .is-grp-end {
+        border-inline-end: 1px solid color-mix(in oklab, var(--primary) 35%, transparent);
+      }
+
+      /* BOTTOM, so the answers line up whether a column has a question over it or not. */
+      .prt__table thead .prt__case-head {
+        vertical-align: bottom;
+      }
+
+      .prt__case-q,
+      .prt__case-a {
+        display: block;
+        font-size: var(--text-xs);
+        white-space: nowrap;
+      }
+
+      .prt__case-q {
+        color: var(--color-text-secondary);
+      }
+
+      .prt__case-a {
+        color: var(--color-text-primary);
+        font-weight: var(--font-semibold);
+      }
+
       .prt__table tbody tr:hover {
         background: var(--bg-subtle);
       }
@@ -1061,6 +1171,7 @@ export class PlanRowsEditorComponent {
   protected readonly caseFact = signal<string | null>(null);
   protected readonly caseOption = signal<string | null>(null);
 
+  private readonly everyoneElse = $localize`:@@spd.plan_table.everyone_else:Everyone else`;
   protected readonly blankNote = $localize`:@@spd.plan_table.blank_note:Blank — this table says nothing for that band, so each bank's own figure stands.`;
   // Visible labels, not placeholders — see the picker's own note in the template.
   protected readonly caseFactLabel = $localize`:@@spd.plan_table.pick_answer:Which answer`;
@@ -1329,9 +1440,77 @@ export class PlanRowsEditorComponent {
     }
   }
 
+  /**
+   * A column's full name, for the cell's accessible name: the figure, and — on a figure that
+   * keeps a column per exception — which customers this column prices.
+   */
   protected headName(column: CardColumn): string {
-    if (column.kind !== 'case' || column.leads) return this.headNameOf(column.slot);
-    return this.extraLabel(column.slot, this.table()?.columns[column.columnIndex]?.extra ?? []);
+    const figure = this.headNameOf(column.slot);
+    if (column.kind !== 'case') return figure;
+    const who = this.caseHead(column)
+      .map((part) => (part.question === null ? part.answer : `${part.question}: ${part.answer}`))
+      .join(' · ');
+    return `${figure} — ${who}`;
+  }
+
+  // ─── THE TWO-ROW HEADING ───────────────────────────────────────────────────
+
+  /** The figures in table order, each with how many columns it keeps. */
+  protected readonly headGroups = computed<readonly HeadGroup[]>(() => {
+    const out: HeadGroup[] = [];
+    for (const column of this.cardColumns()) {
+      const last = out[out.length - 1];
+      if (last !== undefined && last.slot === column.slot) {
+        out[out.length - 1] = { ...last, span: last.span + 1 };
+      } else {
+        out.push({ slot: column.slot, name: this.headNameOf(column.slot), span: 1 });
+      }
+    }
+    return out;
+  });
+
+  /** `2` for every one-column heading once any figure needs a second row; `null` otherwise. */
+  protected readonly headRowspan = computed<2 | null>(() =>
+    this.headGroups().some((g) => g.span > 1) ? 2 : null,
+  );
+
+  private readonly groupEdges = computed<readonly (GroupEdge | null)[]>(() => {
+    const columns = this.cardColumns();
+    const spans = new Map(this.headGroups().map((g) => [g.slot, g.span] as const));
+    return columns.map((column, i) => {
+      if ((spans.get(column.slot) ?? 1) < 2) return null;
+      return {
+        start: columns[i - 1]?.slot !== column.slot,
+        end: columns[i + 1]?.slot !== column.slot,
+      };
+    });
+  });
+
+  /** `null` for a column that is its figure's only one — no group, no frame. */
+  protected groupEdge(columnIndex: number): GroupEdge | null {
+    return this.groupEdges()[columnIndex] ?? null;
+  }
+
+  /**
+   * What sits under the figure's name: the question and the answer, read off the stored keys
+   * like every other label here. The column with no answer on it is everyone the exceptions
+   * do not name.
+   */
+  protected caseHead(column: CardColumn): readonly CaseHeadPart[] {
+    const t = this.table();
+    const stored = t?.columns[column.columnIndex];
+    if (t === null || stored === undefined || stored.isBase) {
+      return [{ question: null, answer: this.everyoneElse }];
+    }
+    const axes = t.extraAxes[column.slot] ?? [];
+    const parts: CaseHeadPart[] = [];
+    stored.extra.forEach((code, index) => {
+      if (code === null) return;
+      const key = axes[index]?.factKey ?? '';
+      const question = this.facts().find((f) => f.key === key)?.label ?? null;
+      parts.push({ question, answer: this.optionLabel(key, code) });
+    });
+    return parts.length > 0 ? parts : [{ question: null, answer: this.everyoneElse }];
   }
 
   /**
