@@ -988,6 +988,7 @@
       <!-- Shared wizard step rail (app-wizard-steps) — every stepped screen. -->
       <trans-unit id="ui.wizard.step_done" datatype="html"><source>Done</source><target>تم</target></trans-unit>
       <trans-unit id="ui.wizard.step_attention" datatype="html"><source>Needs attention</source><target>يحتاج مراجعة</target></trans-unit>
+      <trans-unit id="ui.wizard.step_optional" datatype="html"><source>Optional</source><target>اختياري</target></trans-unit>
 
       <!-- ═══ Feature 011 — income-surrogate rule builder ═══════════════════ -->
       <!-- The section shell + the ten methods. -->
@@ -5241,6 +5242,15 @@
       <trans-unit id="spt.v2.worked_out_by_us" datatype="html"><source><x id="NAME" equiv-text="derived.label"/> (worked out by us, not asked)</source><target><x id="NAME" equiv-text="derived.label"/> (نحسبه نحن، لا يُسأل)</target></trans-unit>
       <trans-unit id="np.start_cap" datatype="html"><source>A cap on a payslip loan</source><target>حد أقصى على قرض بإثبات دخل</target></trans-unit>
       <trans-unit id="np.start_cap_note" datatype="html"><source>No amount is worked out. It asks one question, and each bank sets the biggest loan for each answer.</source><target>لا يُحسب مبلغ. يسأل سؤالًا واحدًا، ويحدد كل بنك أكبر قرض لكل إجابة.</target></trans-unit>
+      <trans-unit id="np.start_title" datatype="html"><source>How do you want to start?</source><target>كيف تريد أن تبدأ؟</target></trans-unit>
+      <trans-unit id="np.copy_required" datatype="html"><source>Choose the product to copy.</source><target>اختر المنتج الذي تريد نسخه.</target></trans-unit>
+      <trans-unit id="np.f_works" datatype="html"><source>Works out</source><target>يحسب</target></trans-unit>
+      <trans-unit id="np.f_nothing" datatype="html"><source>Nothing yet</source><target>لا شيء بعد</target></trans-unit>
+      <trans-unit id="np.f_status" datatype="html"><source>Status now</source><target>الحالة الآن</target></trans-unit>
+      <trans-unit id="np.f_sold" datatype="html"><source>Programs selling it</source><target>البرامج التي تبيعه</target></trans-unit>
+      <trans-unit id="np.copy_note" datatype="html"><source> The copy is its own product: changing it later leaves this one as it is. </source><target> النسخة منتج مستقل: تعديلها لاحقًا لا يغيّر هذا المنتج. </target></trans-unit>
+      <trans-unit id="np.hint3" datatype="html"><source> It is created switched off. Nothing reaches a customer until you press Go live. </source><target> يُنشأ المنتج موقوفًا. لا يصل شيء إلى أي عميل حتى تضغط «تفعيل». </target></trans-unit>
+      <trans-unit id="np.creating" datatype="html"><source>Creating…</source><target>جارٍ الإنشاء…</target></trans-unit>
       <trans-unit id="spt.v2.own_groups" datatype="html"><source> Make your own groups instead </source><target> اصنع مجموعاتك الخاصة بدلًا من ذلك </target></trans-unit>
       <trans-unit id="spt.v2.no_answer_use" datatype="html"><source>If they don&apos;t answer, use</source><target>إذا لم يُجب، استخدم</target></trans-unit>
       <trans-unit id="spt.v2.decide_q" datatype="html"><source>Which answers decide the amount?</source><target>أي الإجابات تحدد المبلغ؟</target></trans-unit>
@@ -5283,25 +5293,28 @@
       <trans-unit id="ps.asktab_added_hint" datatype="html"><source>Asked only on this product. Removing one also takes it out of the amount and the rules.</source><target>تُسأل في هذا المنتج فقط. حذف أحدها يزيله أيضًا من المبلغ والقواعد.</target></trans-unit>
       <trans-unit id="ps.cap_title" datatype="html"><source>Which answer sets the cap?</source><target>أي إجابة تحدد الحد؟</target></trans-unit>
       <trans-unit id="ps.cap_body" datatype="html"><source> Each bank sets the biggest payslip loan for each answer of the questions this product asks, on its own program. </source><target> يحدد كل بنك أكبر قرض بمفردات مرتب لكل إجابة من أسئلة هذا المنتج، في برنامجه الخاص. </target></trans-unit>
-      <trans-unit id="ps.limits_add" datatype="html"><source> + Loan limits (optional): debt burden, duration, loan size, plans by down payment </source><target> + حدود القرض (اختياري): عبء الدين، المدة، حجم القرض، الخطط حسب الدفعة المقدمة </target></trans-unit>
-      <trans-unit id="ps.limits" datatype="html"><source>Loan limits</source><target>حدود القرض</target></trans-unit>
-      <trans-unit id="ps.limits_note" datatype="html"><source>optional — each bank starts from these</source><target>اختياري — يبدأ كل بنك منها</target></trans-unit>
       <trans-unit id="ps.dbr_a" datatype="html"><source>A monthly payment can take up to</source><target>يمكن أن يصل القسط الشهري إلى</target></trans-unit>
-      <trans-unit id="ps.dbr_b" datatype="html"><source>% of their income</source><target>% من دخله</target></trans-unit>
-      <trans-unit id="ps.months_a" datatype="html"><source>Pay back over</source><target>السداد على مدى</target></trans-unit>
       <trans-unit id="ps.to" datatype="html"><source>to</source><target>إلى</target></trans-unit>
-      <trans-unit id="ps.months_b" datatype="html"><source>months</source><target>شهرًا</target></trans-unit>
-      <trans-unit id="ps.lend_a" datatype="html"><source>Lend from EGP</source><target>إقراض من</target></trans-unit>
-      <trans-unit id="ps.plans" datatype="html"><source>Plans by down payment</source><target>الخطط حسب الدفعة المقدمة</target></trans-unit>
-      <trans-unit id="ps.plans_add" datatype="html"><source> + Plans by down payment (rate, longest term, share financed) </source><target> + خطط حسب الدفعة المقدمة (العائد، أطول مدة، نسبة التمويل) </target></trans-unit>
-      <trans-unit id="ps.plans_other" datatype="html"><source> This product&apos;s plan tables cannot be shown as one table here. </source><target> لا يمكن عرض جداول خطط هذا المنتج كجدول واحد هنا. </target></trans-unit>
       <trans-unit id="ps.back" datatype="html"><source>Back</source><target>رجوع</target></trans-unit>
       <trans-unit id="ps.not_found" datatype="html"><source>This product could not be found.</source><target>تعذّر العثور على هذا المنتج.</target></trans-unit>
       <trans-unit id="ps.remove" datatype="html"><source>Remove</source><target>حذف</target></trans-unit>
       <trans-unit id="ps.search_q" datatype="html"><source>Search questions…</source><target>ابحث في الأسئلة…</target></trans-unit>
       <trans-unit id="ps.more" datatype="html"><source>More actions</source><target>إجراءات أخرى</target></trans-unit>
       <trans-unit id="ps.bank_sets" datatype="html"><source>bank sets</source><target>يحدده البنك</target></trans-unit>
-      <trans-unit id="ps.dbr" datatype="html"><source>Debt burden</source><target>عبء الدين</target></trans-unit>
+      <trans-unit id="ps.dbr_starts" datatype="html"><source> Each new bank program for this product starts from these figures. The bank can change them. </source><target> يبدأ كل برنامج بنكي جديد لهذا المنتج من هذه الأرقام، ويستطيع البنك تغييرها. </target></trans-unit>
+      <trans-unit id="ps.dbr_ceiling_title" datatype="html"><source> For the maximum loan </source><target> للحد الأقصى للقرض </target></trans-unit>
+      <trans-unit id="ps.dbr_ceiling_note" datatype="html"><source> The DBR this product&apos;s maximum loan is worked out at. Leave it blank and each bank&apos;s own cap is used. </source><target> نسبة عبء الدين التي يُحسب عندها الحد الأقصى للقرض في هذا المنتج. اتركها فارغة فيُستخدم حد كل بنك. </target></trans-unit>
+      <trans-unit id="ps.dbr_ceiling_label" datatype="html"><source>Worked out at</source><target>يُحسب عند</target></trans-unit>
+      <trans-unit id="ps.dbr_ceiling_blank" datatype="html"><source>Blank — each bank&apos;s own cap is used.</source><target>فارغ — يُستخدم حد كل بنك.</target></trans-unit>
+      <trans-unit id="ps.dbr_range" datatype="html"><source>A DBR cap is a percentage above 0 and up to 100.</source><target>حد عبء الدين نسبة مئوية أكبر من 0 وحتى 100.</target></trans-unit>
+      <trans-unit id="bank_programs.form.dbr.title" datatype="html"><source>Debt burden</source><target>عبء الدين</target></trans-unit>
+      <trans-unit id="bank_programs.form.dbr.sub" datatype="html"><source> Share of monthly income that may go to instalments. </source><target> نسبة الدخل الشهري التي يمكن أن تذهب إلى الأقساط. </target></trans-unit>
+      <trans-unit id="bank_programs.field.dbr_cap" datatype="html"><source>DBR cap</source><target>حد عبء الدين</target></trans-unit>
+      <trans-unit id="bank_programs.field.dbr_cap.hint" datatype="html"><source> Counts every instalment the customer already carries. </source><target> تُحتسب فيه كل الأقساط الحالية على العميل. </target></trans-unit>
+      <trans-unit id="ps.required_sr" datatype="html"><source>(required)</source><target>(مطلوب)</target></trans-unit>
+      <trans-unit id="ps.dbr_need" datatype="html"><source> Required. Every bank program for this product starts from it. </source><target> مطلوب. يبدأ منه كل برنامج بنكي لهذا المنتج. </target></trans-unit>
+      <trans-unit id="ps.dbr_required" datatype="html"><source>Type the DBR cap on the Amount step.</source><target>اكتب حد عبء الدين في خطوة المبلغ.</target></trans-unit>
+      <trans-unit id="np.steps_locked_cap" datatype="html"><source>The other steps open once the product is created.</source><target>تُفتح الخطوات الأخرى بعد إنشاء المنتج.</target></trans-unit>
       <trans-unit id="ps.step_name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
       <trans-unit id="ps.step_questions" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
       <trans-unit id="ps.step_amount" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
@@ -5309,9 +5322,7 @@
       <trans-unit id="ps.next" datatype="html"><source>Next: <x id="STEP" equiv-text="next"/></source><target>التالي: <x id="STEP" equiv-text="next"/></target></trans-unit>
       <trans-unit id="ps.add_questions_title" datatype="html"><source>Add questions</source><target>إضافة أسئلة</target></trans-unit>
       <trans-unit id="ps.add_sheet_sub" datatype="html"><source>Asked of this product&apos;s applicants.</source><target>تُسأل لمتقدمي هذا المنتج.</target></trans-unit>
-      <trans-unit id="ps.term_both" datatype="html"><source>Type both ends, or leave both empty.</source><target>اكتب الطرفين، أو اتركهما فارغين.</target></trans-unit>
       <trans-unit id="ps.need_names" datatype="html"><source>Give the product a name in English and Arabic.</source><target>أعطِ المنتج اسمًا بالإنجليزية والعربية.</target></trans-unit>
-      <trans-unit id="ps.plans_unfinished" datatype="html"><source>A plan by down payment is not finished.</source><target>إحدى الخطط حسب الدفعة المقدمة غير مكتملة.</target></trans-unit>
       <trans-unit id="ps.calc_failed" datatype="html"><source>The amount was not saved — see the Amount step.</source><target>لم يُحفظ المبلغ — راجع خطوة المبلغ.</target></trans-unit>
       <trans-unit id="ps.now_live" datatype="html"><source>The product is live.</source><target>المنتج مفعّل الآن.</target></trans-unit>
       <trans-unit id="ps.now_off" datatype="html"><source>The product is switched off.</source><target>تم إيقاف المنتج.</target></trans-unit>
@@ -5324,6 +5335,9 @@
       <trans-unit id="ps.lowest_wins" datatype="html"><source> all methods, the lowest wins </source><target> كل الطرق، والأقل يُعتمد </target></trans-unit>
       <trans-unit id="ps.change" datatype="html"><source>Change</source><target>تغيير</target></trans-unit>
       <trans-unit id="ps.pick_questions" datatype="html"><source>+ Pick questions</source><target>+ اختر الأسئلة</target></trans-unit>
+      <trans-unit id="ps.add_range2" datatype="html"><source>Add a range</source><target>أضف نطاقًا</target></trans-unit>
+      <trans-unit id="ps.add_method_t" datatype="html"><source>Add another method</source><target>أضف طريقة أخرى</target></trans-unit>
+      <trans-unit id="ps.add_method_n" datatype="html"><source>Some banks work the amount out differently. Add their way beside this one.</source><target>بعض البنوك تحسب المبلغ بطريقة مختلفة. أضف طريقتها بجانب هذه.</target></trans-unit>
       <trans-unit id="ps.grp_own" datatype="html"><source>This product&apos;s questions</source><target>أسئلة هذا المنتج</target></trans-unit>
       <trans-unit id="ps.grp_fixed" datatype="html"><source>Asked of every customer</source><target>تُسأل لكل عميل</target></trans-unit>
       <trans-unit id="ps.grp_derived" datatype="html"><source>We work these out ourselves</source><target>نحسبها نحن</target></trans-unit>
@@ -5476,7 +5490,6 @@
       <trans-unit id="gb.source_list" datatype="html"><source>They come from its list in Manage values: add or rename one there and it shows up here.</source><target>وهي تأتي من قائمته في إدارة القيم: أضف أو أعد تسمية إجابة هناك وستظهر هنا.</target></trans-unit>
       <trans-unit id="gb.source_open" datatype="html"><source>Open the list</source><target>افتح القائمة</target></trans-unit>
       <trans-unit id="gb.source_own" datatype="html"><source>They are set on the question itself.</source><target>وهي محددة في السؤال نفسه.</target></trans-unit>
-      <trans-unit id="ps.dbr_a2" datatype="html"><source>Debt burden (DBR): the monthly payment can be up to</source><target>عبء الدين (DBR): القسط الشهري يصل إلى</target></trans-unit>
       <trans-unit id="rm.q_rows" datatype="html"><source>Rows: the question that decides the amount</source><target>الصفوف: السؤال الذي يحدد المبلغ</target></trans-unit>
       <trans-unit id="rm.q_cols" datatype="html"><source>Columns (optional): split the amounts by another answer</source><target>الأعمدة (اختياري): قسّم المبالغ حسب إجابة أخرى</target></trans-unit>
       <trans-unit id="rm.axis_rows" datatype="html"><source>Rows</source><target>الصفوف</target></trans-unit>
@@ -5496,7 +5509,7 @@
       <trans-unit id="rm.src_number" datatype="html"><source>A number the customer types</source><target>رقم يكتبه العميل</target></trans-unit>
       <trans-unit id="rm.src_own_opt" datatype="html"><source>A question&apos;s own answers</source><target>إجابات السؤال نفسه</target></trans-unit>
       <trans-unit id="rm.src_derived_opt" datatype="html"><source>Worked out by the platform</source><target>تحسبها المنصة</target></trans-unit>
-      <trans-unit id="rm.no_columns" datatype="html"><source>No columns</source><target>بدون أعمدة</target></trans-unit>
+      <trans-unit id="rm.no_columns" datatype="html"><source>No second question</source><target>بدون سؤال ثانٍ</target></trans-unit>
       <trans-unit id="rm.src_list_opt" datatype="html"><source><x id="LIST" equiv-text="l.label"/> (Manage values)</source><target><x id="LIST" equiv-text="l.label"/> (إدارة القيم)</target></trans-unit>
       <trans-unit id="ps.rows_values_from" datatype="html"><source>Rows: values from</source><target>الصفوف: القيم من</target></trans-unit>
       <trans-unit id="ps.cols_values_from" datatype="html"><source>Columns: values from</source><target>الأعمدة: القيم من</target></trans-unit>
@@ -5517,6 +5530,19 @@
       <trans-unit id="rm.asked_as" datatype="html"><source>Asked as</source><target>يُسأل بصيغة</target></trans-unit>
       <trans-unit id="rm.creating_q" datatype="html"><source>Creating the question for this list…</source><target>جارٍ إنشاء سؤال لهذه القائمة…</target></trans-unit>
       <trans-unit id="rm.list_mismatch" datatype="html"><source><x id="N" equiv-text="n"/> of the question&apos;s answers are not in this list: customers who give them get no amount.</source><target><x id="N" equiv-text="n"/> من إجابات السؤال ليست في هذه القائمة: العملاء الذين يختارونها لا يحصلون على مبلغ.</target></trans-unit>
+      <trans-unit id="rm.s2_title" datatype="html"><source>Which question sets the loan amount?</source><target>أي سؤال يحدد مبلغ القرض؟</target></trans-unit>
+      <trans-unit id="rm.s2_lede" datatype="html"><source> The loan amount depends on how the customer answers this question. After you pick it, choose how each answer turns into an amount. Example: “Which club are you a member of?” — Club A up to 300,000, Club B up to 200,000. </source><target> يعتمد مبلغ القرض على إجابة العميل عن هذا السؤال. بعد اختياره، حدد كيف تتحول كل إجابة إلى مبلغ. مثال: «ما النادي الذي أنت عضو فيه؟» — النادي A حتى 300,000، والنادي B حتى 200,000. </target></trans-unit>
+      <trans-unit id="rm.how_set" datatype="html"><source>How the amount is set</source><target>طريقة تحديد المبلغ</target></trans-unit>
+      <trans-unit id="rm.s3_title" datatype="html"><source> Does the amount also depend on another question? </source><target> هل يتغير المبلغ أيضًا حسب سؤال آخر؟ </target></trans-unit>
+      <trans-unit id="rm.s3_lede" datatype="html"><source> Use this when one row needs different amounts for different customers. Example: Group A gets 60,000 for new customers and 70,000 for bank customers. If each row has one amount, leave it as “No second question”. </source><target> استخدمه عندما يحتاج الصف الواحد إلى مبالغ مختلفة لعملاء مختلفين. مثال: المجموعة A تحصل على 60,000 للعملاء الجدد و70,000 لعملاء البنك. إذا كان لكل صف مبلغ واحد، اتركه «بدون سؤال ثانٍ». </target></trans-unit>
+      <trans-unit id="rm.s4_title" datatype="html"><source>Default amounts</source><target>المبالغ الافتراضية</target></trans-unit>
+      <trans-unit id="rm.s4_lede" datatype="html"><source> A product that picks this method starts from these, then sets its own. A box left empty is filled in by each bank. </source><target> المنتج الذي يختار هذه الطريقة يبدأ منها ثم يحدد مبالغه. الخانة الفارغة يملؤها كل بنك. </target></trans-unit>
+      <trans-unit id="rm.no_rows" datatype="html"><source> No groups yet. Add one in step 2: each group gets a row. </source><target> لا توجد مجموعات بعد. أضف مجموعة في الخطوة 2: لكل مجموعة صف. </target></trans-unit>
+      <trans-unit id="rm.q2_label" datatype="html"><source>Second question</source><target>السؤال الثاني</target></trans-unit>
+      <trans-unit id="rm.cols_label" datatype="html"><source>Columns in the amounts table</source><target>أعمدة جدول المبالغ</target></trans-unit>
+      <trans-unit id="rm.step_name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
+      <trans-unit id="rm.steps_aria" datatype="html"><source>Setting up this method</source><target>إعداد هذه الطريقة</target></trans-unit>
+      <trans-unit id="rm.go_q" datatype="html"><source> Go to Question </source><target> انتقل إلى السؤال </target></trans-unit>
     </body>
   </file>
 </xliff>

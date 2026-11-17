@@ -15,6 +15,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsDefined,
   IsIn,
   IsInt,
   IsObject,
@@ -23,6 +24,7 @@ import {
   Max,
   MaxLength,
   Min,
+  Validate,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -35,6 +37,7 @@ import type { TenorDefaults } from '@/matching/pipeline/tenor-inherit';
 import type { IScoreTiers } from '@/matching/pipeline/iscore';
 import type { LoanAmountDefaults } from '@/matching/pipeline/loan-amount-inherit';
 import type { RateDefaults } from '@/matching/pipeline/rate-inherit';
+import type { DbrDefaults } from '@/platform-enumerations/platform-enumerations.repository';
 import { RATE_BASES, type RateBasis } from '@/matching/pipeline/rate-basis';
 import type { BlueprintCap } from '../blueprints/product-blueprint.types';
 import {
@@ -42,6 +45,7 @@ import {
   IncomeBandDto,
 } from './sub-configs/income-assumption-config.dto';
 import { MaxLoanByFactRowDto } from './sub-configs/loan-limits-config.dto';
+import { CoarseEmploymentPercentMap } from './sub-configs/eligibility-config.dto';
 import { FactGridDto } from './sub-configs/fact-grid.dto';
 import { DecimalRange } from '../../common/decorators/decimal-range.decorator';
 import type { PlanDefaults } from '@/matching/pipeline/plan-inherit';
@@ -210,6 +214,12 @@ export interface ProgramNameIncomeRuleResponseDto {
      */
     capDefaults: MaxLoanByFactRow[] | null;
     /**
+     * The debt-burden caps every new program under this name starts from, or `null` when the
+     * product states none. COPIED, like `capDefaults` above: the wizard fills its own DBR
+     * fields from these on a create only, and the engine never reads them.
+     */
+    dbrDefaults: DbrDefaults | null;
+    /**
      * The loan duration a program under this name falls back to when it states none.
      *
      * INHERITED, unlike `capDefaults` directly above — which is why both travel and why the
@@ -322,6 +332,8 @@ export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
   cap: ProductCapShapeDto | null;
   /** The default amounts, as `PUT :key/cap-defaults` last stored them. `null` = none. */
   capDefaults: MaxLoanByFactRow[] | null;
+  /** The starting DBR caps, as `PUT :key/dbr-defaults` last stored them. `null` = none. */
+  dbrDefaults: DbrDefaults | null;
   /**
    * The default loan duration, as `PUT :key/tenor-defaults` last stored it. `null` = none,
    * and every program under this product must then state its own.
@@ -479,6 +491,38 @@ export class SetSurrogateProductCapDefaultsDto {
   @ValidateNested({ each: true })
   @Type(() => MaxLoanByFactRowDto)
   rows!: MaxLoanByFactRowDto[];
+}
+
+/**
+ * The debt-burden caps a surrogate product hands every NEW program under it — the flat cap
+ * and one per kind of applicant, under the bank program's own field names and validated by
+ * the same rules (`(0, 100]`, coarse buckets only), so a copied figure can never be one the
+ * bank's own save refuses.
+ *
+ * The flat cap is REQUIRED (operator's call): a product states the DBR its programs start
+ * from. The per-applicant caps are optional. There is no clear — `dbr` is always an object.
+ * Copied once at create, never read at quote time, so a change moves no live quote.
+ */
+export class SurrogateProductDbrDto {
+  @ApiProperty({ example: '50' })
+  @IsDefined()
+  @DecimalRange({ min: '0.0001', max: '100', precision: 7, scale: 4 })
+  dbrCapPercent!: string;
+
+  @ApiPropertyOptional({ example: { salaried: '50', self_employed: '40' } })
+  @IsOptional()
+  @IsObject()
+  @Validate(CoarseEmploymentPercentMap)
+  dbrCapPercentByEmploymentType?: Record<string, string>;
+}
+
+export class SetSurrogateProductDbrDefaultsDto {
+  @ApiProperty({ type: SurrogateProductDbrDto })
+  @IsDefined()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => SurrogateProductDbrDto)
+  dbr!: SurrogateProductDbrDto;
 }
 
 /**

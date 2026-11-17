@@ -34,6 +34,8 @@ export interface WizardStepItem {
   readonly status?: WizardStepStatus;
   /** Not reachable yet — the host's own gate (visited / earlier steps satisfied). */
   readonly disabled?: boolean;
+  /** A step the operator may skip — the rail prints "Optional" under its name. */
+  readonly optional?: boolean;
 }
 
 /**
@@ -95,7 +97,14 @@ export interface WizardStepItem {
                 {{ i + 1 }}
               }
             </span>
-            <span class="step-label">{{ s.label }}</span>
+            @if (s.optional) {
+              <span class="step-text">
+                <span class="step-label">{{ s.label }}</span>
+                <span class="step-opt">{{ optionalLabel() }}</span>
+              </span>
+            } @else {
+              <span class="step-label">{{ s.label }}</span>
+            }
             <!-- 'Done' is a SHAPE (the check glyph), so it is not a colour-only
                  signal and needs no word beside it. The word stays for assistive
                  tech only: printed, it was two extra runs of text per rail and it
@@ -250,6 +259,21 @@ export interface WizardStepItem {
       .step.active .step-label {
         color: var(--text-primary);
       }
+      /* An optional step stacks its name over a small "Optional": two tight lines
+         still fit the 44px floor, so the rail does not grow taller for it. */
+      .step-text {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        min-inline-size: 0;
+        line-height: var(--leading-tight);
+      }
+      .step-opt {
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-tertiary);
+        white-space: nowrap;
+      }
       .step.invalid .step-label {
         color: var(--error-500);
       }
@@ -305,7 +329,8 @@ export interface WizardStepItem {
          has and how long their names are, and this component does not know
          either. A breakpoint guessed for a seven-step rail truncates a
          three-step one for no reason, and vice versa. */
-      .steps.is-compact .step:not(.active) .step-label {
+      .steps.is-compact .step:not(.active) .step-label,
+      .steps.is-compact .step:not(.active) .step-opt {
         display: none;
       }
       .sr-only {
@@ -341,6 +366,7 @@ export class WizardStepsComponent {
   readonly captionSrOnly = input(false);
   readonly doneLabel = input($localize`:@@ui.wizard.step_done:Done`);
   readonly attentionLabel = input($localize`:@@ui.wizard.step_attention:Needs attention`);
+  readonly optionalLabel = input($localize`:@@ui.wizard.step_optional:Optional`);
 
   /** Index of the step the host wants on stage. Gating stays with the host. */
   readonly stepSelect = output<number>();

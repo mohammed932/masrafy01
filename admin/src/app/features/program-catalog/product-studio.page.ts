@@ -10,7 +10,6 @@
  * the loan size and the plan tables. One Save, in dependency order: a question is asked before
  * the calculation reads it, and stops being asked only after the calculation stops reading it.
  */
-import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -31,27 +30,25 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import {
   FormDrawerComponent,
   RailTabsComponent,
+  WizardStepsComponent,
   openFormDrawer,
   type RailTabItem,
+  type WizardStepItem,
+  type WizardStepStatus,
 } from '@shared/ui';
-import {
-  PlanRowsEditorComponent,
-  type PlanRemoveRequest,
-} from '@shared/ui/plan-rows-editor.component';
-import { planRowsErrorFor, planRowsFrom } from '@shared/ui/plan-rows.rules';
+import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import {
-  registryFacts,
-  type PlanDefaults,
   type MethodTemplate,
   type ProductAsksBoard,
   type SurrogateProductDetail,
 } from '@features/bank-programs/bank-programs.types';
 import { EngineRulesApiService } from '../questionnaire/engine-rules/engine-rules.api.service';
 import { surrogateBoardLink } from './program-catalog.paths';
+import { PRODUCT_FLOW_STYLES } from './product-flow.styles';
 import { askSections, type AskCard } from './product-asks';
 import {
   ServedPagesComponent,
@@ -78,12 +75,13 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
   selector: 'app-product-studio-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MoneyInputDirective, 
+  imports: [
     RouterLink,
     ReactiveFormsModule,
     ProductTemplatePage,
-    PlanRowsEditorComponent,
+    FigureFieldComponent,
     RailTabsComponent,
+    WizardStepsComponent,
     ServedPagesComponent,
     FormDrawerComponent,
     AddableQuestionsComponent,
@@ -201,23 +199,12 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
 
         <div class="studio">
           <div class="main">
-            <ol class="steps">
-              @for (s of steps(); track s.key; let i = $index) {
-                <li>
-                  <button
-                    type="button"
-                    class="step"
-                    [class.on]="i === stepIndex()"
-                    [class.done]="i < stepIndex()"
-                    [attr.aria-current]="i === stepIndex() ? 'step' : null"
-                    (click)="goTo(i)"
-                  >
-                    <span class="num">{{ i < stepIndex() ? '✓' : i + 1 }}</span>
-                    <span class="sl">{{ s.label }}</span>
-                  </button>
-                </li>
-              }
-            </ol>
+            <app-wizard-steps
+              [steps]="wizardSteps()"
+              [activeIndex]="stepIndex()"
+              [ariaLabel]="stepsAria"
+              (stepSelect)="goTo($event)"
+            />
 
             @switch (step()) {
               @case ('name') {
@@ -368,98 +355,115 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
             }
 
             @if (step() === 'amount' && !p.capOnly) {
-              @if (!limitsOpen()) {
-                <button
-                  type="button"
-                  class="link"
-                  (click)="limitsOpen.set(true)"
-                  i18n="@@ps.limits_add"
-                >
-                  + Loan limits (optional): debt burden, duration, loan size, plans by down payment
-                </button>
-              } @else {
-                <section class="blk">
-                  <h2>
-                    <span i18n="@@ps.limits">Loan limits</span>
-                    <small class="muted" i18n="@@ps.limits_note"
-                      >optional — each bank starts from these</small
-                    >
-                  </h2>
-                  @if (calc(); as c) {
-                    @if (c.form.controls.outputKind.value === 'maxAmount') {
-                      <p class="line">
-                        <span i18n="@@ps.dbr_a2">Debt burden (DBR): the monthly payment can be up to</span>
-                        <input
-                          appMoneyInput class="edge"
-                          inputmode="decimal"
-                          [value]="c.form.controls.baselineDbrPercent.value"
-                          (change)="c.form.controls.baselineDbrPercent.setValue(val($event))"
-                          [placeholder]="bankSets"
-                          [attr.aria-label]="dbrAria"
-                        />
-                        <span i18n="@@ps.dbr_b">% of their income</span>
-                      </p>
-                    }
-                  }
-                  <p class="line">
-                    <span i18n="@@ps.months_a">Pay back over</span>
-                    <input
-                      appMoneyInput class="edge"
-                      inputmode="numeric"
-                      [value]="tenorMin()"
-                      (change)="setTerm('tenorMin', val($event))"
-                      [attr.aria-label]="fromAria"
-                    />
-                    <span i18n="@@ps.to">to</span>
-                    <input
-                      appMoneyInput class="edge"
-                      inputmode="numeric"
-                      [value]="tenorMax()"
-                      (change)="setTerm('tenorMax', val($event))"
-                      [attr.aria-label]="toAria"
-                    />
-                    <span i18n="@@ps.months_b">months</span>
+              <!-- One card, read top to bottom like the bank program's own Debt burden card:
+                   the flat cap (required), then a cap per kind of applicant that beats it. -->
+              <section class="blk dbr" aria-labelledby="psDbrTitle">
+                <header class="dbr-head">
+                  <h2 id="psDbrTitle" i18n="@@bank_programs.form.dbr.title">Debt burden</h2>
+                  <p class="dbr-sub" i18n="@@bank_programs.form.dbr.sub">
+                    Share of monthly income that may go to instalments.
                   </p>
-                  <p class="line">
-                    <span i18n="@@ps.lend_a">Lend from EGP</span>
-                    <input
-                      appMoneyInput class="edge wide"
-                      inputmode="decimal"
-                      [value]="fmt(amountMin())"
-                      (change)="setTerm('amountMin', val($event))"
-                      [attr.aria-label]="fromAria"
-                    />
-                    <span i18n="@@ps.to">to</span>
-                    <input
-                      appMoneyInput class="edge wide"
-                      inputmode="decimal"
-                      [value]="fmt(amountMax())"
-                      (change)="setTerm('amountMax', val($event))"
-                      [attr.aria-label]="toAria"
-                    />
+                  <p class="dbr-sub" i18n="@@ps.dbr_starts">
+                    Each new bank program for this product starts from these figures. The bank can
+                    change them.
                   </p>
-                  @if (termError(); as e) {
-                    <p class="warn">{{ e }}</p>
-                  }
-                  @if (planTable() !== null) {
-                    <p class="hint" i18n="@@ps.plans">Plans by down payment</p>
-                    <app-plan-rows-editor
-                      [grids]="planValue()"
-                      [facts]="facts()"
-                      (gridsChange)="onPlans($event)"
-                      (removeRequest)="onPlanRemove($event)"
-                    />
-                  } @else if (planValue() === null && readsDownPayment()) {
-                    <button type="button" class="link" (click)="startPlans()" i18n="@@ps.plans_add">
-                      + Plans by down payment (rate, longest term, share financed)
-                    </button>
-                  } @else if (planValue() !== null) {
-                    <p class="hint" i18n="@@ps.plans_other">
-                      This product's plan tables cannot be shown as one table here.
+                </header>
+
+                <div class="dbr-cap">
+                  <label class="dbr-label" for="psDbrCap">
+                    <span class="req" aria-hidden="true">*</span>
+                    <span i18n="@@bank_programs.field.dbr_cap">DBR cap</span>
+                    <span class="sr-only" i18n="@@ps.required_sr">(required)</span>
+                  </label>
+                  <app-figure-field
+                    fieldId="psDbrCap"
+                    unit="%"
+                    [value]="dbrCap()"
+                    (valueChange)="setDbrCap($event)"
+                    [placeholder]="dbrDash"
+                  />
+                  @if (dbrCap() === '') {
+                    <p class="dbr-need" i18n="@@ps.dbr_need">
+                      Required. Every bank program for this product starts from it.
+                    </p>
+                  } @else {
+                    <p class="dbr-hint" i18n="@@bank_programs.field.dbr_cap.hint">
+                      Counts every instalment the customer already carries.
                     </p>
                   }
-                </section>
-              }
+                </div>
+
+                <div class="dbr-part">
+                  <h3
+                    class="dbr-eyebrow"
+                    id="psDbrEmpTitle"
+                    i18n="@@bank_programs.eligibility.dbr_by_employment"
+                  >
+                    Caps by kind of applicant
+                  </h3>
+                  <p
+                    class="dbr-hint"
+                    i18n="@@bank_programs.eligibility.dbr_by_employment.note_flat"
+                  >
+                    A figure here wins for that kind of applicant whatever they earn. Leave a row
+                    blank and the cap above applies.
+                  </p>
+                  <ul class="dbr-emp" aria-labelledby="psDbrEmpTitle">
+                    @for (bucket of employmentBuckets; track bucket) {
+                      <li class="dbr-emp-row">
+                        <label class="dbr-emp-label" [attr.for]="'psDbrEmp-' + bucket">{{
+                          employmentLabel(bucket)
+                        }}</label>
+                        <app-figure-field
+                          [fieldId]="'psDbrEmp-' + bucket"
+                          unit="%"
+                          [value]="dbrByEmployment()[bucket] ?? ''"
+                          (valueChange)="setDbrFor(bucket, $event)"
+                          [placeholder]="dbrRowFallback()"
+                          [placeholderNote]="dbrRowBlankNote"
+                        />
+                      </li>
+                    }
+                  </ul>
+                </div>
+
+                <!-- A maximum-loan product turns its ceiling into an income at one DBR. It is
+                       the calculation's own figure (saved with it), shown here because it is
+                       the same kind of number as the two above. -->
+                @if (calc(); as c) {
+                  @if (c.form.controls.outputKind.value === 'maxAmount') {
+                    <div class="dbr-part">
+                      <h3 class="dbr-eyebrow" i18n="@@ps.dbr_ceiling_title">
+                        For the maximum loan
+                      </h3>
+                      <p class="dbr-hint" i18n="@@ps.dbr_ceiling_note">
+                        The DBR this product's maximum loan is worked out at. Leave it blank and
+                        each bank's own cap is used.
+                      </p>
+                      <div class="dbr-emp-row dbr-solo">
+                        <label
+                          class="dbr-emp-label"
+                          for="psDbrCeiling"
+                          i18n="@@ps.dbr_ceiling_label"
+                          >Worked out at</label
+                        >
+                        <app-figure-field
+                          fieldId="psDbrCeiling"
+                          unit="%"
+                          [value]="c.form.controls.baselineDbrPercent.value"
+                          (valueChange)="c.form.controls.baselineDbrPercent.setValue(clean($event))"
+                          [placeholder]="dbrDash"
+                          [placeholderNote]="dbrCeilingBlankNote"
+                        />
+                      </div>
+                    </div>
+                  }
+                }
+
+                @if (dbrError(); as e) {
+                  <p class="warn" role="alert">{{ e }}</p>
+                }
+              </section>
             }
 
             <div class="foot">
@@ -497,6 +501,7 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
     </ng-template>
   `,
   styles: [
+    PRODUCT_FLOW_STYLES,
     `
       :host {
         display: block;
@@ -506,25 +511,6 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
         flex-direction: column;
         gap: var(--space-4);
         padding-block: var(--space-4) var(--space-8);
-      }
-      .back {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        color: var(--color-text-secondary);
-        text-decoration: none;
-        font-size: var(--text-sm);
-        align-self: flex-start;
-      }
-      .back-i {
-        inline-size: 1em;
-        block-size: 1em;
-      }
-      :host-context([dir='rtl']) .back-i {
-        transform: scaleX(-1);
-      }
-      .back:hover {
-        color: var(--color-text-link);
       }
       .muted,
       .hint {
@@ -543,74 +529,6 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
         margin: 0;
         color: var(--color-warning);
         font-size: var(--text-sm);
-      }
-      .ph {
-        display: flex;
-        justify-content: space-between;
-        gap: var(--space-4);
-        flex-wrap: wrap;
-        align-items: flex-start;
-      }
-      .ph-names {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-      }
-      h1 {
-        margin: 0;
-        font-size: var(--text-2xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--color-text-primary);
-      }
-      .ar {
-        color: var(--color-text-secondary);
-        align-self: flex-start;
-      }
-      .ph-act {
-        display: flex;
-        gap: var(--space-2-5);
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .pill {
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        padding: var(--space-0-5) var(--space-2-5);
-        border-radius: var(--radius-pill);
-        background: var(--color-surface-muted);
-        color: var(--color-text-secondary);
-      }
-      .pill.live {
-        background: var(--color-success-bg);
-        color: var(--color-success);
-      }
-      .btn {
-        border: 1px solid var(--color-border-default);
-        background: var(--color-surface-default);
-        color: var(--color-text-primary);
-        border-radius: var(--radius-md);
-        padding: var(--space-2) var(--space-4);
-        font: inherit;
-        font-weight: var(--font-weight-semibold);
-        cursor: pointer;
-      }
-      .btn:hover:not(:disabled) {
-        border-color: var(--color-border-strong);
-      }
-      .btn.primary {
-        background: var(--color-brand-primary);
-        border-color: var(--color-brand-primary);
-        color: var(--color-text-on-brand);
-      }
-      .btn.primary:hover:not(:disabled) {
-        background: var(--color-brand-primary-hover);
-      }
-      .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      .btn.icon {
-        padding: var(--space-2) var(--space-3);
       }
       .menu {
         position: relative;
@@ -654,92 +572,6 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
         flex-direction: column;
         gap: var(--space-4);
         min-width: 0;
-      }
-      .steps {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-        gap: var(--space-2);
-      }
-      .steps li {
-        min-width: 0;
-      }
-      .step {
-        inline-size: 100%;
-        display: flex;
-        align-items: center;
-        gap: var(--space-2-5);
-        border: 1px solid var(--color-border-default);
-        background: var(--color-surface-default);
-        border-radius: var(--radius-md);
-        padding: var(--space-2-5) var(--space-3);
-        cursor: pointer;
-        text-align: start;
-        font: inherit;
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-secondary);
-        min-width: 0;
-      }
-      .step .num {
-        flex: none;
-        inline-size: 1.625rem;
-        block-size: 1.625rem;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        background: var(--color-surface-muted);
-        font-size: var(--text-sm);
-      }
-      .step .sl {
-        min-width: 0;
-        overflow-wrap: anywhere;
-      }
-      .step.done .num {
-        background: var(--color-success-bg);
-        color: var(--color-success);
-      }
-      .step.on {
-        border-color: var(--color-brand-primary);
-        background: var(--color-tonal-accent-bg);
-        color: var(--color-tonal-accent-ink);
-      }
-      .step.on .num {
-        background: var(--color-brand-primary);
-        color: var(--color-text-on-brand);
-      }
-      .blk {
-        background: var(--color-surface-default);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        padding: var(--space-5);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-        align-items: flex-start;
-        min-width: 0;
-      }
-      h2 {
-        margin: 0;
-        font-size: var(--text-md);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-        display: flex;
-        gap: var(--space-2);
-        align-items: baseline;
-        flex-wrap: wrap;
-      }
-      h2 small {
-        font-weight: var(--font-weight-regular);
-      }
-      .blk-h {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: var(--space-3);
-        inline-size: 100%;
-        flex-wrap: wrap;
       }
       .served {
         inline-size: 100%;
@@ -958,30 +790,122 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
       .calc-host.hide {
         display: none;
       }
-      .line {
+      /* The required mark, as the bank program form draws it, and the words a screen
+         reader hears instead of the star. */
+      .req {
+        color: var(--color-error);
+        margin-inline-end: var(--space-1);
+      }
+      .sr-only {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      .dbr-need {
         margin: 0;
+        font-size: var(--text-xs);
+        color: var(--color-error);
+      }
+
+      /* ── Debt burden card ────────────────────────────────────────────────────
+         The bank program's own card, learned once: a heading and one line of why, the
+         flat cap as a hand-sized field, then each refinement under a rule and an eyebrow
+         rather than a card of its own. */
+      .dbr {
+        gap: var(--space-5);
+        align-items: stretch;
+      }
+      .dbr-head {
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+      .dbr-head h2 {
         align-items: center;
-        gap: var(--space-2);
+        margin-block-end: var(--space-1);
       }
-      .edge {
-        inline-size: 5.5rem;
-        text-align: end;
-        font-variant-numeric: tabular-nums;
+      .dbr-sub,
+      .dbr-hint {
+        margin: 0;
+        max-inline-size: 60ch;
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+        line-height: var(--line-height-base);
       }
-      .edge.wide {
-        inline-size: 8.5rem;
-      }
-      .edge::placeholder {
-        color: var(--color-text-tertiary);
+      .dbr-hint {
         font-size: var(--text-xs);
       }
-      .foot {
+      .dbr-cap {
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-2);
+      }
+      .dbr-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        cursor: pointer;
+      }
+      .dbr-part {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding-block-start: var(--space-5);
+        border-block-start: 1px solid var(--color-border-default);
+      }
+      .dbr-eyebrow {
+        margin: 0;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+      }
+      .dbr-emp {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        margin: var(--space-1) 0 0;
+        padding: 0;
+        max-inline-size: 34rem;
+      }
+      .dbr-emp-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
         gap: var(--space-3);
+        padding-block: var(--space-2);
+        padding-inline: var(--space-4) var(--space-2);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-default);
+        transition: border-color var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .dbr-emp-row:hover {
+        border-color: var(--color-border-strong);
+      }
+      .dbr-emp-row:focus-within {
+        border-color: var(--color-border-focus);
+      }
+      .dbr-solo {
+        max-inline-size: 34rem;
+        margin-block-start: var(--space-1);
+      }
+      .dbr-emp-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        cursor: pointer;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .dbr-emp-row {
+          transition: none;
+        }
       }
     `,
   ],
@@ -1013,10 +937,6 @@ export class ProductStudioPage {
   protected readonly saveFirst = $localize`:@@ps.save_first:Save your changes first.`;
   protected readonly nothingToSave = $localize`:@@ps.nothing_to_save:Nothing changed yet.`;
   protected readonly meansAria = $localize`:@@ps.means:What does this product work out?`;
-  protected readonly bankSets = $localize`:@@ps.bank_sets:bank sets`;
-  protected readonly dbrAria = $localize`:@@ps.dbr:Debt burden`;
-  protected readonly fromAria = $localize`:@@spt.v2.from_col:From`;
-  protected readonly toAria = $localize`:@@spt.v2.to_col:Up to`;
 
   // --- steps -----------------------------------------------------------------
 
@@ -1031,6 +951,36 @@ export class ProductStudioPage {
     ];
     return all;
   });
+  protected readonly stepsAria = $localize`:@@spd.steps_aria:Surrogate product setup`;
+
+  /**
+   * The shared rail's items. A step's mark says what it HOLDS, not where the operator has
+   * been — the same rule every other wizard here follows: names typed in both languages,
+   * a question asked, and on the Amount step a calculation plus the required DBR cap.
+   */
+  protected readonly wizardSteps = computed<WizardStepItem[]>(() =>
+    this.steps().map((s) => ({ id: s.key, label: s.label, status: this.stepStatus(s.key) })),
+  );
+
+  private stepStatus(key: StepKey): WizardStepStatus {
+    const p = this.product();
+    if (!p) return 'todo';
+    switch (key) {
+      case 'name': {
+        this.nameRev();
+        const v = this.nameForm.getRawValue();
+        return v.labelEn.trim() !== '' && v.labelAr.trim() !== '' ? 'done' : 'invalid';
+      }
+      case 'questions':
+        return p.notReady?.includes('asks_nothing') ? 'todo' : 'done';
+      case 'amount':
+        if (!p.capOnly && (this.dbrCap() === '' || this.dbrError() !== null)) return 'invalid';
+        return p.notReady?.includes('no_calculation') ? 'todo' : 'done';
+      case 'rules':
+        return 'todo';
+    }
+  }
+
   protected readonly stepIndex = signal(this.initialStep());
   protected readonly step = computed<StepKey>(
     () => this.steps()[Math.min(this.stepIndex(), this.steps().length - 1)]?.key ?? 'name',
@@ -1323,57 +1273,73 @@ export class ProductStudioPage {
     if (!inMenu) this.menuOpen.set(false);
   }
 
-  // --- loan limits -------------------------------------------------------------
+  // --- debt burden ---------------------------------------------------------------
+  //
+  // REQUIRED (operator's call): a product with a calculation does not save without a flat cap.
+  // The DBR caps every NEW bank program for this product starts from
+  // (`surrogateProduct.dbrDefaults`): the flat cap and one per kind of applicant, under the
+  // bank program's own field names. COPIED into the bank form on a create, never read at
+  // quote time, so saving here moves no live quote.
 
-  protected readonly facts = computed(() =>
-    registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
-  );
-  protected readonly tenorMin = signal('');
-  protected readonly tenorMax = signal('');
-  protected readonly amountMin = signal('');
-  protected readonly amountMax = signal('');
-  private readonly termsDirty = signal(false);
-  protected readonly planValue = signal<PlanDefaults | null>(null);
-  private readonly plansDirty = signal(false);
-  protected readonly limitsOpen = signal(false);
-  protected readonly planTable = computed(() => planRowsFrom(this.planValue()));
+  /** The bank's underwriting buckets — the same three the bank program's card lists. */
+  protected readonly employmentBuckets = ['salaried', 'self_employed', 'retired'] as const;
+  protected readonly dbrCap = signal('');
+  protected readonly dbrByEmployment = signal<Record<string, string>>({});
+  private readonly dbrDirty = signal(false);
 
-  protected readonly readsDownPayment = computed(() =>
-    (this.calc()?.tryFacts() ?? []).some((f) => f.key === 'car_down_payment'),
-  );
+  protected readonly dbrDash = '—';
+  protected readonly dbrRowBlankNote = $localize`:@@bank_programs.eligibility.dbr_by_employment.default_flat:Blank — the cap above applies.`;
+  protected readonly dbrCeilingBlankNote = $localize`:@@ps.dbr_ceiling_blank:Blank — each bank's own cap is used.`;
 
-  protected setTerm(which: 'tenorMin' | 'tenorMax' | 'amountMin' | 'amountMax', raw: string): void {
-    this[which].set(raw.replace(/,/g, '').trim());
-    this.termsDirty.set(true);
+  /** A blank row falls to the cap above, so it shows that figure in grey. */
+  protected readonly dbrRowFallback = computed(() => this.dbrCap() || this.dbrDash);
+
+  protected employmentLabel(bucket: string): string {
+    switch (bucket) {
+      case 'salaried':
+        return $localize`:@@bank_programs.employment.salaried:Salaried`;
+      case 'self_employed':
+        return $localize`:@@bank_programs.employment.self_employed:Self-employed`;
+      case 'retired':
+        return $localize`:@@bank_programs.employment.retired:Retired`;
+      default:
+        return bucket;
+    }
   }
 
-  protected readonly termError = computed(() => {
-    const half = (a: string, b: string) => (a === '') !== (b === '');
-    if (half(this.tenorMin(), this.tenorMax()) || half(this.amountMin(), this.amountMax())) {
-      return $localize`:@@ps.term_both:Type both ends, or leave both empty.`;
+  protected clean(raw: string): string {
+    return raw.replace(/,/g, '').trim();
+  }
+
+  protected setDbrCap(raw: string): void {
+    this.dbrCap.set(this.clean(raw));
+    this.dbrDirty.set(true);
+  }
+
+  /** Blank REMOVES the row — "no cap of its own", so the cap above applies. */
+  protected setDbrFor(bucket: string, raw: string): void {
+    const value = this.clean(raw);
+    this.dbrByEmployment.update((current) => {
+      const next = { ...current };
+      if (value === '') delete next[bucket];
+      else next[bucket] = value;
+      return next;
+    });
+    this.dbrDirty.set(true);
+  }
+
+  /** The server's own bounds, said before Save: a percentage above 0 and at most 100. */
+  protected readonly dbrError = computed<string | null>(() => {
+    const bad = (v: string) => {
+      if (v === '') return false;
+      const n = Number(v);
+      return !/^\d+(\.\d{1,4})?$/.test(v) || !(n > 0 && n <= 100);
+    };
+    if (bad(this.dbrCap()) || Object.values(this.dbrByEmployment()).some(bad)) {
+      return $localize`:@@ps.dbr_range:A DBR cap is a percentage above 0 and up to 100.`;
     }
     return null;
   });
-
-  protected onPlans(next: PlanDefaults | null): void {
-    this.planValue.set(next);
-    this.plansDirty.set(true);
-  }
-
-  protected onPlanRemove(request: PlanRemoveRequest): void {
-    this.onPlans(request.next);
-  }
-
-  /** A first plan table, keyed by the share of the price put down. */
-  protected startPlans(): void {
-    this.onPlans({
-      rateByFact: {
-        axes: [{ factKey: 'car_down_payment_percent' }],
-        cells: [{ keys: [{ fromInclusive: '20', toExclusive: null }], value: '' }],
-        onNoMatch: 'useFallback',
-      },
-    } as PlanDefaults);
-  }
 
   // --- save --------------------------------------------------------------------
 
@@ -1387,8 +1353,7 @@ export class ProductStudioPage {
       this.stagedAttach().size +
       this.stagedDetach().size +
       (calcDirty ? 1 : 0) +
-      (this.termsDirty() ? 1 : 0) +
-      (this.plansDirty() ? 1 : 0)
+      (this.dbrDirty() ? 1 : 0)
     );
   });
 
@@ -1398,12 +1363,10 @@ export class ProductStudioPage {
     if (v.labelEn.trim() === '' || v.labelAr.trim() === '') {
       return $localize`:@@ps.need_names:Give the product a name in English and Arabic.`;
     }
-    if (this.termError()) return this.termError();
-    if (this.plansDirty() && this.planValue() !== null) {
-      const broken = planRowsErrorFor(this.planValue());
-      if (broken !== null)
-        return $localize`:@@ps.plans_unfinished:A plan by down payment is not finished.`;
+    if (this.product()?.capOnly === false && this.dbrCap() === '') {
+      return $localize`:@@ps.dbr_required:Type the DBR cap on the Amount step.`;
     }
+    if (this.dbrDirty() && this.dbrError()) return this.dbrError();
     const c = this.calc();
     if (c?.dirty()) return c.saveBlockReason();
     return null;
@@ -1492,22 +1455,16 @@ export class ProductStudioPage {
           return next;
         });
       }
-      if (this.termsDirty()) {
-        const tenor =
-          this.tenorMin() === ''
-            ? null
-            : { minMonths: Number(this.tenorMin()), maxMonths: Number(this.tenorMax()) };
-        await this.api.setSurrogateProductTenorDefaults(this.key, { tenor });
-        const loanAmounts =
-          this.amountMin() === ''
-            ? null
-            : { minAmountEGP: this.amountMin(), maxAmountEGP: this.amountMax() };
-        await this.api.setSurrogateProductLoanAmountDefaults(this.key, { loanAmounts });
-        this.termsDirty.set(false);
-      }
-      if (this.plansDirty()) {
-        await this.api.setSurrogateProductPlanDefaults(this.key, { plans: this.planValue() });
-        this.plansDirty.set(false);
+      if (this.dbrDirty()) {
+        const byType = this.dbrByEmployment();
+        const cap = this.dbrCap();
+        await this.api.setSurrogateProductDbrDefaults(this.key, {
+          dbr: {
+            dbrCapPercent: cap,
+            ...(Object.keys(byType).length > 0 ? { dbrCapPercentByEmploymentType: byType } : {}),
+          },
+        });
+        this.dbrDirty.set(false);
       }
       this.message.success($localize`:@@spd.bar.saved:Changes saved.`);
     } catch (err) {
@@ -1600,16 +1557,6 @@ export class ProductStudioPage {
     });
   }
 
-  protected fmt(raw: string): string {
-    return /^\d+(\.\d+)?$/.test(raw)
-      ? Number(raw).toLocaleString('en-US', { maximumFractionDigits: 4 })
-      : raw;
-  }
-
-  protected val(event: Event): string {
-    return (event.target as HTMLInputElement | HTMLSelectElement).value;
-  }
-
   // --- load ------------------------------------------------------------------------
 
   constructor() {
@@ -1631,20 +1578,9 @@ export class ProductStudioPage {
       const p = res.data;
       this.product.set(p);
       this.nameForm.reset({ labelEn: p.labelEn, labelAr: p.labelAr });
-      if (!this.termsDirty()) {
-        this.tenorMin.set(p.tenorDefaults ? String(p.tenorDefaults.minMonths) : '');
-        this.tenorMax.set(p.tenorDefaults ? String(p.tenorDefaults.maxMonths) : '');
-        this.amountMin.set(p.loanAmountDefaults?.minAmountEGP ?? '');
-        this.amountMax.set(p.loanAmountDefaults?.maxAmountEGP ?? '');
-      }
-      if (!this.plansDirty()) this.planValue.set(p.planDefaults);
-      if (
-        p.tenorDefaults ||
-        p.loanAmountDefaults ||
-        p.planDefaults ||
-        (p.template?.baselineDbrPercent ?? '') !== ''
-      ) {
-        this.limitsOpen.set(true);
+      if (!this.dbrDirty()) {
+        this.dbrCap.set(p.dbrDefaults?.dbrCapPercent ?? '');
+        this.dbrByEmployment.set({ ...(p.dbrDefaults?.dbrCapPercentByEmploymentType ?? {}) });
       }
     } catch {
       this.product.set(null);

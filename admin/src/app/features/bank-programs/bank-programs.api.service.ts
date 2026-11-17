@@ -27,6 +27,7 @@ import type {
   LoanAmountDefaults,
   RateDefaults,
   TenorDefaults,
+  DbrDefaults,
   IScoreTiers,
   PlanDefaults,
   SurrogateProductTemplateResponse,
@@ -523,6 +524,23 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
         `${this.base}/surrogate-products/${encodeURIComponent(key)}/cap-defaults`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The debt-burden caps every NEW bank program under this product starts from. Copied into
+   * the bank form on a create only, so a change here moves no live quote. The flat cap is
+   * REQUIRED; the per-applicant caps are optional.
+   */
+  async setSurrogateProductDbrDefaults(
+    key: string,
+    payload: { dbr: DbrDefaults & { dbrCapPercent: string } },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/dbr-defaults`,
         payload,
       ),
     );

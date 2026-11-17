@@ -826,6 +826,18 @@ export abstract class PlatformEnumerationsRepository {
   ): Promise<ProgramNameIncomeRuleRow>;
 
   /**
+   * Write (or clear, with `null`) a surrogate product's starting debt-burden caps.
+   *
+   * Its own method on the cap defaults' terms: copied into a new bank program's form, never
+   * read at quote time, so a write here moves no live quote.
+   */
+  abstract setSurrogateProductDbrDefaults(
+    key: string,
+    dbr: DbrDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
    * Write (or clear, with `null`) a surrogate product's default loan duration.
    *
    * Its own method for the reason the cap defaults have one: a term is not part of the
@@ -967,6 +979,18 @@ export abstract class PlatformEnumerationsRepository {
 }
 
 /**
+ * A surrogate product's starting debt-burden caps (`platform_enumeration.dbrDefaults`).
+ *
+ * The bank program's own `eligibility` field names, so the bank form copies them as they are.
+ * Both halves optional: a product may state only the flat cap, only per-applicant caps, or
+ * both. Percentages travel as decimal strings in `(0, 100]` (Principle I).
+ */
+export interface DbrDefaults {
+  dbrCapPercent?: string;
+  dbrCapPercentByEmploymentType?: Record<string, string>;
+}
+
+/**
  * A row that CARRIES an income rule, as the rule endpoints read it — a catalog program
  * name or a surrogate product. One shape for both, because they hold the same columns:
  * the archetype and the name that links to it store the calculation identically, which is
@@ -996,6 +1020,14 @@ export interface ProgramNameIncomeRuleRow {
    * disagree with the file that declares it.
    */
   capDefaults: MaxLoanByFactRow[] | null;
+  /**
+   * `surrogate_product` only — the debt-burden caps every NEW bank program starts from.
+   * `null` when the product states none, which is the state every product ships in.
+   *
+   * COPIED, not inherited, on `capDefaults`' terms: the bank form fills its own fields from
+   * these once, at creation, and the engine never reads them.
+   */
+  dbrDefaults: DbrDefaults | null;
   /**
    * `surrogate_product` only — the loan duration every bank program under it falls back to.
    * `null` when the product states none, which is the state every product ships in.

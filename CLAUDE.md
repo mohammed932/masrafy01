@@ -40,6 +40,7 @@ Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 - `inject()` DI (no constructor DI)
 - Reactive Forms with typed controls
 - ng-zorro-antd 18 (`nz-*`) — the ONE UI library, repo-wide. Angular Material is NOT installed; a `mat-*` component in a PR is a review block. Modals/drawers via `NzModalService` / `NzDrawerService` (A34)
+- ONE step rail: every multi-step admin screen (bank program, program name, questionnaire, surrogate method, no-payslip product — new and existing) uses the shared `app-wizard-steps` (`@shared/ui`, `WizardStepItem`: `todo` / `done` / `invalid`, `disabled`, `optional`). A hand-drawn `<ol class="steps">` rail in a page = review block. A step's mark says what it HOLDS (done / needs attention), not where the operator has been
 - `@angular/localize` (Arabic primary, English secondary)
 - No constitutional testing requirements (Principle XXVII placeholder post-v1.2.0).
 

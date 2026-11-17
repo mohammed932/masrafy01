@@ -57,6 +57,7 @@ import {
   isDeletableType,
   type BindableQuestionType,
   type BoundQuestion,
+  type DbrDefaults,
   type IncomeBasesByCategory,
   type ParentKeyMove,
   type ProgramNameIncomeRuleRow,
@@ -1508,6 +1509,8 @@ export class PostgresPlatformEnumerationsRepository
     // Read with the rule and not on a follow-up query: every screen that renders a product's
     // grid renders the amounts in it, and the two are one answer to one question.
     capDefaults: true,
+    // The starting debt-burden caps, copied into a new bank program's form like the amounts.
+    dbrDefaults: true,
     // Read with the rule for the same reason: a product's screen renders the duration it
     // hands its programs on the same step as the figures, and one read answers both.
     tenorDefaults: true,
@@ -1596,6 +1599,28 @@ export class PostgresPlatformEnumerationsRepository
       where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
       data: {
         capDefaults: rows === null ? Prisma.DbNull : ({ rows } as unknown as Prisma.InputJsonValue),
+        updatedBy,
+      },
+      select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
+    });
+    return toProgramNameIncomeRuleRow(row);
+  }
+
+  /**
+   * A surrogate product's starting debt-burden caps. `Prisma.DbNull` for the cleared state,
+   * for the reason the cap defaults above give: `JsonNull` would read back as a present-but-
+   * empty statement.
+   */
+  async setSurrogateProductDbrDefaults(
+    key: string,
+    dbr: DbrDefaults | null,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
+    const row = await this.prisma.platformEnumeration.update({
+      where: { idx_platform_enumeration_type_key: { type: 'surrogate_product', key } },
+      data: {
+        dbrDefaults:
+          dbr === null ? Prisma.DbNull : ({ ...dbr } as unknown as Prisma.InputJsonValue),
         updatedBy,
       },
       select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
@@ -3097,6 +3122,7 @@ function toProgramNameIncomeRuleRow(row: {
   incomeRule: unknown;
   templateSpec?: unknown;
   capDefaults?: unknown;
+  dbrDefaults?: unknown;
   tenorDefaults?: unknown;
   loanAmountDefaults?: unknown;
   rateDefaults?: unknown;
@@ -3117,6 +3143,7 @@ function toProgramNameIncomeRuleRow(row: {
         : (row.incomeRule as IncomeAssumptionConfig),
     templateSpec: asProductTemplate(row.templateSpec),
     capDefaults: asCapDefaultRows(row.capDefaults),
+    dbrDefaults: asDbrDefaults(row.dbrDefaults),
     // Through the SAME reader the quote path uses, so the product screen and the engine
     // cannot disagree about whether a half-written blob counts as a stated duration.
     tenorDefaults: asTenorDefaults(row.tenorDefaults) ?? null,
@@ -3152,6 +3179,31 @@ function asCapDefaultRows(value: unknown): MaxLoanByFactRow[] | null {
   if (value === null || value === undefined || typeof value !== 'object') return null;
   const rows = (value as { rows?: unknown }).rows;
   return Array.isArray(rows) ? (rows as MaxLoanByFactRow[]) : null;
+}
+
+/**
+ * A stored `dbrDefaults` column as the caps it holds, or null when it states none.
+ *
+ * Lenient on the cap defaults' terms: it only pre-fills a form, so a half-written blob keeps
+ * the parts that are strings and drops the rest rather than taking the product page down.
+ */
+function asDbrDefaults(value: unknown): DbrDefaults | null {
+  if (value === null || value === undefined || typeof value !== 'object') return null;
+  const raw = value as { dbrCapPercent?: unknown; dbrCapPercentByEmploymentType?: unknown };
+  const out: DbrDefaults = {};
+  if (typeof raw.dbrCapPercent === 'string' && raw.dbrCapPercent !== '') {
+    out.dbrCapPercent = raw.dbrCapPercent;
+  }
+  const byType = raw.dbrCapPercentByEmploymentType;
+  if (byType !== null && typeof byType === 'object') {
+    const kept = Object.fromEntries(
+      Object.entries(byType as Record<string, unknown>).filter(
+        (e): e is [string, string] => typeof e[1] === 'string' && e[1] !== '',
+      ),
+    );
+    if (Object.keys(kept).length > 0) out.dbrCapPercentByEmploymentType = kept;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 /** A stored `templateSpec` column as the form it holds, or null when there is no form. */

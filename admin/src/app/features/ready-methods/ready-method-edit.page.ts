@@ -28,14 +28,23 @@ import {
   type ListValue,
   type ValueMapping,
 } from '@shared/groups/value-map';
-import { FormPageComponent, SearchSelectComponent, type SearchSelectOption } from '@shared/ui';
+import {
+  FormPageComponent,
+  SearchSelectComponent,
+  WizardStepsComponent,
+  type SearchSelectOption,
+  type WizardStepItem,
+  type WizardStepStatus,
+} from '@shared/ui';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import {
+  CheckOutline,
   CloseOutline,
   DeleteOutline,
+  EditOutline,
   ExclamationCircleOutline,
   LinkOutline,
   PlusOutline,
@@ -85,6 +94,7 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
     GroupBoardComponent,
     FormPageComponent,
     SearchSelectComponent,
+    WizardStepsComponent,
     NzButtonModule,
     NzIconModule,
     NzInputModule,
@@ -95,6 +105,8 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       DeleteOutline,
       PlusOutline,
       CloseOutline,
+      CheckOutline,
+      EditOutline,
       UnorderedListOutline,
       LinkOutline,
       ExclamationCircleOutline,
@@ -103,16 +115,19 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
   template: `
     <app-form-page
       wide
+      stepped
       [title]="pageTitle()"
       [subtitle]="pageLede"
       [backLabel]="backLabel"
       [cancelLabel]="cancelLabel"
-      [submitLabel]="saveLabel"
+      [showPrev]="isNew && stepIdx() > 0"
+      [submitLabel]="primaryLabel()"
       [submitting]="saving()"
-      [blockReason]="loading() ? null : block()"
-      [hint]="usedBy().length > 0 ? usedHint() : null"
+      [blockReason]="barBlock()"
+      [hint]="barHint()"
       (cancelled)="leave()"
-      (submitted)="save()"
+      (prev)="goToStep(stepIdx() - 1)"
+      (submitted)="primary()"
     >
       @if (!isNew && !loading()) {
         <div formPageAside class="aside">
@@ -123,15 +138,13 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
               <span i18n="@@rm.added">Added</span>
             }
           </span>
-          <span
-            nz-tooltip
-            [nzTooltipTitle]="usedBy().length > 0 ? deleteBlocked() : null"
-          >
+          <span nz-tooltip [nzTooltipTitle]="usedBy().length > 0 ? deleteBlocked() : null">
             <button
               nz-button
               nzType="default"
               nzDanger
               type="button"
+              class="ibtn"
               [disabled]="usedBy().length > 0"
               (click)="confirmDelete()"
             >
@@ -143,289 +156,407 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       }
 
       @if (loading()) {
-        <div class="blk skel" aria-busy="true">
-          <span class="bar w40"></span><span class="bar w70"></span><span class="bar w55"></span>
+        <div class="stack" aria-busy="true">
+          @for (n of [1, 2, 3]; track n) {
+            <div class="card skel">
+              <span class="bar w40"></span><span class="bar w70"></span
+              ><span class="bar w55"></span>
+            </div>
+          }
         </div>
       } @else {
-        @if (usedBy().length > 0) {
-          <div class="used" role="status">
-            <span nz-icon nzType="link" nzTheme="outline" class="used-i" aria-hidden="true"></span>
-            <div>
-              <p i18n="@@rm.used_note3">
-                Saving changes the questions, how and groups of these products. Each keeps its own
-                amounts.
-              </p>
-              <ul class="chips" role="list">
-                @for (p of usedBy(); track p.key) {
-                  <li>
-                    <a
-                      [routerLink]="['/program-catalog/products', p.key]"
-                      [queryParams]="{ step: 3 }"
-                      >{{ isAr ? p.labelAr : p.labelEn }}</a
-                    >
-                  </li>
-                }
-              </ul>
-            </div>
-          </div>
-        }
-        <section class="blk">
-          <h2 i18n="@@ps.called">What is it called?</h2>
-          <div class="names" [formGroup]="nameForm">
-            <label class="fl"
-              ><span i18n="@@ps.name_en">Name in English</span
-              ><input nz-input formControlName="labelEn"
-            /></label>
-            <label class="fl"
-              ><span i18n="@@ps.name_ar">Name in Arabic</span
-              ><input nz-input formControlName="labelAr" dir="rtl"
-            /></label>
-          </div>
-        </section>
-
-        <section class="blk">
-          <h2 i18n="@@ps.decides">What decides the amount?</h2>
-          <div class="pick2">
-            <div class="fl">
-              <span i18n="@@rm.q_rows">Rows: the question that decides the amount</span>
-              <app-search-select
-                [options]="askableOpts()"
-                [value]="fact()"
-                [ariaLabel]="q1Aria"
-                (changed)="pickQuestion('row', $event)"
-              />
-            </div>
-            <ng-container *ngTemplateOutlet="valuesFrom; context: { axis: 'row' }" />
-          </div>
-
-          @if (factOf(fact()); as f) {
-            <div class="pick2">
-              <div class="fl">
-                <span i18n="@@rm.q_cols">Columns (optional): split the amounts by another answer</span>
-                <app-search-select
-                  [options]="columnOpts()"
-                  [value]="colFact()"
-                  [clearLabel]="noSecond"
-                  [ariaLabel]="q2Aria"
-                  (changed)="pickQuestion('col', $event)"
-                />
-              </div>
-              <ng-container *ngTemplateOutlet="valuesFrom; context: { axis: 'col' }" />
-            </div>
-
-            <div class="axes">
-              <div class="axis">
-                <span class="axis-l" i18n="@@rm.axis_rows">Rows</span>
-                <div class="seg" role="radiogroup" [attr.aria-label]="howAria">
-                  @for (k of kindsFor(f); track k) {
-                    <button
-                      type="button"
-                      role="radio"
-                      [attr.aria-checked]="kind() === k"
-                      (click)="setKind(k)"
-                    >
-                      {{ howFor('row', k) }}
-                    </button>
+        <div class="stack">
+          @if (usedBy().length > 0) {
+            <div class="callout info" role="status">
+              <span
+                nz-icon
+                nzType="link"
+                nzTheme="outline"
+                class="callout-i"
+                aria-hidden="true"
+              ></span>
+              <div class="callout-b">
+                <p i18n="@@rm.used_note3">
+                  Saving changes the questions, how and groups of these products. Each keeps its own
+                  amounts.
+                </p>
+                <ul class="chips" role="list">
+                  @for (p of usedBy(); track p.key) {
+                    <li>
+                      <a
+                        [routerLink]="['/program-catalog/products', p.key]"
+                        [queryParams]="{ step: 3 }"
+                        >{{ isAr ? p.labelAr : p.labelEn }}</a
+                      >
+                    </li>
                   }
-                </div>
-                @if (kind() === 'classTable') {
-                  <button type="button" class="link" (click)="toggleEditor('row')">
-                    @if (editorOpen() === 'row') {
-                      <span i18n="@@ps.groups_done">Done with groups</span>
-                    } @else {
-                      <span i18n="@@ps.groups_edit">Edit groups</span>
-                    }
-                  </button>
-                }
+                </ul>
               </div>
-              @if (kind() === 'classTable' && editorOpen() === 'row') {
-                <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'row' }" />
-              }
+            </div>
+          }
 
-              @if (factOf(colFact()); as c) {
-                @if (groupable(c)) {
-                  <div class="axis">
-                    <span class="axis-l" i18n="@@rm.axis_cols">Columns</span>
-                    <div class="seg" role="radiogroup" [attr.aria-label]="colAria">
-                      <button
-                        type="button"
-                        role="radio"
-                        [attr.aria-checked]="colMode() === 'answer'"
-                        (click)="setColMode('answer')"
-                      >
-                        @if (mapOf('col')) {
-                          <span i18n="@@rm.per_value_short">one per list value</span>
-                        } @else {
-                          <span i18n="@@ps.col_answer">one per answer</span>
-                        }
-                      </button>
-                      <button
-                        type="button"
-                        role="radio"
-                        [attr.aria-checked]="colMode() === 'groups'"
-                        (click)="setColMode('groups')"
-                        i18n="@@ps.col_groups"
-                      >
-                        one per group
-                      </button>
-                    </div>
-                    @if (colMode() === 'groups') {
-                      <button type="button" class="link" (click)="toggleEditor('col')">
-                        @if (editorOpen() === 'col') {
-                          <span i18n="@@ps.groups_done">Done with groups</span>
-                        } @else {
-                          <span i18n="@@ps.groups_edit">Edit groups</span>
-                        }
-                      </button>
-                    }
+          <app-wizard-steps
+            [steps]="steps()"
+            [activeIndex]="stepIdx()"
+            [ariaLabel]="stepsAria"
+            (stepSelect)="goToStep($event)"
+          />
+
+          @switch (stepIdx()) {
+            @case (0) {
+              <section class="card" aria-labelledby="rm-s1">
+                <header class="sec-h">
+                  <div class="sec-t">
+                    <h2 id="rm-s1" i18n="@@ps.called">What is it called?</h2>
                   </div>
-                  @if (colMode() === 'groups' && editorOpen() === 'col') {
-                    <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'col' }" />
+                </header>
+                <div class="grid2" [formGroup]="nameForm">
+                  <label class="fl"
+                    ><span class="fl-l" i18n="@@ps.name_en">Name in English</span
+                    ><input nz-input formControlName="labelEn"
+                  /></label>
+                  <label class="fl"
+                    ><span class="fl-l" i18n="@@ps.name_ar">Name in Arabic</span
+                    ><input nz-input formControlName="labelAr" dir="rtl"
+                  /></label>
+                </div>
+              </section>
+            }
+            @case (1) {
+              <section class="card" aria-labelledby="rm-s2">
+                <header class="sec-h">
+                  <div class="sec-t">
+                    <h2 id="rm-s2" i18n="@@rm.s2_title">Which question sets the loan amount?</h2>
+                    <p class="lede" i18n="@@rm.s2_lede">
+                      The loan amount depends on how the customer answers this question. After you
+                      pick it, choose how each answer turns into an amount. Example: “Which club are
+                      you a member of?” — Club A up to 300,000, Club B up to 200,000.
+                    </p>
+                  </div>
+                </header>
+                <div class="grid2">
+                  <div class="fl">
+                    <span class="fl-l" i18n="@@rm.q1">Question</span>
+                    <app-search-select
+                      [options]="askableOpts()"
+                      [value]="fact()"
+                      [ariaLabel]="q1Aria"
+                      (changed)="pickQuestion('row', $event)"
+                    />
+                  </div>
+                  <ng-container *ngTemplateOutlet="valuesFrom; context: { axis: 'row' }" />
+                </div>
+
+                @if (factOf(fact()); as f) {
+                  <div class="how">
+                    <span class="how-l" i18n="@@rm.how_set">How the amount is set</span>
+                    <div class="how-row">
+                      <div class="seg" role="radiogroup" [attr.aria-label]="howAria">
+                        @for (k of kindsFor(f); track k) {
+                          <button
+                            type="button"
+                            role="radio"
+                            [attr.aria-checked]="kind() === k"
+                            (click)="setKind(k)"
+                          >
+                            {{ howFor('row', k) }}
+                          </button>
+                        }
+                      </div>
+                      @if (kind() === 'classTable') {
+                        <ng-container *ngTemplateOutlet="groupsToggle; context: { axis: 'row' }" />
+                      }
+                    </div>
+                  </div>
+                  @if (kind() === 'classTable' && editorOpen() === 'row') {
+                    <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'row' }" />
                   }
                 }
-              }
-            </div>
-
-            <p class="hint" i18n="@@rm.figures_hint2">
-              Default amounts: a product that picks this method starts from them, then sets its own.
-              A box left empty is filled in by each bank.
-            </p>
-            @switch (shape()) {
-              @case ('table') {
-                <div class="sheet">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{{ f.label }}</th>
-                        @for (c of cols(); track c.code) {
-                          <th class="n">{{ c.label }}</th>
-                        }
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (r of rows(); track r.code) {
-                        <tr>
-                          <td>{{ r.label }}</td>
-                          @for (c of cols(); track c.code) {
-                            <td class="n">
-                              <input
-                                appMoneyInput class="amt"
-                                inputmode="decimal"
-                                [value]="cell(c.code, r.code)"
-                                (change)="setCell(c.code, r.code, val($event))"
-                                [placeholder]="bankSets"
-                                [attr.aria-label]="r.label + ' — ' + c.label"
-                              />
-                            </td>
-                          }
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              }
-              @case ('ranges') {
-                <div class="sheet">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{{ f.label }}</th>
-                        @for (c of cols(); track c.code) {
-                          <th class="n">{{ c.label }}</th>
-                        }
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (b of ranges(); track $index; let k = $index) {
-                        <tr>
-                          <td>
-                            <div class="rng">
-                              <input
-                                appMoneyInput class="edge"
-                                inputmode="decimal"
-                                [value]="fmt(b.fromInclusive ?? '')"
-                                (change)="setEdge(k, 'fromInclusive', val($event))"
-                                [attr.aria-label]="fromAria"
-                              />
-                              <span i18n="@@ps.to">to</span>
-                              <input
-                                appMoneyInput class="edge"
-                                inputmode="decimal"
-                                [value]="fmt(b.toExclusive ?? '')"
-                                (change)="setEdge(k, 'toExclusive', val($event))"
-                                [placeholder]="andUp"
-                                [attr.aria-label]="toAria"
-                              />
-                            </div>
-                          </td>
-                          @for (c of cols(); track c.code) {
-                            <td class="n">
-                              <input
-                                appMoneyInput class="amt"
-                                inputmode="decimal"
-                                [value]="bandAmount(c.code, k)"
-                                (change)="setBandAmount(c.code, k, val($event))"
-                                [placeholder]="bankSets"
-                                [attr.aria-label]="c.label"
-                              />
-                            </td>
-                          }
-                          <td>
-                            <button
-                              nz-button
-                              nzType="text"
-                              nzShape="circle"
-                              type="button"
-                              [attr.aria-label]="removeAria"
-                              (click)="removeRange(k)"
-                            >
-                              <span nz-icon nzType="close" nzTheme="outline" aria-hidden="true"></span>
-                            </button>
-                          </td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-                <button nz-button nzType="dashed" type="button" (click)="addRange()">
-                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                  <span i18n="@@rm.add_range">Add a range</span>
-                </button>
-              }
-              @case ('scalar') {
-                <div class="formula">
-                  @for (c of cols(); track c.code) {
-                    <p>
-                      @if (cols().length > 1) {
-                        <b>{{ c.label }}:</b>
-                      }
-                      <span>{{ f.label }} {{ kind() === 'dividedBy' ? '÷' : '×' }}</span>
-                      <input
-                        appMoneyInput class="amt sm"
-                        inputmode="decimal"
-                        [value]="scalar(c.code)"
-                        (change)="setScalar(c.code, val($event))"
-                        [placeholder]="bankSets"
-                        [attr.aria-label]="c.label"
+              </section>
+            }
+            @case (2) {
+              @if (factOf(fact())) {
+                <section class="card" aria-labelledby="rm-s3">
+                  <header class="sec-h">
+                    <div class="sec-t">
+                      <h2 id="rm-s3" i18n="@@rm.s3_title">
+                        Does the amount also depend on another question?
+                      </h2>
+                      <p class="lede" i18n="@@rm.s3_lede">
+                        Use this when one row needs different amounts for different customers.
+                        Example: Group A gets 60,000 for new customers and 70,000 for bank
+                        customers. If each row has one amount, leave it as “No second question”.
+                      </p>
+                    </div>
+                    <span class="opt" i18n="@@qedit.sec_optional">Optional</span>
+                  </header>
+                  <div class="grid2">
+                    <div class="fl">
+                      <span class="fl-l" i18n="@@rm.q2_label">Second question</span>
+                      <app-search-select
+                        [options]="columnOpts()"
+                        [value]="colFact()"
+                        [clearLabel]="noColumns"
+                        [ariaLabel]="q2Aria"
+                        (changed)="pickQuestion('col', $event)"
                       />
-                      @if (kind() === 'shareOf') {
-                        <span>%</span>
+                    </div>
+                    <ng-container *ngTemplateOutlet="valuesFrom; context: { axis: 'col' }" />
+                  </div>
+
+                  @if (factOf(colFact()); as c) {
+                    @if (groupable(c)) {
+                      <div class="how">
+                        <span class="how-l" i18n="@@rm.cols_label"
+                          >Columns in the amounts table</span
+                        >
+                        <div class="how-row">
+                          <div class="seg" role="radiogroup" [attr.aria-label]="colAria">
+                            <button
+                              type="button"
+                              role="radio"
+                              [attr.aria-checked]="colMode() === 'answer'"
+                              (click)="setColMode('answer')"
+                            >
+                              @if (mapOf('col')) {
+                                <span i18n="@@rm.per_value_short">one per list value</span>
+                              } @else {
+                                <span i18n="@@ps.col_answer">one per answer</span>
+                              }
+                            </button>
+                            <button
+                              type="button"
+                              role="radio"
+                              [attr.aria-checked]="colMode() === 'groups'"
+                              (click)="setColMode('groups')"
+                              i18n="@@ps.col_groups"
+                            >
+                              one per group
+                            </button>
+                          </div>
+                          @if (colMode() === 'groups') {
+                            <ng-container
+                              *ngTemplateOutlet="groupsToggle; context: { axis: 'col' }"
+                            />
+                          }
+                        </div>
+                      </div>
+                      @if (colMode() === 'groups' && editorOpen() === 'col') {
+                        <ng-container *ngTemplateOutlet="groupsEd; context: { axis: 'col' }" />
                       }
-                    </p>
+                    }
                   }
-                </div>
+                </section>
+              } @else {
+                <ng-container *ngTemplateOutlet="needQuestion" />
+              }
+            }
+            @case (3) {
+              @if (factOf(fact()); as f) {
+                <section class="card" aria-labelledby="rm-s4">
+                  <header class="sec-h">
+                    <div class="sec-t">
+                      <h2 id="rm-s4" i18n="@@rm.s4_title">Default amounts</h2>
+                      <p class="lede" i18n="@@rm.s4_lede">
+                        A product that picks this method starts from these, then sets its own. A box
+                        left empty is filled in by each bank.
+                      </p>
+                    </div>
+                  </header>
+                  @switch (shape()) {
+                    @case ('table') {
+                      <div class="sheet">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th scope="col" class="corner">{{ f.label }}</th>
+                              @for (c of cols(); track c.code) {
+                                <th scope="col" class="n">{{ c.label }}</th>
+                              }
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (r of rows(); track r.code) {
+                              <tr>
+                                <th scope="row">{{ r.label }}</th>
+                                @for (c of cols(); track c.code) {
+                                  <td class="n">
+                                    <input
+                                      appMoneyInput
+                                      class="amt"
+                                      inputmode="decimal"
+                                      [value]="cell(c.code, r.code)"
+                                      (change)="setCell(c.code, r.code, val($event))"
+                                      [placeholder]="bankSets"
+                                      [attr.aria-label]="r.label + ' — ' + c.label"
+                                    />
+                                  </td>
+                                }
+                              </tr>
+                            } @empty {
+                              @if (kind() === 'classTable') {
+                                <tr>
+                                  <td
+                                    class="empty"
+                                    [attr.colspan]="cols().length + 1"
+                                    i18n="@@rm.no_rows"
+                                  >
+                                    No groups yet. Add one in step 2: each group gets a row.
+                                  </td>
+                                </tr>
+                              }
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    }
+                    @case ('ranges') {
+                      <div class="sheet">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th scope="col" class="corner">{{ f.label }}</th>
+                              @for (c of cols(); track c.code) {
+                                <th scope="col" class="n">{{ c.label }}</th>
+                              }
+                              <th scope="col" class="x-col">
+                                <span class="sr-only">{{ removeAria }}</span>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (b of ranges(); track $index; let k = $index) {
+                              <tr>
+                                <td>
+                                  <div class="rng">
+                                    <input
+                                      appMoneyInput
+                                      class="edge"
+                                      inputmode="decimal"
+                                      [value]="fmt(b.fromInclusive ?? '')"
+                                      (change)="setEdge(k, 'fromInclusive', val($event))"
+                                      [attr.aria-label]="fromAria"
+                                    />
+                                    <span class="rng-to" i18n="@@ps.to">to</span>
+                                    <input
+                                      appMoneyInput
+                                      class="edge"
+                                      inputmode="decimal"
+                                      [value]="fmt(b.toExclusive ?? '')"
+                                      (change)="setEdge(k, 'toExclusive', val($event))"
+                                      [placeholder]="andUp"
+                                      [attr.aria-label]="toAria"
+                                    />
+                                  </div>
+                                </td>
+                                @for (c of cols(); track c.code) {
+                                  <td class="n">
+                                    <input
+                                      appMoneyInput
+                                      class="amt"
+                                      inputmode="decimal"
+                                      [value]="bandAmount(c.code, k)"
+                                      (change)="setBandAmount(c.code, k, val($event))"
+                                      [placeholder]="bankSets"
+                                      [attr.aria-label]="c.label"
+                                    />
+                                  </td>
+                                }
+                                <td class="x-col">
+                                  <button
+                                    nz-button
+                                    nzType="text"
+                                    nzShape="circle"
+                                    type="button"
+                                    class="rm"
+                                    [attr.aria-label]="removeAria"
+                                    (click)="removeRange(k)"
+                                  >
+                                    <span
+                                      nz-icon
+                                      nzType="close"
+                                      nzTheme="outline"
+                                      aria-hidden="true"
+                                    ></span>
+                                  </button>
+                                </td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                      <button
+                        nz-button
+                        nzType="dashed"
+                        type="button"
+                        class="add"
+                        (click)="addRange()"
+                      >
+                        <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                        <span i18n="@@rm.add_range">Add a range</span>
+                      </button>
+                    }
+                    @case ('scalar') {
+                      @if (cols().length > 1) {
+                        <!-- One figure per column: the formula said once, a row per column. -->
+                        <div class="sheet">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th scope="col" class="corner">{{ factOf(colFact())?.label }}</th>
+                                <th scope="col">
+                                  <span class="fhead">
+                                    {{ f.label }}
+                                    <span class="op">{{ kind() === 'dividedBy' ? '÷' : '×' }}</span>
+                                  </span>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (c of cols(); track c.code) {
+                                <tr>
+                                  <th scope="row">{{ c.label }}</th>
+                                  <td>
+                                    <ng-container
+                                      *ngTemplateOutlet="scalarBox; context: { col: c }"
+                                    />
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      } @else {
+                        @for (c of cols(); track c.code) {
+                          <div class="frow">
+                            <span class="fq">{{ f.label }}</span>
+                            <span class="op">{{ kind() === 'dividedBy' ? '÷' : '×' }}</span>
+                            <ng-container *ngTemplateOutlet="scalarBox; context: { col: c }" />
+                          </div>
+                        }
+                      }
+                    }
+                  }
+                </section>
+              } @else {
+                <ng-container *ngTemplateOutlet="needQuestion" />
               }
             }
           }
-        </section>
 
-        @if (error(); as e) {
-          <p class="err" role="alert">
-            <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
-            {{ e }}
-          </p>
-        }
+          @if (error(); as e) {
+            <p class="callout danger" role="alert">
+              <span
+                nz-icon
+                nzType="exclamation-circle"
+                nzTheme="outline"
+                class="callout-i"
+                aria-hidden="true"
+              ></span>
+              <span>{{ e }}</span>
+            </p>
+          }
+        </div>
       }
     </app-form-page>
 
@@ -433,7 +564,20 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       @if (factOf(axisFact(axis)); as f) {
         @if (f.type === 'choice') {
           <div class="fl">
-            <span i18n="@@rm.values_from">Values from</span>
+            <span class="fl-h">
+              <span class="fl-l" i18n="@@rm.values_from">Values from</span>
+              @if (!f.derived) {
+                @if (axisList(axis); as t) {
+                  <a
+                    class="vlink"
+                    [routerLink]="['/lookups']"
+                    [queryParams]="{ type: t }"
+                    i18n="@@rm.open_list"
+                    >Open the list in Manage values</a
+                  >
+                }
+              }
+            </span>
             @if (f.derived) {
               <p class="vnote" i18n="@@rm.src_derived_note">Worked out by the platform: no list.</p>
             } @else {
@@ -444,14 +588,15 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
                 [ariaLabel]="valuesFromAria"
                 (changed)="setList(axis, $event)"
               />
-              @if (axisList(axis); as t) {
-                <a class="vlink" [routerLink]="['/lookups']" [queryParams]="{ type: t }" i18n="@@rm.open_list"
-                  >Open the list in Manage values</a
-                >
-              }
               @if (mismatch(axis); as n) {
-                <p class="vwarn" role="status">
-                  <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
+                <p class="callout warn sm" role="status">
+                  <span
+                    nz-icon
+                    nzType="exclamation-circle"
+                    nzTheme="outline"
+                    class="callout-i"
+                    aria-hidden="true"
+                  ></span>
                   <span>{{ mismatchLabel(n) }}</span>
                 </p>
               }
@@ -459,6 +604,63 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
           </div>
         }
       }
+    </ng-template>
+
+    <ng-template #needQuestion>
+      <section class="card">
+        <p class="callout sm" role="status">
+          <span
+            nz-icon
+            nzType="exclamation-circle"
+            nzTheme="outline"
+            class="callout-i"
+            aria-hidden="true"
+          ></span>
+          <span>
+            <span i18n="@@rm.need_q">Pick the question that decides the amount.</span>
+            <button type="button" class="link" (click)="goToStep(1)" i18n="@@rm.go_q">
+              Go to Question
+            </button>
+          </span>
+        </p>
+      </section>
+    </ng-template>
+
+    <ng-template #scalarBox let-c="col">
+      <span class="unit-box">
+        <input
+          appMoneyInput
+          class="amt sm"
+          inputmode="decimal"
+          [value]="scalar(c.code)"
+          (change)="setScalar(c.code, val($event))"
+          [placeholder]="bankSets"
+          [attr.aria-label]="c.label"
+        />
+        @if (kind() === 'shareOf') {
+          <span class="unit">%</span>
+        }
+      </span>
+    </ng-template>
+
+    <ng-template #groupsToggle let-axis="axis">
+      <button
+        nz-button
+        nzType="default"
+        type="button"
+        class="ibtn gbtn"
+        [class.on]="editorOpen() === axis"
+        [attr.aria-expanded]="editorOpen() === axis"
+        (click)="toggleEditor(axis)"
+      >
+        @if (editorOpen() === axis) {
+          <span nz-icon nzType="check" nzTheme="outline" aria-hidden="true"></span>
+          <span i18n="@@ps.groups_done">Done with groups</span>
+        } @else {
+          <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
+          <span i18n="@@ps.groups_edit">Edit groups</span>
+        }
+      </button>
     </ng-template>
 
     <ng-template #groupsEd let-axis="axis">
@@ -487,6 +689,16 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
       :host {
         display: block;
       }
+      .sr-only {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+
+      /* Header aside: where it came from, and Delete. */
       .aside {
         display: flex;
         align-items: center;
@@ -506,60 +718,171 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         background: var(--color-tonal-accent-bg);
         color: var(--color-tonal-accent-ink);
       }
-      .skel {
+
+      /* The page: a column of numbered cards. */
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        min-inline-size: 0;
+      }
+      .card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        min-inline-size: 0;
+        padding: var(--space-5);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+        background: var(--color-surface-default);
+      }
+      .sec-h {
+        display: flex;
+        align-items: flex-start;
         gap: var(--space-3);
       }
-      .bar {
-        display: block;
-        block-size: var(--space-3);
-        border-radius: var(--radius-sm);
-        background: var(--color-surface-muted);
+      .sec-t {
+        flex: 1;
+        min-inline-size: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-0-5);
       }
-      .w40 {
-        inline-size: 40%;
-      }
-      .w55 {
-        inline-size: 55%;
-      }
-      .w70 {
-        inline-size: 70%;
-      }
+      /* Card title = --text-lg (DESIGN_SYSTEM), one step above the 14px field labels. */
       h2 {
         margin: 0;
-        font-size: var(--text-md);
+        font-size: var(--text-lg);
         font-weight: var(--font-weight-semibold);
+        line-height: var(--line-height-tight);
         color: var(--color-text-primary);
+        text-wrap: balance;
       }
-      .muted,
+      .lede,
       .hint {
         margin: 0;
         color: var(--color-text-secondary);
         font-size: var(--text-sm);
+        line-height: var(--line-height-base);
+        text-wrap: pretty;
       }
-      .err {
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        color: var(--color-error);
+      .link {
+        padding: 0;
+        margin-inline-start: var(--space-2);
+        border: 0;
+        border-radius: var(--radius-sm);
+        background: none;
+        color: var(--color-text-link);
+        font: inherit;
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
       }
-      .used {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
+      .link:hover {
+        color: var(--color-text-link-hover);
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
+      .opt {
+        flex: none;
+        margin-block-start: var(--space-1);
+        padding: var(--space-0-5) var(--space-2-5);
         border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        background: var(--color-surface-muted);
+        border-radius: var(--radius-pill);
+        color: var(--color-text-secondary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      /* Fields */
+      .grid2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+        gap: var(--space-4);
+        align-items: start;
+      }
+      .fl {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1-5);
+        min-inline-size: 0;
+      }
+      .fl-h {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-1) var(--space-3);
+      }
+      .fl-l {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
+      }
+      .vlink {
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-link);
+        text-decoration: none;
+        border-radius: var(--radius-sm);
+      }
+      .vlink:hover {
+        color: var(--color-text-link-hover);
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
+      .vnote {
+        margin: 0;
+        padding: var(--space-2-5) var(--space-3);
+        border: 1px dashed var(--color-border-default);
+        border-radius: var(--radius-field);
+        color: var(--color-text-secondary);
         font-size: var(--text-sm);
       }
-      .used p {
+
+      /* Callouts: info (who it changes), warn (answers not in the list), danger (save error). */
+      .callout {
+        margin: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2-5);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--callout-line, var(--color-border-default));
+        border-radius: var(--radius-lg);
+        background: var(--callout-bg, var(--color-surface-muted));
+        color: var(--color-text-primary);
+        font-size: var(--text-sm);
+        line-height: var(--line-height-base);
+        text-wrap: pretty;
+      }
+      /* Under a field: tighter box, same 14px text — a warning that matters stays readable. */
+      .callout.sm {
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-md);
+      }
+      .callout-i {
+        flex: none;
+        margin-block-start: var(--space-0-5);
+        color: var(--callout-ink, var(--color-brand-primary));
+      }
+      .callout-b {
+        min-inline-size: 0;
+      }
+      .callout-b p {
         margin: 0;
       }
-      .used-i {
-        margin-block-start: var(--space-0-5);
-        color: var(--color-brand-primary);
+      .callout.info {
+        --callout-bg: var(--color-info-bg);
+        --callout-line: color-mix(in srgb, var(--color-info) 30%, transparent);
+        --callout-ink: var(--color-info);
+      }
+      .callout.warn {
+        --callout-bg: var(--color-warning-bg);
+        --callout-line: color-mix(in srgb, var(--color-warning) 35%, transparent);
+        --callout-ink: var(--color-warning);
+      }
+      .callout.danger {
+        --callout-bg: var(--color-error-bg);
+        --callout-line: color-mix(in srgb, var(--color-error) 35%, transparent);
+        --callout-ink: var(--color-error);
       }
       .chips {
         list-style: none;
@@ -578,182 +901,118 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         color: var(--color-text-link);
         font-weight: var(--font-weight-semibold);
         text-decoration: none;
+        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .chips a:hover {
         border-color: var(--color-brand-primary);
       }
-      .blk,
-      .used {
-        margin-block-end: var(--space-4);
-      }
-      .blk {
-        background: var(--color-surface-default);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        padding: var(--space-5);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-        align-items: flex-start;
-        min-width: 0;
-      }
-      .blk > * {
-        max-inline-size: 100%;
-      }
-      .names {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-        gap: var(--space-3);
-        inline-size: 100%;
-        max-inline-size: 40rem;
-      }
-      .fl.wide {
-        inline-size: 100%;
-      }
-      .fl {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      input:not([nz-input]) {
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-sm);
-        padding: var(--space-2) var(--space-2-5);
-        background: var(--color-surface-default);
-        color: var(--color-text-primary);
-        font: inherit;
-        font-weight: var(--font-weight-regular);
-        max-inline-size: 100%;
-      }
-      .row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-2) var(--space-3);
-        align-items: center;
-      }
-      .pick2 {
-        inline-size: 100%;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-        gap: var(--space-3) var(--space-4);
-        align-items: start;
-      }
-      .asked {
-        margin: 0;
-        padding: var(--space-2) var(--space-3);
-        border-radius: var(--radius-md);
-        background: var(--color-surface-muted);
-        color: var(--color-text-primary);
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-regular);
-      }
-      .vwarn {
-        margin: 0;
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-1-5);
-        color: var(--color-text-secondary);
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-regular);
-      }
-      .vwarn [nz-icon] {
-        margin-block-start: var(--space-0-5);
-        color: var(--color-warning);
-      }
-      .vnote {
-        margin: 0;
-        padding: var(--space-2) var(--space-3);
-        border: 1px dashed var(--color-border-default);
-        border-radius: var(--radius-md);
-        color: var(--color-text-secondary);
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-regular);
-      }
-      .vlink {
-        align-self: flex-start;
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-link);
-        text-decoration: underline;
-        text-underline-offset: 0.2em;
-      }
-      .vlink:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
-      .vsrc {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: var(--space-1-5);
-        margin: 0;
-        color: var(--color-text-secondary);
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-regular);
-      }
-      .vsrc [nz-icon] {
-        color: var(--color-brand-primary);
-      }
-      .vsrc a {
-        color: var(--color-text-link);
-        font-weight: var(--font-weight-semibold);
-        text-decoration: underline;
-        text-underline-offset: 0.2em;
-      }
-      .axes {
-        inline-size: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-md);
-        background: var(--color-surface-muted);
-      }
-      .axis {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: var(--space-2) var(--space-3);
-      }
-      .axis-l {
-        min-inline-size: 5rem;
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-secondary);
-      }
-      .groups {
-        inline-size: 100%;
+
+      /* "How" row: a label over one segmented control (+ the groups button). */
+      .how {
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
+        padding-block-start: var(--space-4);
+        border-block-start: 1px solid var(--color-border-default);
       }
+      .how-l {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .how-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
+      }
+      /* Segmented: an inset track, the live option raised on it (same pair as app-rail-tabs). */
       .seg {
         display: inline-flex;
         flex-wrap: wrap;
+        gap: var(--space-1);
+        max-inline-size: 100%;
+        padding: var(--space-1);
         border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-md);
-        overflow: hidden;
+        border-radius: var(--radius-lg);
+        background: var(--color-surface-page);
       }
       .seg button {
-        border: 0;
-        background: var(--color-surface-default);
         padding: var(--space-1-5) var(--space-3);
-        cursor: pointer;
+        border: 1px solid transparent;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--color-text-secondary);
         font: inherit;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard),
+          border-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      /* Shared labels come lower-case from the product page; on a control they start capital. */
+      .seg button::first-letter {
+        text-transform: uppercase;
+      }
+      .seg button:not([aria-checked='true']):active {
+        background: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+      }
+      .seg button:not([aria-checked='true']):hover {
+        background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
         color: var(--color-text-primary);
       }
-      .seg button + button {
-        border-inline-start: 1px solid var(--color-border-default);
-      }
       .seg button[aria-checked='true'] {
-        background: var(--color-brand-primary);
-        color: var(--color-text-on-brand);
+        border-color: color-mix(
+          in srgb,
+          var(--color-brand-primary) 55%,
+          var(--color-border-strong)
+        );
+        background: var(--color-surface-default);
+        color: var(--color-text-link);
         font-weight: var(--font-weight-semibold);
+        box-shadow:
+          var(--shadow-sm),
+          0 1px 2px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
       }
+      /* Icon + label buttons: a logical gap, so the icon keeps its space in RTL too. */
+      .ibtn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1-5);
+      }
+      .ibtn > span + span {
+        margin: 0;
+      }
+      /* Edit groups sits beside the segmented track: same surfaces, both themes. */
+      .gbtn {
+        /* As tall and as round as the track beside it, so the row reads as one control. */
+        align-self: stretch;
+        block-size: auto;
+        padding-inline: var(--space-4);
+        border-radius: var(--radius-lg);
+        border-color: var(--color-border-default);
+        background: var(--color-surface-default);
+        color: var(--color-text-primary);
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .gbtn:hover,
+      .gbtn.on {
+        border-color: var(--color-brand-primary);
+        background: var(--color-surface-default);
+        color: var(--color-text-link);
+      }
+      /* No frame of its own: the group board draws its panels, the card is the container. */
+      .groups {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+
+      /* The amounts sheet */
       .sheet {
         max-inline-size: 100%;
         overflow-x: auto;
@@ -761,120 +1020,206 @@ const NUMBER_KINDS: readonly TemplateMechanismKind[] = [
         border-radius: var(--radius-md);
       }
       table {
+        inline-size: 100%;
         border-collapse: collapse;
       }
       th,
       td {
-        padding: var(--space-1-5) var(--space-3);
+        padding: var(--space-2) var(--space-3);
         text-align: start;
+        vertical-align: middle;
         border-block-end: 1px solid var(--color-border-default);
         color: var(--color-text-primary);
       }
-      tr:last-child td {
+      tbody tr:last-child > * {
         border-block-end: 0;
       }
-      th {
+      tbody tr {
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      tbody tr:hover {
+        background: var(--color-surface-row-hover);
+      }
+      thead th {
         background: var(--color-surface-muted);
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-secondary);
+      }
+      thead th.n {
         white-space: nowrap;
       }
-      th.n,
-      td.n {
-        text-align: start;
+      thead th.corner {
+        min-inline-size: 12rem;
       }
-      .amt,
-      .edge {
-        inline-size: 10rem;
-        text-align: start;
-        font-variant-numeric: tabular-nums;
+      tbody th {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+      }
+      td.n {
+        min-inline-size: 9rem;
+      }
+      .x-col {
+        inline-size: 1%;
+        white-space: nowrap;
+      }
+      td.empty {
+        padding: var(--space-4);
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+        text-align: center;
+      }
+
+      /* Number boxes: the field look of nz-input, in a table's size. */
+      input:not([nz-input]) {
+        box-sizing: border-box;
+        max-inline-size: 100%;
+        padding: var(--space-1-5) var(--space-2-5);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-default);
+        color: var(--color-text-primary);
+        font: inherit;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-regular);
+        font-feature-settings: var(--font-feature-tabular);
+        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      input:not([nz-input]):hover {
+        border-color: var(--color-border-strong);
+      }
+      input:not([nz-input]):focus {
+        border-color: var(--color-border-focus);
+      }
+      .amt {
+        inline-size: 100%;
+        min-inline-size: 8rem;
       }
       .amt.sm {
-        inline-size: 8rem;
+        inline-size: 9rem;
+        min-inline-size: 0;
       }
       .edge {
-        inline-size: 7.5rem;
+        inline-size: 8rem;
       }
       .amt::placeholder,
       .edge::placeholder {
         color: var(--color-text-tertiary);
-        font-size: var(--text-xs);
       }
       .rng {
         display: flex;
         align-items: center;
         gap: var(--space-2);
         white-space: nowrap;
+      }
+      .rng-to {
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+      }
+      .rm {
         color: var(--color-text-secondary);
       }
-      .formula {
-        display: flex;
-        flex-direction: column;
+      .rm:hover {
+        color: var(--color-error);
+      }
+      .add {
+        align-self: flex-start;
+      }
+
+      /* One figure: "question × [ 50 ] %" (a sheet when there are columns). */
+      .fhead {
+        display: inline-flex;
+        align-items: center;
         gap: var(--space-2);
       }
-      .formula p {
-        margin: 0;
+      .frow {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: var(--space-2);
+        gap: var(--space-2) var(--space-3);
       }
-      .link {
-        border: 0;
-        background: none;
-        color: var(--color-text-link);
-        font: inherit;
-        font-weight: var(--font-weight-semibold);
-        cursor: pointer;
-        padding: 0;
+      .fq {
+        color: var(--color-text-primary);
+        font-size: var(--text-sm);
       }
-      .link.danger {
-        color: var(--color-error);
-      }
-      .x {
-        border: 0;
-        background: none;
+      .op {
+        display: inline-grid;
+        place-items: center;
+        inline-size: var(--space-5);
+        block-size: var(--space-5);
+        border-radius: var(--radius-pill);
+        background: var(--color-surface-muted);
         color: var(--color-text-secondary);
-        cursor: pointer;
-        font: inherit;
+        font-weight: var(--font-weight-semibold);
       }
-      .foot {
-        display: flex;
-        justify-content: space-between;
+      .unit-box {
+        display: inline-flex;
         align-items: center;
+        gap: var(--space-1-5);
+      }
+      .unit {
+        color: var(--color-text-secondary);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      /* Loading */
+      .skel {
         gap: var(--space-3);
       }
-      .acts {
-        display: flex;
-        gap: var(--space-2);
+      .bar {
+        display: block;
+        block-size: var(--space-3);
+        border-radius: var(--radius-sm);
+        background: var(--color-surface-muted);
       }
-      .btn {
-        border: 1px solid var(--color-border-default);
-        background: var(--color-surface-default);
-        color: var(--color-text-primary);
-        border-radius: var(--radius-md);
-        padding: var(--space-2) var(--space-4);
-        font: inherit;
-        font-weight: var(--font-weight-semibold);
-        cursor: pointer;
-        text-decoration: none;
+      .w40 {
+        inline-size: 40%;
       }
-      .btn.primary {
-        background: var(--color-brand-primary);
-        border-color: var(--color-brand-primary);
-        color: var(--color-text-on-brand);
+      .w55 {
+        inline-size: 55%;
       }
-      .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+      .w70 {
+        inline-size: 70%;
       }
+
       input:focus-visible,
-      select:focus-visible,
       button:focus-visible,
       a:focus-visible {
         outline: var(--focus-ring-width) solid var(--focus-ring-color);
         outline-offset: var(--focus-ring-offset);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .seg button,
+        .chips a,
+        .gbtn,
+        tbody tr,
+        input:not([nz-input]) {
+          transition: none;
+        }
+      }
+      @media (max-width: 600px) {
+        .card {
+          padding: var(--space-4);
+        }
+        .seg {
+          display: flex;
+        }
+        .seg button {
+          flex: 1 1 auto;
+          min-block-size: var(--size-field);
+        }
+        .gbtn {
+          min-block-size: var(--size-field);
+        }
+        thead th.corner {
+          min-inline-size: 8rem;
+        }
+        td.n {
+          min-inline-size: 7rem;
+        }
+        .amt {
+          min-inline-size: 6rem;
+        }
       }
     `,
   ],
@@ -890,7 +1235,8 @@ export class ReadyMethodEditPage {
   private readonly lookups = inject(LookupsApiService);
   protected readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
-  protected readonly key = inject(ActivatedRoute).snapshot.paramMap.get('key') ?? 'new';
+  private readonly route = inject(ActivatedRoute);
+  protected readonly key = this.route.snapshot.paramMap.get('key') ?? 'new';
   protected readonly isNew = this.key === 'new';
 
   protected readonly loading = signal(!this.isNew);
@@ -1030,7 +1376,7 @@ export class ReadyMethodEditPage {
   protected readonly rowsFromAria = $localize`:@@rm.rows_from:Rows: values from`;
   protected readonly colsFromAria = $localize`:@@rm.cols_from:Columns (optional): values from`;
   protected readonly askedAria = $localize`:@@rm.asked_as:Asked as`;
-  protected readonly noColumns = $localize`:@@rm.no_columns:No columns`;
+  protected readonly noColumns = $localize`:@@rm.no_columns:No second question`;
 
   /** Every question a method can read, with where its values come from. */
   private readonly entries = computed(() => {
@@ -1307,7 +1653,7 @@ export class ReadyMethodEditPage {
   protected readonly cancelLabel = $localize`:@@rm.cancel:Cancel`;
   protected readonly saveLabel = $localize`:@@rm.save:Save method`;
   protected readonly q1Aria = $localize`:@@rm.axis_rows:Rows`;
-  protected readonly q2Aria = $localize`:@@rm.axis_cols:Columns`;
+  protected readonly q2Aria = $localize`:@@rm.q2_label:Second question`;
   protected readonly noSecond = $localize`:@@rm.q2_none:No`;
   protected usedHint(): string {
     const n = this.usedBy().length;
@@ -1355,6 +1701,11 @@ export class ReadyMethodEditPage {
       );
     });
     if (!this.isNew) void this.load();
+    // Editing opens on the step a link names (?step=2); a new method always starts at the name.
+    const asked = Number(this.route.snapshot.queryParamMap.get('step'));
+    if (!this.isNew && Number.isInteger(asked) && asked >= 1 && asked <= this.lastStep + 1) {
+      this.stepIdx.set(asked - 1);
+    }
   }
 
   protected val(e: Event): string {
@@ -1892,34 +2243,144 @@ export class ReadyMethodEditPage {
 
   // --- save ----------------------------------------------------------------------
 
-  protected readonly block = computed<string | null>(() => {
+  /**
+   * Every reason the method cannot be saved yet, each with the step it belongs to (0 name,
+   * 1 question, 2 second question), in the order they are checked. The first one is `block()`
+   * — what Save refuses on; the stepper reads the rest to say which step needs attention.
+   */
+  private readonly blocks = computed<Array<{ step: number; reason: string }>>(() => {
     this.nameRev();
+    const out: Array<{ step: number; reason: string }> = [];
     const v = this.nameForm.getRawValue();
     if (v.labelEn.trim() === '' || v.labelAr.trim() === '') {
-      return $localize`:@@rm.need_names:Give the method a name in English and Arabic.`;
+      out.push({
+        step: 0,
+        reason: $localize`:@@rm.need_names:Give the method a name in English and Arabic.`,
+      });
     }
-    if (this.fact() === '')
-      return $localize`:@@rm.need_q:Pick the question that decides the amount.`;
+    if (this.fact() === '') {
+      out.push({
+        step: 1,
+        reason: $localize`:@@rm.need_q:Pick the question that decides the amount.`,
+      });
+    }
     if (this.kind() === 'classTable' && (this.rowGroups()?.length ?? 1) === 0) {
-      return $localize`:@@ps.block_no_group:Add at least one group.`;
+      out.push({ step: 1, reason: $localize`:@@ps.block_no_group:Add at least one group.` });
     }
     for (const axis of ['row', 'col'] as const) {
       const m = this.maps()[axis];
       if (!m) continue;
+      const step = axis === 'row' ? 1 : 2;
       const answers = this.factOf(this.axisFact(axis))?.options ?? [];
       if (unmapped(answers, m).length > 0) {
-        return $localize`:@@rm.need_map:Map every answer to a list value.`;
+        out.push({ step, reason: $localize`:@@rm.need_map:Map every answer to a list value.` });
+        continue;
       }
       const grouped = axis === 'row' ? this.kind() === 'classTable' : this.colMode() === 'groups';
       if (grouped && Object.values(m.map).some((v) => !m.valueGroups?.[v])) {
-        return $localize`:@@rm.need_value_groups:Put every list value in use into a group.`;
+        out.push({
+          step,
+          reason: $localize`:@@rm.need_value_groups:Put every list value in use into a group.`,
+        });
       }
     }
     if (this.colFact() !== '' && this.branches().length < 2) {
-      return $localize`:@@rm.need_cols:The second question needs at least two answers.`;
+      out.push({
+        step: 2,
+        reason: $localize`:@@rm.need_cols:The second question needs at least two answers.`,
+      });
     }
-    return null;
+    return out;
   });
+
+  protected readonly block = computed<string | null>(() => this.blocks()[0]?.reason ?? null);
+
+  // --- stepper -------------------------------------------------------------------
+
+  /** The step on stage: 0 name, 1 question, 2 second question, 3 default amounts. */
+  protected readonly stepIdx = signal(0);
+  /** The furthest step a NEW method has reached — what the rail marks done. */
+  private readonly furthest = signal(0);
+  protected readonly lastStep = 3;
+  private readonly stepLabels = [
+    $localize`:@@rm.step_name:Name`,
+    $localize`:@@rm.q1:Question`,
+    $localize`:@@rm.q2_label:Second question`,
+    $localize`:@@rm.s4_title:Default amounts`,
+  ];
+  protected readonly stepsAria = $localize`:@@rm.steps_aria:Setting up this method`;
+  private readonly nextLabel = $localize`:@@pcn.next:Next`;
+
+  /**
+   * New: in order — a step opens once every step before it passes. Edit: any step, any time.
+   * A step with a reason to fix says "Needs attention" (on a new method, once reached).
+   */
+  protected readonly steps = computed<WizardStepItem[]>(() => {
+    const blocked = new Set(this.blocks().map((b) => b.step));
+    const first = this.blocks()[0]?.step ?? -1;
+    return this.stepLabels.map((label, i) => {
+      const reached = !this.isNew || i <= this.furthest();
+      const status: WizardStepStatus = blocked.has(i)
+        ? reached
+          ? 'invalid'
+          : 'todo'
+        : reached
+          ? 'done'
+          : 'todo';
+      return {
+        id: String(i),
+        label,
+        status,
+        disabled: this.isNew && first !== -1 && i > first,
+        // Step 3 "Second question" may be left as "No second question".
+        optional: i === 2,
+      };
+    });
+  });
+
+  protected goToStep(i: number): void {
+    if (i < 0 || i > this.lastStep) return;
+    this.stepIdx.set(i);
+    if (i > this.furthest()) this.furthest.set(i);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { step: i + 1 },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  /** New method, before the last step: the bar's button moves on. Otherwise it saves. */
+  protected readonly moving = computed(() => this.isNew && this.stepIdx() < this.lastStep);
+
+  protected readonly primaryLabel = computed(() =>
+    this.moving() ? this.nextLabel : this.saveLabel,
+  );
+
+  protected primary(): void {
+    if (this.moving()) {
+      this.goToStep(this.stepIdx() + 1);
+      return;
+    }
+    this.save();
+  }
+
+  /** Moving: why THIS step cannot be left. Saving: why the method cannot be saved. */
+  protected readonly barBlock = computed<string | null>(() => {
+    if (this.loading()) return null;
+    if (this.moving()) {
+      return this.blocks().find((b) => b.step === this.stepIdx())?.reason ?? null;
+    }
+    return this.block();
+  });
+
+  protected barHint(): string | null {
+    if (this.moving()) {
+      const label = this.stepLabels[this.stepIdx() + 1] ?? '';
+      return $localize`:@@pcn.next_hint:Next: ${label}:STEP:`;
+    }
+    return this.usedBy().length > 0 ? this.usedHint() : null;
+  }
 
   private mechanism(): TemplateMechanism {
     const base = this.plainMechanism();

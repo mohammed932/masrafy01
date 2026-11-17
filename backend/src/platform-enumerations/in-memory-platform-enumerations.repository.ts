@@ -206,6 +206,11 @@ export class InMemoryPlatformEnumerationsRepository
     throw new Error('in-memory enumeration registry is read-only');
   }
 
+  /** Read-only stub, exactly as the cap-defaults write above. */
+  async setSurrogateProductDbrDefaults(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
   /** Read-only stub, exactly as the two writes above. */
   async setSurrogateProductTenorDefaults(): Promise<never> {
     throw new Error('in-memory enumeration registry is read-only');

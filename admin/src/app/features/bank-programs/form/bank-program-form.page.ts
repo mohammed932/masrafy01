@@ -4887,7 +4887,7 @@ export class BankProgramFormPage implements OnInit {
         nonNullable: true,
         validators: [Validators.required, Validators.min(0)],
       }),
-      dbrCapPercent: new FormControl('50.0', {
+      dbrCapPercent: new FormControl(DEFAULT_DBR_CAP_PERCENT, {
         nonNullable: true,
         validators: [Validators.required],
       }),
@@ -5333,6 +5333,7 @@ export class BankProgramFormPage implements OnInit {
     // the signals the editor writes to — a computed view would be read-only, and the
     // operator has to be able to type straight into it.
     this.seedFromCatalog();
+    this.seedDbrFromProduct();
     this.seedCapFromProduct();
     this.recordSingleWay();
     if (this.fillOnArrival) {
@@ -6131,6 +6132,7 @@ export class BankProgramFormPage implements OnInit {
 
   /** Blank REMOVES the row — an empty string would be refused, and means "no cap here". */
   protected setDbrForEmployment(bucket: string, raw: string): void {
+    this.dbrEmploymentTouched = true;
     const value = raw.trim();
     this.dbrByEmployment.update((current) => {
       const next = { ...current };
@@ -6138,6 +6140,26 @@ export class BankProgramFormPage implements OnInit {
       else next[bucket] = value;
       return next;
     });
+  }
+
+  /** Set once the operator types in a per-applicant row; the product stops filling them. */
+  private dbrEmploymentTouched = false;
+
+  /**
+   * A NEW program starts its Debt burden card from the product's starting caps
+   * (`surrogateProduct.dbrDefaults`) — COPIED, like the cap amounts, and only on a plain
+   * create: an edit shows what the program holds, and a copy (`?copy=`) keeps its source's
+   * figures. Re-run on every name change, so a different product's caps replace the first
+   * one's — but never over a figure the operator has typed (`dirty` / the touched flag).
+   */
+  private seedDbrFromProduct(): void {
+    if (this.editProgramCode() || this.route.snapshot.queryParamMap.has('copy')) return;
+    const product = this.catalogRule()?.surrogateProduct?.dbrDefaults ?? null;
+    const cap = this.form.controls.eligibility.controls.dbrCapPercent;
+    if (!cap.dirty) cap.setValue(product?.dbrCapPercent ?? DEFAULT_DBR_CAP_PERCENT);
+    if (!this.dbrEmploymentTouched) {
+      this.dbrByEmployment.set({ ...(product?.dbrCapPercentByEmploymentType ?? {}) });
+    }
   }
 
   // ── The fourth cap on the Debt burden card: the income rule's own ──────────────────
@@ -8900,6 +8922,9 @@ function money(raw: string | null | undefined): string {
  * Thunks: `$localize` resolves at call time, so a map built at module load would freeze the
  * first locale the bundle saw.
  */
+/** The flat DBR cap a new program opens on when its product states none of its own. */
+const DEFAULT_DBR_CAP_PERCENT = '50.0';
+
 const EMPLOYMENT_BUCKET_LABELS: Readonly<Record<string, () => string>> = {
   salaried: () => $localize`:@@bank_programs.employment.salaried:Salaried`,
   self_employed: () => $localize`:@@bank_programs.employment.self_employed:Self-employed`,

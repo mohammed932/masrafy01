@@ -6,6 +6,7 @@ import { AuditEventType } from '../common/audit/audit-event-types';
 import { AuditEventRepository } from '../audit/audit-event.repository';
 import {
   PlatformEnumerationsRepository,
+  type DbrDefaults,
   type ProgramNameIncomeRuleRow,
   type ProgramUnderName,
 } from '../platform-enumerations/platform-enumerations.repository';
@@ -25,6 +26,7 @@ import {
   SetSurrogateProductLoanAmountDefaultsDto,
   SetSurrogateProductRateDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
+  SetSurrogateProductDbrDefaultsDto,
   SetSurrogateProductIScoreDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
@@ -2096,6 +2098,8 @@ export class BankProgramsService {
       // to render the grid they are filed under.
       cap: capShapeOf(row.key, row.templateSpec?.blueprintKey) ?? null,
       capDefaults: row.capDefaults,
+      // The debt-burden caps a NEW program starts from — copied, like the amounts above.
+      dbrDefaults: row.dbrDefaults,
       // The DURATION this product hands its programs. Beside `capDefaults` because the
       // screen renders the two on the same step, and deliberately NOT folded into it: one is
       // copied once at create and the other is read live, and a reader of this response has
@@ -2330,6 +2334,56 @@ export class BankProgramsService {
             figuresChanged: stableJson(row.capDefaults ?? null) !== stableJson(stored ?? null),
           },
         },
+      },
+    });
+
+    return this.getSurrogateProduct(saved.key);
+  }
+
+  /**
+   * Set a surrogate product's starting debt-burden caps: the flat cap (required) and one per
+   * kind of applicant (optional).
+   *
+   * COPIED, not inherited, on the cap defaults' terms: a new bank program's form fills its
+   * own DBR fields from these, and the engine never reads them. So there is no refusal here
+   * of the duration's kind below — no program is "reading" a starting figure, and a change
+   * moves no live quote. Blank per-applicant entries are dropped, so "no cap of its own" has
+   * one spelling.
+   */
+  async setSurrogateProductDbrDefaults(
+    key: string,
+    dto: SetSurrogateProductDbrDefaultsDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const byType = Object.fromEntries(
+      Object.entries(dto.dbr.dbrCapPercentByEmploymentType ?? {}).filter(
+        ([, value]) => value.trim() !== '',
+      ),
+    );
+    const stored: DbrDefaults = {
+      dbrCapPercent: dto.dbr.dbrCapPercent.trim(),
+      ...(Object.keys(byType).length > 0 ? { dbrCapPercentByEmploymentType: byType } : {}),
+    };
+
+    const saved = await this.enums.setSurrogateProductDbrDefaults(key, stored, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      // A FK to STAFF_ACCOUNT — "the staff member this was done to", never the row it was
+      // about. The product's id travels in the payload, as every other
+      // PLATFORM_ENUMERATION_UPDATED writer sends it.
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        // Before and after in full: a handful of percentages, and the whole decision.
+        changes: { dbrDefaults: { before: row.dbrDefaults, after: stored } },
       },
     });
 
@@ -3304,6 +3358,9 @@ export class BankProgramsService {
               // product an operator renamed — on a seeded row the key IS the blueprint key.
               cap: capShapeOf(product.key, product.templateSpec?.blueprintKey) ?? null,
               capDefaults: product.capDefaults,
+              // The DBR caps a NEW program starts from. The wizard copies them into its own
+              // fields on a create only, exactly as it seeds the amounts above.
+              dbrDefaults: product.dbrDefaults,
               // What a program under this name falls back to when it states no duration of
               // its own. The bank wizard renders it read-only in that state and offers to
               // copy it, exactly as it does the product's I-Score tiers.

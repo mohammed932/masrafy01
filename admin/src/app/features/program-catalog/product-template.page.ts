@@ -159,27 +159,7 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
         <h2 i18n="@@ps.decides">What decides the amount?</h2>
 
         @if (wayCount() > 1) {
-          <div class="methods" role="tablist" [attr.aria-label]="methodsAria">
-            @for (i of wayIndexes(); track i) {
-              <button
-                type="button"
-                role="tab"
-                class="mtab"
-                [class.on]="shownWay() === i"
-                [attr.aria-selected]="shownWay() === i"
-                (click)="openWay.set(i)"
-              >
-                <b>{{ linkedKey(i) !== '' ? linkedName(i) : methodLabel(i) }}</b>
-                <span>{{ wayTitle(i) }}</span>
-              </button>
-            }
-            @if (canAddWay()) {
-              <button type="button" class="mtab add" (click)="addWay()">
-                <span i18n="@@ps.add_method_short">+ Method</span>
-              </button>
-            }
-          </div>
-          <div class="row">
+          <div class="row banks-use">
             <span class="muted" i18n="@@ps.banks_use">Banks use</span>
             <div class="seg" role="radiogroup" [attr.aria-label]="waysModeAria">
               <button
@@ -202,281 +182,275 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
               </button>
             </div>
           </div>
+          <div class="methods" role="tablist" [attr.aria-label]="methodsAria">
+            @for (i of wayIndexes(); track i) {
+              <button
+                type="button"
+                role="tab"
+                class="mtab"
+                [id]="'way-tab-' + i"
+                [class.on]="shownWay() === i"
+                [attr.aria-selected]="shownWay() === i"
+                aria-controls="way-panel"
+                [attr.title]="wayTitle(i)"
+                (click)="openWay.set(i)"
+              >
+                <b>{{ linkedKey(i) !== '' ? linkedName(i) : methodLabel(i) }}</b>
+                <span>{{ wayTitle(i) }}</span>
+              </button>
+            }
+            @if (canAddWay()) {
+              <button type="button" class="mtab add" (click)="addWay()">
+                <span i18n="@@ps.add_method_short">+ Method</span>
+              </button>
+            }
+          </div>
         }
 
-        @for (i of [shownWay()]; track i) {
-          @if (methods().length > 0) {
-            <div class="ready" [class.quiet]="wayFactValue(i) !== ''">
-              <div class="ready-l">
-                @if (linkedKey(i) !== '') {
-                  <span i18n="@@ps.ready_method">Surrogate method</span>
-                } @else if (wayFactValue(i) === '') {
-                  <span i18n="@@ps.use_ready">Use a surrogate method</span>
-                } @else {
-                  <span i18n="@@ps.replace_ready">Replace with a surrogate method</span>
-                }
-                <app-search-select
-                  [options]="methodOpts()"
-                  [value]="linkedKey(i)"
-                  [placeholder]="pickOne"
-                  [ariaLabel]="methodAria"
-                  (changed)="pickMethod(i, $event)"
-                />
-              </div>
-              @if (wayFactValue(i) === '') {
-                <span class="muted" i18n="@@ps.or_build"
-                  >or build it: pick the questions below.</span
-                >
-              }
-            </div>
-          }
-          @if (linkedKey(i) !== '') {
-            <div class="mcard">
-              <div class="mcard-h">
-                <span class="mtag" i18n="@@ps.ready_tag">Surrogate method</span>
-                <b>{{ linkedName(i) }}</b>
-              </div>
-              <p class="msum">{{ linkedSummary(i) }}</p>
-              <p class="hint" i18n="@@ps.linked_note3">
-                Its questions and how come from the method. Its groups and amounts were copied
-                from it and are this product's own: changes here are for this product only.
-              </p>
-              @if (wayKind(i) === 'classTable' || colGrouped(i)) {
-                <div class="mgroups">
-                  @if (wayKind(i) === 'classTable') {
-                    <button type="button" class="link" (click)="toggleEditor(i, 'row')">
-                      @if (editorOpen() === i + ':row') {
-                        <span i18n="@@ps.groups_done">Done with groups</span>
-                      } @else {
-                        <span i18n="@@ps.row_groups_edit">Edit row groups</span>
-                      }
-                    </button>
+        <!-- With two or more methods, everything below belongs to the open tab: framed so it
+             reads that way. With one, there is no tab to belong to, so no frame. -->
+        <div
+          id="way-panel"
+          class="way-panel"
+          [class.framed]="wayCount() > 1"
+          [attr.role]="wayCount() > 1 ? 'tabpanel' : null"
+          [attr.aria-labelledby]="wayCount() > 1 ? 'way-tab-' + shownWay() : null"
+        >
+          @for (i of [shownWay()]; track i) {
+            @if (methods().length > 0) {
+              <div class="ready" [class.quiet]="wayFactValue(i) !== ''">
+                <div class="ready-l">
+                  @if (linkedKey(i) !== '') {
+                    <span i18n="@@ps.ready_method">Surrogate method</span>
+                  } @else if (wayFactValue(i) === '') {
+                    <span i18n="@@ps.use_ready">Use a surrogate method</span>
+                  } @else {
+                    <span i18n="@@ps.replace_ready">Replace with a surrogate method</span>
                   }
-                  @if (colGrouped(i)) {
-                    <button type="button" class="link" (click)="toggleEditor(i, 'col')">
-                      @if (editorOpen() === i + ':col') {
-                        <span i18n="@@ps.groups_done">Done with groups</span>
-                      } @else {
-                        <span i18n="@@ps.col_groups_edit">Edit column groups</span>
-                      }
-                    </button>
-                  }
+                  <app-search-select
+                    [options]="methodOpts()"
+                    [value]="linkedKey(i)"
+                    [placeholder]="pickOne"
+                    [ariaLabel]="methodAria"
+                    (changed)="pickMethod(i, $event)"
+                  />
                 </div>
-              }
-            </div>
-            @if (wayKind(i) === 'classTable' && editorOpen() === i + ':row') {
-              <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'row' }" />
-            }
-            @if (colGrouped(i) && editorOpen() === i + ':col') {
-              <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'col' }" />
-            }
-          }
-          <!-- The shape (questions, how, columns, groups): the product's own, or the method's. -->
-          @if (linkedKey(i) === '') {
-            <div class="wayset">
-              <div class="deciders">
-                @if (wayFactValue(i) !== '' && wayFactValue(i) !== '__flat__') {
-                  <span class="chip"
-                    ><i>1</i>{{ shortLabel(wayFactValue(i)) }}
-                    <button
-                      type="button"
-                      [attr.aria-label]="removeAria"
-                      (click)="toggleDecider(i, wayFactValue(i))"
-                    >
-                      ✕
-                    </button></span
+                @if (wayFactValue(i) === '') {
+                  <span class="muted" i18n="@@ps.or_build"
+                    >or build it: pick the questions below.</span
                   >
                 }
-                @if (wayColumn(i); as column) {
-                  <span class="chip"
-                    ><i>2</i>{{ shortLabel(column.fact) }}
-                    <button
-                      type="button"
-                      [attr.aria-label]="removeAria"
-                      (click)="toggleDecider(i, column.fact)"
-                    >
-                      ✕
-                    </button></span
-                  >
-                }
-                <div class="picker">
-                  <button
-                    type="button"
-                    class="add-q"
-                    [attr.aria-expanded]="pickerFor() === i"
-                    (click)="togglePicker(i)"
-                  >
-                    @if (tickedCount(i) > 0) {
-                      <span i18n="@@ps.change">Change</span>
-                    } @else {
-                      <span i18n="@@ps.pick_questions">+ Pick questions</span>
+              </div>
+            }
+            @if (linkedKey(i) !== '') {
+              <div class="mcard">
+                <div class="mcard-h">
+                  <span class="mtag" i18n="@@ps.ready_tag">Surrogate method</span>
+                  <b>{{ linkedName(i) }}</b>
+                </div>
+                <p class="msum">{{ linkedSummary(i) }}</p>
+                <p class="hint" i18n="@@ps.linked_note3">
+                  Its questions and how come from the method. Its groups and amounts were copied
+                  from it and are this product's own: changes here are for this product only.
+                </p>
+                @if (wayKind(i) === 'classTable' || colGrouped(i)) {
+                  <div class="mgroups">
+                    @if (wayKind(i) === 'classTable') {
+                      <button type="button" class="link" (click)="toggleEditor(i, 'row')">
+                        @if (editorOpen() === i + ':row') {
+                          <span i18n="@@ps.groups_done">Done with groups</span>
+                        } @else {
+                          <span i18n="@@ps.row_groups_edit">Edit row groups</span>
+                        }
+                      </button>
                     }
-                  </button>
-                  @if (pickerFor() === i) {
-                    <div class="pop" role="menu">
-                      <input
-                        class="pop-q"
-                        type="search"
-                        [value]="pickerQuery()"
-                        (input)="pickerQuery.set(val($event))"
-                        [attr.aria-label]="searchAria"
-                        [placeholder]="searchAria"
-                      />
-                      <div class="opts">
-                        @if (pickList(addedDeciders()).length > 0) {
-                          <p class="opt-h" i18n="@@ps.grp_own">This product's questions</p>
-                          @for (f of pickList(addedDeciders()); track f.key) {
-                            <ng-container
-                              *ngTemplateOutlet="
-                                opt;
-                                context: { $implicit: f.key, label: f.label, i: i }
-                              "
-                            />
-                          }
-                        }
-                        @if (pickList(fixedDeciders()).length > 0) {
-                          <p class="opt-h" i18n="@@ps.grp_fixed">Asked of every customer</p>
-                          @for (f of pickList(fixedDeciders()); track f.key) {
-                            <ng-container
-                              *ngTemplateOutlet="
-                                opt;
-                                context: { $implicit: f.key, label: f.label, i: i }
-                              "
-                            />
-                          }
-                        }
-                        @if (pickList(derivedDeciders()).length > 0) {
-                          <p class="opt-h" i18n="@@ps.grp_derived">We work these out ourselves</p>
-                          @for (f of pickList(derivedDeciders()); track f.key) {
-                            <ng-container
-                              *ngTemplateOutlet="
-                                opt;
-                                context: { $implicit: f.key, label: f.label, i: i }
-                              "
-                            />
-                          }
-                        }
-                      </div>
-                      <div class="pop-f">
-                        <span class="muted" i18n="@@ps.ticked"
-                          >{{ tickedCount(i) }} of 2 ticked</span
-                        >
-                        <button
-                          type="button"
-                          class="btn-sm"
-                          (click)="pickerFor.set(null)"
-                          i18n="@@ps.done"
-                        >
-                          Done
-                        </button>
-                      </div>
-                    </div>
-                  }
-                </div>
-              </div>
-
-              @if (wayColumn(i); as column) {
-                <p class="hint" i18n="@@ps.rows_cols">
-                  Rows by {{ shortLabel(wayFactValue(i)) }}, columns by
-                  {{ shortLabel(column.fact) }}.
-                </p>
-              } @else if (wayReady(i) && wayFactValue(i) !== '__flat__') {
-                <p class="hint" i18n="@@ps.second_hint">
-                  Tick a second question if the amount also depends on it.
-                </p>
-              } @else if (addedDeciders().length === 0) {
-                <p class="hint">
-                  <span i18n="@@ps.only_fixed"
-                    >Only the questions every customer answers so far.</span
-                  >
-                  <button
-                    type="button"
-                    class="link"
-                    (click)="goQuestions.emit()"
-                    i18n="@@ps.add_own_q"
-                  >
-                    Add this product's questions
-                  </button>
-                </p>
-              }
-
-              @if (wayIsNumber(i)) {
-                <div class="seg" role="radiogroup" [attr.aria-label]="numberWayAria">
-                  @for (w of numberWays; track w.kind) {
-                    <button
-                      type="button"
-                      role="radio"
-                      [attr.aria-checked]="wayKind(i) === w.kind"
-                      (click)="setWayKind(i, w.kind)"
-                    >
-                      {{ w.label }}
-                    </button>
-                  }
-                </div>
-              }
-              @if (wayFactValue(i) !== '' && !wayIsNumber(i) && groupable(wayFactValue(i))) {
-                <div class="row">
-                  <div class="seg" role="radiogroup" [attr.aria-label]="choiceWayAria">
-                    <button
-                      type="button"
-                      role="radio"
-                      [attr.aria-checked]="wayKind(i) === 'choiceTable'"
-                      (click)="setWayKind(i, 'choiceTable')"
-                      i18n="@@spt.v2.per_answer"
-                    >
-                      One amount per answer
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      [attr.aria-checked]="wayKind(i) === 'classTable'"
-                      (click)="setWayKind(i, 'classTable')"
-                      i18n="@@spt.v2.per_group"
-                    >
-                      One amount per group
-                    </button>
-                  </div>
-                  @if (wayKind(i) === 'classTable') {
-                    <button type="button" class="link" (click)="toggleEditor(i, 'row')">
-                      @if (editorOpen() === i + ':row') {
-                        <span i18n="@@ps.groups_done">Done with groups</span>
-                      } @else {
-                        <span i18n="@@ps.groups_edit">Edit groups</span>
-                      }
-                    </button>
-                  }
-                </div>
-                @if (wayKind(i) === 'classTable' && editorOpen() === i + ':row') {
-                  <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'row' }" />
-                }
-              }
-              @if (wayColumn(i); as column) {
-                @if (groupable(column.fact)) {
-                  <div class="row">
-                    <span class="muted" i18n="@@ps.columns">Columns:</span>
-                    <div class="seg" role="radiogroup" [attr.aria-label]="columnModeAria">
-                      <button
-                        type="button"
-                        role="radio"
-                        [attr.aria-checked]="columnMode(column) === 'answer'"
-                        (click)="setColumnMode(i, 'answer')"
-                        i18n="@@ps.col_answer"
-                      >
-                        one per answer
-                      </button>
-                      <button
-                        type="button"
-                        role="radio"
-                        [attr.aria-checked]="columnMode(column) === 'groups'"
-                        (click)="setColumnMode(i, 'groups')"
-                        i18n="@@ps.col_groups"
-                      >
-                        one per group
-                      </button>
-                    </div>
-                    @if (columnMode(column) === 'groups') {
+                    @if (colGrouped(i)) {
                       <button type="button" class="link" (click)="toggleEditor(i, 'col')">
                         @if (editorOpen() === i + ':col') {
+                          <span i18n="@@ps.groups_done">Done with groups</span>
+                        } @else {
+                          <span i18n="@@ps.col_groups_edit">Edit column groups</span>
+                        }
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+              @if (wayKind(i) === 'classTable' && editorOpen() === i + ':row') {
+                <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'row' }" />
+              }
+              @if (colGrouped(i) && editorOpen() === i + ':col') {
+                <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'col' }" />
+              }
+            }
+            <!-- The shape (questions, how, columns, groups): the product's own, or the method's. -->
+            @if (linkedKey(i) === '') {
+              <div class="wayset">
+                <div class="deciders">
+                  @if (wayFactValue(i) !== '' && wayFactValue(i) !== '__flat__') {
+                    <span class="chip"
+                      ><i>1</i>{{ shortLabel(wayFactValue(i)) }}
+                      <button
+                        type="button"
+                        [attr.aria-label]="removeAria"
+                        (click)="toggleDecider(i, wayFactValue(i))"
+                      >
+                        ✕
+                      </button></span
+                    >
+                  }
+                  @if (wayColumn(i); as column) {
+                    <span class="chip"
+                      ><i>2</i>{{ shortLabel(column.fact) }}
+                      <button
+                        type="button"
+                        [attr.aria-label]="removeAria"
+                        (click)="toggleDecider(i, column.fact)"
+                      >
+                        ✕
+                      </button></span
+                    >
+                  }
+                  <div class="picker">
+                    <button
+                      type="button"
+                      class="add-q"
+                      [attr.aria-expanded]="pickerFor() === i"
+                      (click)="togglePicker(i)"
+                    >
+                      @if (tickedCount(i) > 0) {
+                        <span i18n="@@ps.change">Change</span>
+                      } @else {
+                        <span i18n="@@ps.pick_questions">+ Pick questions</span>
+                      }
+                    </button>
+                    @if (pickerFor() === i) {
+                      <div class="pop" role="menu">
+                        <input
+                          class="pop-q"
+                          type="search"
+                          [value]="pickerQuery()"
+                          (input)="pickerQuery.set(val($event))"
+                          [attr.aria-label]="searchAria"
+                          [placeholder]="searchAria"
+                        />
+                        <div class="opts">
+                          @if (pickList(addedDeciders()).length > 0) {
+                            <p class="opt-h" i18n="@@ps.grp_own">This product's questions</p>
+                            @for (f of pickList(addedDeciders()); track f.key) {
+                              <ng-container
+                                *ngTemplateOutlet="
+                                  opt;
+                                  context: { $implicit: f.key, label: f.label, i: i }
+                                "
+                              />
+                            }
+                          }
+                          @if (pickList(fixedDeciders()).length > 0) {
+                            <p class="opt-h" i18n="@@ps.grp_fixed">Asked of every customer</p>
+                            @for (f of pickList(fixedDeciders()); track f.key) {
+                              <ng-container
+                                *ngTemplateOutlet="
+                                  opt;
+                                  context: { $implicit: f.key, label: f.label, i: i }
+                                "
+                              />
+                            }
+                          }
+                          @if (pickList(derivedDeciders()).length > 0) {
+                            <p class="opt-h" i18n="@@ps.grp_derived">We work these out ourselves</p>
+                            @for (f of pickList(derivedDeciders()); track f.key) {
+                              <ng-container
+                                *ngTemplateOutlet="
+                                  opt;
+                                  context: { $implicit: f.key, label: f.label, i: i }
+                                "
+                              />
+                            }
+                          }
+                        </div>
+                        <div class="pop-f">
+                          <span class="muted" i18n="@@ps.ticked"
+                            >{{ tickedCount(i) }} of 2 ticked</span
+                          >
+                          <button
+                            type="button"
+                            class="btn-sm"
+                            (click)="pickerFor.set(null)"
+                            i18n="@@ps.done"
+                          >
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                @if (wayColumn(i); as column) {
+                  <p class="hint" i18n="@@ps.rows_cols">
+                    Rows by {{ shortLabel(wayFactValue(i)) }}, columns by
+                    {{ shortLabel(column.fact) }}.
+                  </p>
+                } @else if (wayReady(i) && wayFactValue(i) !== '__flat__') {
+                  <p class="hint" i18n="@@ps.second_hint">
+                    Tick a second question if the amount also depends on it.
+                  </p>
+                } @else if (addedDeciders().length === 0) {
+                  <p class="hint">
+                    <span i18n="@@ps.only_fixed"
+                      >Only the questions every customer answers so far.</span
+                    >
+                    <button
+                      type="button"
+                      class="link"
+                      (click)="goQuestions.emit()"
+                      i18n="@@ps.add_own_q"
+                    >
+                      Add this product's questions
+                    </button>
+                  </p>
+                }
+
+                @if (wayIsNumber(i)) {
+                  <div class="seg" role="radiogroup" [attr.aria-label]="numberWayAria">
+                    @for (w of numberWays; track w.kind) {
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="wayKind(i) === w.kind"
+                        (click)="setWayKind(i, w.kind)"
+                      >
+                        {{ w.label }}
+                      </button>
+                    }
+                  </div>
+                }
+                @if (wayFactValue(i) !== '' && !wayIsNumber(i) && groupable(wayFactValue(i))) {
+                  <div class="row">
+                    <div class="seg" role="radiogroup" [attr.aria-label]="choiceWayAria">
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="wayKind(i) === 'choiceTable'"
+                        (click)="setWayKind(i, 'choiceTable')"
+                        i18n="@@spt.v2.per_answer"
+                      >
+                        One amount per answer
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        [attr.aria-checked]="wayKind(i) === 'classTable'"
+                        (click)="setWayKind(i, 'classTable')"
+                        i18n="@@spt.v2.per_group"
+                      >
+                        One amount per group
+                      </button>
+                    </div>
+                    @if (wayKind(i) === 'classTable') {
+                      <button type="button" class="link" (click)="toggleEditor(i, 'row')">
+                        @if (editorOpen() === i + ':row') {
                           <span i18n="@@ps.groups_done">Done with groups</span>
                         } @else {
                           <span i18n="@@ps.groups_edit">Edit groups</span>
@@ -484,225 +458,279 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
                       </button>
                     }
                   </div>
-                  @if (columnMode(column) === 'groups' && editorOpen() === i + ':col') {
-                    <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'col' }" />
+                  @if (wayKind(i) === 'classTable' && editorOpen() === i + ':row') {
+                    <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'row' }" />
                   }
                 }
-              }
-            </div>
-          }
-          <!-- Where the answers come from: a Manage values list, picked per product. -->
-          @if (listsOf(wayFactValue(i)).length > 0 || (wayColumn(i) && listsOf(wayColumn(i)!.fact).length > 0)) {
-            <div class="vfrom">
-              @if (wayMaps()[i]; as wm) {
-                <div class="vf">
-                  <span class="vf-l" i18n="@@ps.rows_values_from">Rows: values from</span>
-                  <p class="vf-mapped">
-                    <b>{{ listNames()[wm.listType] ?? wm.listType }}</b>
-                    <span i18n="@@ps.mapped_note"
-                      >Answers are mapped to its values. Move an answer for this product in Edit
-                      groups.</span
-                    >
-                  </p>
-                </div>
-              } @else if (listsOf(wayFactValue(i)).length > 0) {
-                <div class="vf">
-                  <span class="vf-l" i18n="@@ps.rows_values_from">Rows: values from</span>
-                  <app-search-select
-                    [options]="listOpts(wayFactValue(i))"
-                    [value]="listTypeOf(wayFactValue(i)) ?? ''"
-                    [ariaLabel]="valuesFromAria"
-                    (changed)="setWayList(i, 'row', $event)"
-                  />
-                </div>
-              }
-              @if (wayColumn(i); as column) {
-                @if (column.valueMap && column.listType) {
+                @if (wayColumn(i); as column) {
+                  @if (groupable(column.fact)) {
+                    <div class="row">
+                      <span class="muted" i18n="@@ps.columns">Columns:</span>
+                      <div class="seg" role="radiogroup" [attr.aria-label]="columnModeAria">
+                        <button
+                          type="button"
+                          role="radio"
+                          [attr.aria-checked]="columnMode(column) === 'answer'"
+                          (click)="setColumnMode(i, 'answer')"
+                          i18n="@@ps.col_answer"
+                        >
+                          one per answer
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          [attr.aria-checked]="columnMode(column) === 'groups'"
+                          (click)="setColumnMode(i, 'groups')"
+                          i18n="@@ps.col_groups"
+                        >
+                          one per group
+                        </button>
+                      </div>
+                      @if (columnMode(column) === 'groups') {
+                        <button type="button" class="link" (click)="toggleEditor(i, 'col')">
+                          @if (editorOpen() === i + ':col') {
+                            <span i18n="@@ps.groups_done">Done with groups</span>
+                          } @else {
+                            <span i18n="@@ps.groups_edit">Edit groups</span>
+                          }
+                        </button>
+                      }
+                    </div>
+                    @if (columnMode(column) === 'groups' && editorOpen() === i + ':col') {
+                      <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'col' }" />
+                    }
+                  }
+                }
+              </div>
+            }
+            <!-- Where the answers come from: a Manage values list, picked per product. -->
+            @if (listsOf(wayFactValue(i)).length > 0 || (wayColumn(i) && listsOf(wayColumn(i)!.fact).length > 0)) {
+              <div class="vfrom">
+                @if (wayMaps()[i]; as wm) {
                   <div class="vf">
-                    <span class="vf-l" i18n="@@ps.cols_values_from">Columns: values from</span>
+                    <span class="vf-l" i18n="@@ps.rows_values_from">Rows: values from</span>
                     <p class="vf-mapped">
-                      <b>{{ listNames()[column.listType] ?? column.listType }}</b>
+                      <b>{{ listNames()[wm.listType] ?? wm.listType }}</b>
                       <span i18n="@@ps.mapped_note"
                         >Answers are mapped to its values. Move an answer for this product in Edit
                         groups.</span
                       >
                     </p>
                   </div>
-                } @else if (listsOf(column.fact).length > 0) {
+                } @else if (listsOf(wayFactValue(i)).length > 0) {
                   <div class="vf">
-                    <span class="vf-l" i18n="@@ps.cols_values_from">Columns: values from</span>
+                    <span class="vf-l" i18n="@@ps.rows_values_from">Rows: values from</span>
                     <app-search-select
-                      [options]="listOpts(column.fact)"
-                      [value]="listTypeOf(column.fact) ?? ''"
+                      [options]="listOpts(wayFactValue(i))"
+                      [value]="listTypeOf(wayFactValue(i)) ?? ''"
                       [ariaLabel]="valuesFromAria"
-                      (changed)="setWayList(i, 'col', $event)"
+                      (changed)="setWayList(i, 'row', $event)"
                     />
                   </div>
+                }
+                @if (wayColumn(i); as column) {
+                  @if (column.valueMap && column.listType) {
+                    <div class="vf">
+                      <span class="vf-l" i18n="@@ps.cols_values_from">Columns: values from</span>
+                      <p class="vf-mapped">
+                        <b>{{ listNames()[column.listType] ?? column.listType }}</b>
+                        <span i18n="@@ps.mapped_note"
+                          >Answers are mapped to its values. Move an answer for this product in Edit
+                          groups.</span
+                        >
+                      </p>
+                    </div>
+                  } @else if (listsOf(column.fact).length > 0) {
+                    <div class="vf">
+                      <span class="vf-l" i18n="@@ps.cols_values_from">Columns: values from</span>
+                      <app-search-select
+                        [options]="listOpts(column.fact)"
+                        [value]="listTypeOf(column.fact) ?? ''"
+                        [ariaLabel]="valuesFromAria"
+                        (changed)="setWayList(i, 'col', $event)"
+                      />
+                    </div>
+                  }
+                }
+              </div>
+            }
+            <!-- The amounts: always this product's own, linked or not. -->
+            <div class="wayset">
+              @if (wayReady(i)) {
+                @switch (figShape(i)) {
+                  @case ('table') {
+                    <div class="sheet">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>{{ rowHeader(i) }}</th>
+                            @for (c of colsOf(i); track c.slot) {
+                              <th class="n">{{ c.label }}</th>
+                            }
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (r of rowsOf(i); track r.key) {
+                            <tr>
+                              <td>{{ r.label }}</td>
+                              @for (c of colsOf(i); track c.slot) {
+                                <td class="n">
+                                  <input
+                                    appMoneyInput class="amt"
+                                    inputmode="decimal"
+                                    [value]="cell(c.slot, r.key)"
+                                    (change)="setCell(c.slot, r.key, val($event))"
+                                    [placeholder]="bankSets"
+                                    [attr.aria-label]="r.label + ' — ' + c.label"
+                                  />
+                                </td>
+                              }
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  }
+                  @case ('ranges') {
+                    <div class="sheet">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>{{ factLabel(wayFactValue(i)) }}</th>
+                            @for (c of colsOf(i); track c.slot) {
+                              <th class="n">{{ c.label }}</th>
+                            }
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (b of rangesOf(i); track $index; let k = $index) {
+                            <tr>
+                              <td>
+                                <div class="rng">
+                                  <input
+                                    appMoneyInput class="edge"
+                                    inputmode="decimal"
+                                    [value]="fmt(b.fromInclusive ?? '')"
+                                    (change)="setEdge(i, k, 'fromInclusive', val($event))"
+                                    [attr.aria-label]="fromAria"
+                                  />
+                                  <span i18n="@@ps.to">to</span>
+                                  <input
+                                    appMoneyInput class="edge"
+                                    inputmode="decimal"
+                                    [value]="fmt(b.toExclusive ?? '')"
+                                    (change)="setEdge(i, k, 'toExclusive', val($event))"
+                                    [placeholder]="andUp"
+                                    [attr.aria-label]="toAria"
+                                  />
+                                </div>
+                              </td>
+                              @for (c of colsOf(i); track c.slot) {
+                                <td class="n">
+                                  <input
+                                    appMoneyInput class="amt"
+                                    inputmode="decimal"
+                                    [value]="bandAmount(c.slot, k)"
+                                    (change)="setBandAmount(i, c.slot, k, val($event))"
+                                    [placeholder]="bankSets"
+                                    [attr.aria-label]="c.label"
+                                  />
+                                </td>
+                              }
+                              <td>
+                                <button
+                                  type="button"
+                                  class="x"
+                                  [attr.aria-label]="removeAria"
+                                  (click)="removeRange(i, k)"
+                                >
+                                  ✕
+                                </button>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                      <!-- The table's own last row: a new range is added where it lands. -->
+                      <button type="button" class="sheet-add" (click)="addRange(i)">
+                        <svg class="plus-i" viewBox="0 0 16 16" aria-hidden="true">
+                          <path d="M8 3v10M3 8h10" />
+                        </svg>
+                        <span i18n="@@ps.add_range2">Add a range</span>
+                      </button>
+                    </div>
+                  }
+                  @case ('scalar') {
+                    <div class="formula">
+                      @for (c of colsOf(i); track c.slot) {
+                        <p>
+                          @if (colsOf(i).length > 1) {
+                            <b>{{ c.label }}:</b>
+                          }
+                          <span
+                            >{{ amountWord() }} = {{ factLabel(wayFactValue(i)) }}
+                            {{ scalarSign(i) }}</span
+                          >
+                          <input
+                            appMoneyInput class="amt sm"
+                            inputmode="decimal"
+                            [value]="scalarOf(c.slot)"
+                            (change)="setScalar(i, c.slot, val($event))"
+                            [placeholder]="bankSets"
+                            [attr.aria-label]="figureAria"
+                          />
+                          @if (wayKind(i) === 'shareOf') {
+                            <span>%</span>
+                          }
+                        </p>
+                      }
+                    </div>
+                  }
+                  @case ('flat') {
+                    <p class="formula-line">
+                      <span>{{ amountWord() }}</span>
+                      <input
+                        appMoneyInput class="amt"
+                        inputmode="decimal"
+                        [value]="flatOf(i)"
+                        (change)="setFlat(i, val($event))"
+                        [placeholder]="bankSets"
+                        [attr.aria-label]="figureAria"
+                      />
+                    </p>
+                  }
                 }
               }
             </div>
-          }
-          <!-- The amounts: always this product's own, linked or not. -->
-          <div class="wayset">
-            @if (wayReady(i)) {
-              @switch (figShape(i)) {
-                @case ('table') {
-                  <div class="sheet">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>{{ rowHeader(i) }}</th>
-                          @for (c of colsOf(i); track c.slot) {
-                            <th class="n">{{ c.label }}</th>
-                          }
-                        </tr>
-                      </thead>
-                      <tbody>
-                        @for (r of rowsOf(i); track r.key) {
-                          <tr>
-                            <td>{{ r.label }}</td>
-                            @for (c of colsOf(i); track c.slot) {
-                              <td class="n">
-                                <input
-                                  appMoneyInput class="amt"
-                                  inputmode="decimal"
-                                  [value]="cell(c.slot, r.key)"
-                                  (change)="setCell(c.slot, r.key, val($event))"
-                                  [placeholder]="bankSets"
-                                  [attr.aria-label]="r.label + ' — ' + c.label"
-                                />
-                              </td>
-                            }
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
-                  </div>
-                }
-                @case ('ranges') {
-                  <div class="sheet">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>{{ factLabel(wayFactValue(i)) }}</th>
-                          @for (c of colsOf(i); track c.slot) {
-                            <th class="n">{{ c.label }}</th>
-                          }
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        @for (b of rangesOf(i); track $index; let k = $index) {
-                          <tr>
-                            <td>
-                              <div class="rng">
-                                <input
-                                  appMoneyInput class="edge"
-                                  inputmode="decimal"
-                                  [value]="fmt(b.fromInclusive ?? '')"
-                                  (change)="setEdge(i, k, 'fromInclusive', val($event))"
-                                  [attr.aria-label]="fromAria"
-                                />
-                                <span i18n="@@ps.to">to</span>
-                                <input
-                                  appMoneyInput class="edge"
-                                  inputmode="decimal"
-                                  [value]="fmt(b.toExclusive ?? '')"
-                                  (change)="setEdge(i, k, 'toExclusive', val($event))"
-                                  [placeholder]="andUp"
-                                  [attr.aria-label]="toAria"
-                                />
-                              </div>
-                            </td>
-                            @for (c of colsOf(i); track c.slot) {
-                              <td class="n">
-                                <input
-                                  appMoneyInput class="amt"
-                                  inputmode="decimal"
-                                  [value]="bandAmount(c.slot, k)"
-                                  (change)="setBandAmount(i, c.slot, k, val($event))"
-                                  [placeholder]="bankSets"
-                                  [attr.aria-label]="c.label"
-                                />
-                              </td>
-                            }
-                            <td>
-                              <button
-                                type="button"
-                                class="x"
-                                [attr.aria-label]="removeAria"
-                                (click)="removeRange(i, k)"
-                              >
-                                ✕
-                              </button>
-                            </td>
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
-                  </div>
-                  <button type="button" class="link" (click)="addRange(i)" i18n="@@ps.add_range">
-                    + Add a range
-                  </button>
-                }
-                @case ('scalar') {
-                  <div class="formula">
-                    @for (c of colsOf(i); track c.slot) {
-                      <p>
-                        @if (colsOf(i).length > 1) {
-                          <b>{{ c.label }}:</b>
-                        }
-                        <span
-                          >{{ amountWord() }} = {{ factLabel(wayFactValue(i)) }}
-                          {{ scalarSign(i) }}</span
-                        >
-                        <input
-                          appMoneyInput class="amt sm"
-                          inputmode="decimal"
-                          [value]="scalarOf(c.slot)"
-                          (change)="setScalar(i, c.slot, val($event))"
-                          [placeholder]="bankSets"
-                          [attr.aria-label]="figureAria"
-                        />
-                        @if (wayKind(i) === 'shareOf') {
-                          <span>%</span>
-                        }
-                      </p>
-                    }
-                  </div>
-                }
-                @case ('flat') {
-                  <p class="formula-line">
-                    <span>{{ amountWord() }}</span>
-                    <input
-                      appMoneyInput class="amt"
-                      inputmode="decimal"
-                      [value]="flatOf(i)"
-                      (change)="setFlat(i, val($event))"
-                      [placeholder]="bankSets"
-                      [attr.aria-label]="figureAria"
-                    />
-                  </p>
-                }
-              }
+            @if (wayCount() === 1 && wayReady(0) && canAddWay()) {
+              <!-- A second method is a bigger step than a range, so it is its own card, apart
+                   from the table, with the reason someone would want one. -->
+              <button type="button" class="add-way" (click)="addWay()">
+                <span class="add-way-i" aria-hidden="true">
+                  <svg class="plus-i" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" /></svg>
+                </span>
+                <span class="add-way-t">
+                  <b i18n="@@ps.add_method_t">Add another method</b>
+                  <span i18n="@@ps.add_method_n"
+                    >Some banks work the amount out differently. Add their way beside this
+                    one.</span
+                  >
+                </span>
+              </button>
             }
-          </div>
-          @if (wayCount() === 1 && wayReady(0) && canAddWay()) {
-            <button type="button" class="link" (click)="addWay()" i18n="@@ps.add_method">
-              + Add another method (some banks work it out differently)
-            </button>
+            @if (wayCount() > 1 && i > 0) {
+              <button type="button" class="link danger" (click)="removeWay(i - 1)">
+                {{ removeMethodLabel(i) }}
+              </button>
+            }
           }
-          @if (wayCount() > 1 && i > 0) {
-            <button type="button" class="link danger" (click)="removeWay(i - 1)">
-              {{ removeMethodLabel(i) }}
-            </button>
-          }
-        }
+        </div>
 
         @if (
           form.controls.outputKind.value === 'maxAmount' || form.controls.shareFact.value !== ''
         ) {
-          <div class="row">
+          <div class="row share-row">
             <label class="check">
               <input
                 type="checkbox"
@@ -1098,14 +1126,28 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
       }
       .vfrom {
         inline-size: 100%;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+        display: flex;
+        flex-wrap: wrap;
         gap: var(--space-3) var(--space-4);
       }
+      /* The same width as the Surrogate method picker above, so the pickers line up. */
       .vf {
         display: flex;
         flex-direction: column;
         gap: var(--space-1);
+        flex: 0 1 26rem;
+        min-inline-size: 0;
+      }
+      .vf app-search-select,
+      .share-pick {
+        inline-size: 100%;
+      }
+      .share-pick {
+        flex: 0 1 26rem;
+        min-inline-size: 0;
+      }
+      .share-row {
+        inline-size: 100%;
       }
       .vf-mapped {
         margin: 0;
@@ -1134,9 +1176,10 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
         flex-direction: column;
         gap: var(--space-1-5);
         padding: var(--space-3) var(--space-4);
-        border: 1px solid var(--color-brand-primary);
+        /* Information, not a selection: it must not wear the selected look of the tabs. */
+        border: 1px solid var(--color-border-default);
         border-radius: var(--radius-md);
-        background: var(--color-tonal-accent-bg);
+        background: var(--color-surface-muted);
       }
       .mcard-h {
         display: flex;
@@ -1192,12 +1235,15 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
         display: flex;
         flex-direction: column;
         gap: var(--space-1);
+        /* 26rem when there is room, the card's width when there is not (a phone). */
+        flex: 0 1 26rem;
+        min-inline-size: 0;
         font-size: var(--text-sm);
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
       }
       .ready-l app-search-select {
-        inline-size: min(26rem, 80vw);
+        inline-size: 100%;
       }
       /* On a method already built, the picker steps back: no frame, no fill. */
       .ready.quiet {
@@ -1209,9 +1255,11 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
         text-decoration: none;
       }
       /* methods */
+      /* Even columns, so two rows of tabs line up instead of wrapping ragged. */
       .methods {
-        display: flex;
-        flex-wrap: wrap;
+        inline-size: 100%;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
         gap: var(--space-2);
       }
       .mtab {
@@ -1223,9 +1271,14 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
         cursor: pointer;
         display: flex;
         flex-direction: column;
-        max-width: 15rem;
+        gap: var(--space-0-5);
+        min-inline-size: 0;
         font: inherit;
         color: var(--color-text-primary);
+        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .mtab:hover:not(.on) {
+        border-color: var(--color-border-strong);
       }
       .mtab span {
         font-size: var(--text-xs);
@@ -1242,7 +1295,41 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
         color: var(--color-text-link);
         font-weight: var(--font-weight-semibold);
         justify-content: center;
+        align-items: center;
         border-style: dashed;
+        background: transparent;
+      }
+      .mtab.add span {
+        font-size: var(--text-sm);
+        color: inherit;
+      }
+      .mtab.add:hover {
+        border-color: var(--color-brand-primary);
+        background: var(--color-tonal-accent-bg);
+      }
+      .banks-use {
+        inline-size: 100%;
+      }
+      .way-panel {
+        inline-size: 100%;
+        min-inline-size: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        align-items: flex-start;
+      }
+      .way-panel > * {
+        max-width: 100%;
+      }
+      .way-panel.framed {
+        padding: var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .mtab {
+          transition: none;
+        }
       }
       /* deciders */
       .deciders {
@@ -1448,6 +1535,99 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
       .edge::placeholder {
         color: var(--color-text-tertiary);
         font-size: var(--text-xs);
+      }
+      /* "Add a range": the table's last row, full width, inside its border. */
+      .sheet-add {
+        /* Stays in view while a wide table scrolls sideways on a phone. */
+        position: sticky;
+        inset-inline-start: 0;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        inline-size: 100%;
+        padding: var(--space-2-5) var(--space-3);
+        border: 0;
+        border-block-start: 1px dashed var(--color-border-default);
+        background: var(--color-surface-default);
+        color: var(--color-text-link);
+        font: inherit;
+        font-weight: var(--font-weight-semibold);
+        text-align: start;
+        cursor: pointer;
+        transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .sheet-add:hover {
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-text-link-hover);
+      }
+      .sheet-add:focus-visible {
+        outline-offset: calc(var(--focus-ring-width) * -1);
+      }
+      .plus-i {
+        flex: none;
+        inline-size: 1rem;
+        block-size: 1rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.75;
+        stroke-linecap: round;
+      }
+      /* "Add another method": its own card, set apart from the table above it. */
+      .add-way {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        inline-size: 100%;
+        margin-block-start: var(--space-2);
+        padding: var(--space-3) var(--space-4);
+        border: 1px dashed var(--color-border-strong);
+        border-radius: var(--radius-lg);
+        background: transparent;
+        color: var(--color-text-primary);
+        font: inherit;
+        text-align: start;
+        cursor: pointer;
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          background-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .add-way:hover {
+        border-color: var(--color-brand-primary);
+        background: var(--color-tonal-accent-bg);
+      }
+      .add-way-i {
+        flex: none;
+        display: grid;
+        place-items: center;
+        inline-size: 2.25rem;
+        block-size: 2.25rem;
+        border-radius: var(--radius-md);
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-text-link);
+      }
+      .add-way:hover .add-way-i {
+        background: var(--color-brand-primary);
+        color: var(--color-text-on-brand);
+      }
+      .add-way-t {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-0-5);
+        min-inline-size: 0;
+      }
+      .add-way-t b {
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-link);
+      }
+      .add-way-t span {
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sheet-add,
+        .add-way {
+          transition: none;
+        }
       }
       .rng {
         display: flex;

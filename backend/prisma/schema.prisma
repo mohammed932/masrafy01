@@ -907,6 +907,21 @@ model PlatformEnumeration {
   /// the grid's rows in place and every box empty. That is the state every product
   /// ships in.
   capDefaults         Json?
+  /// `surrogate_product` ONLY — the DEBT-BURDEN caps every NEW bank program selling this
+  /// product starts from. Shape: `{ "dbrCapPercent"?: string,
+  /// "dbrCapPercentByEmploymentType"?: { salaried?, self_employed?, retired?: string } }` —
+  /// the bank program's own `eligibility` field names, so the copy is a plain assignment.
+  ///
+  /// COPIED, NOT INHERITED, on `capDefaults`' terms one field up. A bank program's flat cap
+  /// is required and always stated, so there is no "states none" for a product figure to
+  /// fill at quote time; it is the bank's policy, typed once per program. This only saves an
+  /// operator typing the same 50% / 40% into every bank's form. A change here moves no live
+  /// quote.
+  ///
+  /// The flat cap is REQUIRED on every write (the product page will not save without it);
+  /// the per-applicant caps are optional. NULL = never stated (every product before
+  /// v36.2.0), and a new program opens on the form's own default.
+  dbrDefaults         Json?
   /// `surrogate_product` ONLY — the loan duration every bank program selling this
   /// product falls back to. Shape: `{ "minMonths": number, "maxMonths": number }`.
   ///

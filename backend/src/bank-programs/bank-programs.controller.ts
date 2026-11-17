@@ -33,6 +33,7 @@ import {
   SetSurrogateProductRateDefaultsDto,
   SetSurrogateProductIScoreDefaultsDto,
   SetSurrogateProductTenorDefaultsDto,
+  SetSurrogateProductDbrDefaultsDto,
   SetSurrogateProductPlanDefaultsDto,
   SetSurrogateProductTemplateDto,
 } from './dto/program-name-income-rule.dto';
@@ -265,6 +266,30 @@ export class BankProgramsController {
     @Req() req: Request,
   ) {
     return ok(await this.service.setSurrogateProductCapDefaults(key, body, this.actor(user, req)));
+  }
+
+  @Put('surrogate-products/:key/dbr-defaults')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's starting debt-burden caps",
+    description:
+      'The flat DBR cap and one cap per kind of applicant (salaried / self_employed / ' +
+      'retired) that every NEW bank program under this product starts from. COPIED, like the ' +
+      'cap defaults: a program takes them once into its own form, and the engine never reads ' +
+      'them, so a change here moves no live quote. The flat cap is required.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({
+    status: 400,
+    description: 'VALIDATION_FAILED — a cap outside (0, 100] or an unknown kind of applicant.',
+  })
+  async setSurrogateProductDbrDefaults(
+    @Param('key') key: string,
+    @Body() body: SetSurrogateProductDbrDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.service.setSurrogateProductDbrDefaults(key, body, this.actor(user, req)));
   }
 
   /**

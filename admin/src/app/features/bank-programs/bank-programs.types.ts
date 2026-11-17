@@ -963,6 +963,16 @@ export interface TenorDefaults {
 }
 
 /**
+ * The debt-burden caps a NEW bank program under a surrogate product starts from — the bank
+ * program's own `eligibility` field names. COPIED into the form on a create only; the engine
+ * never reads them. Percentages as decimal strings.
+ */
+export interface DbrDefaults {
+  dbrCapPercent?: string;
+  dbrCapPercentByEmploymentType?: Record<string, string>;
+}
+
+/**
  * The loan SIZE a program under this product falls back to when it states none.
  *
  * The sibling of `TenorDefaults`: both amounts or neither, inherited live rather than copied
@@ -1098,6 +1108,8 @@ export interface ProgramNameIncomeRule {
      * is the state every product ships in.
      */
     capDefaults: MaxLoanByFactRow[] | null;
+    /** The DBR caps a new program starts from, copied on a create like the amounts above. */
+    dbrDefaults: DbrDefaults | null;
     /**
      * The loan duration a program under this name falls back to when it states none.
      *
@@ -1500,6 +1512,8 @@ export interface SurrogateProductDetail extends SurrogateProductSummary {
   cap: ProductCapShape | null;
   /** The amounts every new program starts that grid from. `null` = none stated yet. */
   capDefaults: MaxLoanByFactRow[] | null;
+  /** The DBR caps every new program starts from. `null` = none stated yet. */
+  dbrDefaults: DbrDefaults | null;
   /**
    * The loan duration every program under this product falls back to. `null` = none, and
    * each program must then state its own.

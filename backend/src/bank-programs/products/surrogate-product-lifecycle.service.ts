@@ -255,6 +255,14 @@ export class SurrogateProductLifecycleService {
         actor,
       );
     }
+    // Only a complete statement: the flat cap is required on the way in.
+    if (source.dbrDefaults?.dbrCapPercent !== undefined) {
+      await this.programs.setSurrogateProductDbrDefaults(
+        key,
+        { dbr: source.dbrDefaults } as never,
+        actor,
+      );
+    }
     if (source.tenorDefaults !== null) {
       await this.programs.setSurrogateProductTenorDefaults(
         key,
