@@ -2263,13 +2263,18 @@ export class ProductTemplatePage implements OnInit {
    * city tiers) is copied as it stands — same keys, so every figure stays where it is — with
    * each answer where it is priced today; any other list starts with two groups.
    */
-  private async seedGroups(i: number, axis: 'row' | 'col'): Promise<void> {
+  /**
+   * Groups start EMPTY: they are made in the method and edited here (v37.0.0). `fromClasses`
+   * only when taking over a method priced by its list's classes, so its amounts keep their rows.
+   */
+  private async seedGroups(i: number, axis: 'row' | 'col', fromClasses = false): Promise<void> {
     const fact = this.axisFact(i, axis);
     await this.ensureList(fact);
     // The chosen list's own classes, the ones its answers are filed under, in the list's order;
     // a list with none starts with none: the operator adds and names them.
     const list = this.listTypeOf(fact);
-    const parentType = list !== null ? (this.listParents()[list] ?? null) : null;
+    const parentType =
+      fromClasses && list !== null ? (this.listParents()[list] ?? null) : null;
     const used = new Set(Object.values(this.pricedIn()[fact] ?? {}));
     const groups: TemplateGroup[] =
       parentType === null
@@ -2473,9 +2478,32 @@ export class ProductTemplatePage implements OnInit {
   }
 
   /** Another list for one way: its values are the ones placed now, so the groups start over. */
+  /**
+   * What each list had on this page (groups, who is in them, amounts), so going back to a list
+   * brings it back as it was left (v37.0.0). Per way, axis, question and list; page-lifetime.
+   */
+  private readonly listMemory = new Map<
+    string,
+    {
+      groups?: TemplateGroup[] | null;
+      column?: TemplateColumn | null;
+      placed?: Record<string, string>;
+      figures: Record<string, StepFigures>;
+    }
+  >();
+
   protected setWayList(i: number, axis: 'row' | 'col', type: string): void {
     const fact = axis === 'row' ? this.wayFactValue(i) : (this.wayColumn(i)?.fact ?? '');
     if (fact === '' || type === this.listTypeOf(fact)) return;
+    const memKey = (t: string | null) => `${i}|${axis}|${fact}|${t ?? ''}`;
+    const placedNow = this.placements()[fact];
+    this.listMemory.set(memKey(this.listTypeOf(fact)), {
+      ...(axis === 'row'
+        ? { groups: structuredClone(this.rowGroups(i)) }
+        : { column: structuredClone(this.wayColumn(i)) }),
+      ...(placedNow ? { placed: { ...placedNow } } : {}),
+      figures: structuredClone(this.figures()),
+    });
     if (axis === 'row') {
       const next = [...this.wayLists()];
       next[i] = type;
@@ -2496,6 +2524,18 @@ export class ProductTemplatePage implements OnInit {
     };
     this.valueIds.set(drop(this.valueIds()));
     this.pricedIn.set(drop(this.pricedIn()));
+    // A list tried before on this page comes back as it was left.
+    const back = this.listMemory.get(memKey(type));
+    if (back) {
+      if (axis === 'row') this.setRowGroups(i, back.groups ?? null);
+      else if (back.column) this.setWayColumn(i, back.column);
+      this.placements.set(
+        back.placed ? { ...this.placements(), [fact]: back.placed } : drop(this.placements()),
+      );
+      this.figures.set(back.figures);
+      this.dirty.set(true);
+      return;
+    }
     this.placements.set(drop(this.placements()));
     const grouped =
       axis === 'row'
@@ -3611,9 +3651,9 @@ export class ProductTemplatePage implements OnInit {
       });
       void this.ensureList(fact);
     }
-    if (mech.kind === 'classTable' && !mech.groups) void this.seedGroups(i, 'row');
+    if (mech.kind === 'classTable' && !mech.groups) void this.seedGroups(i, 'row', true);
     if (column && column.branchOn === 'parentClass' && !column.groups) {
-      void this.seedGroups(i, 'col');
+      void this.seedGroups(i, 'col', true);
     }
     const codes = [mech.fact, column?.fact]
       .filter((k): k is string => !!k && derivedFactByKey(k) === undefined)

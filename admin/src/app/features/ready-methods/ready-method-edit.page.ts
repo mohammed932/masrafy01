@@ -1245,16 +1245,21 @@ export class ReadyMethodEditPage {
   protected async setList(axis: 'row' | 'col', type: string): Promise<void> {
     if (type === this.axisList(axis)) return;
     const fact = this.axisFact(axis);
+    // What this list had (groups, who is in them, amounts), for when the operator comes back.
+    this.remember();
     (axis === 'row' ? this.rowListPick : this.colListPick).set(type);
     await this.loadValues(type);
-    if (axis === 'col') this.storedBranches.set(null);
     this.setMap(axis, null);
     const drop = <T>(m: Record<string, T>): Record<string, T> => {
       const { [fact]: _gone, ...rest } = m;
       return rest;
     };
+    // The list's row ids are read again for the new list.
     this.valueIds.set(drop(this.valueIds()));
     this.shared.set(drop(this.shared()));
+    // A list tried before comes back as it was left.
+    if (this.recall()) return;
+    if (axis === 'col') this.storedBranches.set(null);
     this.placements.set(drop(this.placements()));
     const grouped = axis === 'row' ? this.kind() === 'classTable' : this.colMode() === 'groups';
     if (grouped) void this.seedGroups(axis);
@@ -1383,7 +1388,7 @@ export class ReadyMethodEditPage {
       return;
     }
     if ((axis === 'row' ? this.rowGroups() : this.colGroups()) === undefined) {
-      void this.seedGroups(axis);
+      void this.seedGroups(axis, true);
       return;
     }
     this.editorOpen.set(axis);
@@ -1443,7 +1448,11 @@ export class ReadyMethodEditPage {
    * Make the groups the method's own: a list that has groups is copied as it stands (same keys,
    * each answer where it sits today); any other list starts with none.
    */
-  private async seedGroups(axis: 'row' | 'col'): Promise<void> {
+  /**
+   * Groups start EMPTY: the operator creates them in the method (v37.0.0). `fromClasses` only
+   * for a stored method already priced by its list's classes, so its amounts keep their rows.
+   */
+  private async seedGroups(axis: 'row' | 'col', fromClasses = false): Promise<void> {
     const fact = this.axisFact(axis);
     const f = this.factOf(fact);
     if (!f) return;
@@ -1471,7 +1480,8 @@ export class ReadyMethodEditPage {
     await this.ensureList(fact);
     // The chosen list's own classes, in their order; a list with none starts with none.
     const list = this.listFor(fact);
-    const parentType = list !== null ? (this.typeDefs()[list]?.parent ?? null) : null;
+    const parentType =
+      fromClasses && list !== null ? (this.typeDefs()[list]?.parent ?? null) : null;
     const used = new Set(Object.values(this.shared()[fact] ?? {}));
     const groups: TemplateGroup[] =
       parentType === null
@@ -1578,7 +1588,15 @@ export class ReadyMethodEditPage {
   >();
 
   private setupKey(): string {
-    return [this.fact(), this.kind(), this.colFact(), this.colMode()].join('|');
+    // The list each axis reads is part of the setup: going back to a list brings back its groups.
+    return [
+      this.fact(),
+      this.kind(),
+      this.colFact(),
+      this.colMode(),
+      this.axisList('row') ?? '',
+      this.axisList('col') ?? '',
+    ].join('|');
   }
 
   private remember(): void {
