@@ -235,12 +235,14 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
                     (changed)="pickMethod(i, $event)"
                   />
                 </div>
-                @if (wayFactValue(i) === '') {
-                  <span class="muted" i18n="@@ps.or_build"
-                    >or build it: pick the questions below.</span
-                  >
-                }
               </div>
+            } @else {
+              <p class="hint">
+                <span i18n="@@ps.no_methods_yet">No surrogate methods yet.</span>
+                <a [routerLink]="['/surrogate-methods']" i18n="@@ps.add_method_link"
+                  >Add one in Surrogate methods</a
+                >
+              </p>
             }
             @if (linkedKey(i) !== '') {
               <div class="mcard">
@@ -283,8 +285,8 @@ function mappingOf(w: TemplateMechanism): WayMapping | null {
                 <ng-container *ngTemplateOutlet="groupsEd; context: { i: i, axis: 'col' }" />
               }
             }
-            <!-- The shape (questions, how, columns, groups): the product's own, or the method's. -->
-            @if (linkedKey(i) === '') {
+            <!-- The amount comes from a method. A product built before that keeps its own shape. -->
+            @if (linkedKey(i) === '' && wayFactValue(i) !== '') {
               <div class="wayset">
                 <div class="deciders">
                   @if (wayFactValue(i) !== '' && wayFactValue(i) !== '__flat__') {

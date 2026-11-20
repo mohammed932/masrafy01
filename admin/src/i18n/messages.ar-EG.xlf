@@ -5393,7 +5393,8 @@
       <trans-unit id="ps.block_rule_per" datatype="html"><source>Rule <x id="N" equiv-text="n"/> — pick what the figure depends on.</source><target>القاعدة <x id="N" equiv-text="n"/> — اختر ما يعتمد عليه الرقم.</target></trans-unit>
       <trans-unit id="ps.use_ready" datatype="html"><source>Use a surrogate method</source><target>استخدم طريقة بديل الدخل</target></trans-unit>
       <trans-unit id="ps.pick_ready" datatype="html"><source>Pick one…</source><target>اختر واحدة…</target></trans-unit>
-      <trans-unit id="ps.or_build" datatype="html"><source>or build it: pick the questions below.</source><target>أو ابنها بنفسك: اختر الأسئلة بالأسفل.</target></trans-unit>
+      <trans-unit id="ps.no_methods_yet" datatype="html"><source>No surrogate methods yet.</source><target>لا توجد طرق بديل دخل بعد.</target></trans-unit>
+      <trans-unit id="ps.add_method_link" datatype="html"><source>Add one in Surrogate methods</source><target>أضف واحدة من طرق بديل الدخل</target></trans-unit>
       <trans-unit id="ps.manage_ready" datatype="html"><source>Manage surrogate methods</source><target>إدارة طرق بديل الدخل</target></trans-unit>
       <trans-unit id="rm.columns_by" datatype="html"><source>columns by <x id="NAME" equiv-text="col"/></source><target>الأعمدة حسب <x id="NAME" equiv-text="col"/></target></trans-unit>
       <trans-unit id="rm.back" datatype="html"><source>All surrogate methods</source><target>كل طرق بديل الدخل</target></trans-unit>
