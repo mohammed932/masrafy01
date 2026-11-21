@@ -76,6 +76,7 @@ export const PLAN_SLOTS: readonly PlanSlotKey[] = [
   'ltvCeilingByFact',
   'minAmountByFact',
   'carInsuranceRateByFact',
+  'maxCarAgeAtEndYearsByFact',
 ];
 
 export function planSlotValueKind(slot: PlanSlotKey): FactGridValueKind {
@@ -94,6 +95,8 @@ export function planSlotValueKind(slot: PlanSlotKey): FactGridValueKind {
     // 999.9999, and a premium nobody can check by eye would save cleanly and be shown.
     case 'carInsuranceRateByFact':
       return 'sharePercent';
+    case 'maxCarAgeAtEndYearsByFact':
+      return 'years';
   }
 }
 
@@ -218,6 +221,26 @@ function bandOf(
   return { from, to, fromText: key.fromInclusive ?? '0' };
 }
 
+/**
+ * A RANGE on an extra axis, as the one string a column is named by (2026-11-20): the loan
+ * term in months, "1–24" for a bank that prices 1–2 years differently from 3–5. Encoded so a
+ * column stays one string; `keysFor` turns it back into the band it was. An option code never
+ * starts with `~`.
+ */
+const RANGE_MARK = '~';
+
+export function encodeRange(fromInclusive: string, toExclusive: string | null): string {
+  return `${RANGE_MARK}${fromInclusive}${RANGE_MARK}${toExclusive ?? ''}`;
+}
+
+export function decodeRange(
+  code: string,
+): { fromInclusive: string; toExclusive: string | null } | null {
+  if (!code.startsWith(RANGE_MARK)) return null;
+  const [from = '', to = ''] = code.slice(1).split(RANGE_MARK);
+  return { fromInclusive: from, toExclusive: to === '' ? null : to };
+}
+
 function extraOf(keys: readonly FactGridKey[]): readonly (string | null)[] | null {
   const out: (string | null)[] = [];
   for (let i = 1; i < keys.length; i += 1) {
@@ -226,10 +249,13 @@ function extraOf(keys: readonly FactGridKey[]): readonly (string | null)[] | nul
       out.push(null);
       continue;
     }
-    // A BAND on an extra axis cannot become a column: a column is one key, and a range is a
-    // second dimension of rows. Such a table keeps the free-form editor.
-    if (!('key' in key)) return null;
-    out.push(key.key);
+    if ('key' in key) {
+      out.push(key.key);
+      continue;
+    }
+    // A RANGE on an extra axis is a column too: one range, one column.
+    if (key.fromInclusive === undefined) return null;
+    out.push(encodeRange(key.fromInclusive, key.toExclusive ?? null));
   }
   return out;
 }
@@ -467,7 +493,13 @@ function withSlot(
 
 function keysFor(band: PlanBand, extra: readonly (string | null)[]): FactGridKey[] {
   const head: FactGridKey = { fromInclusive: band.fromInclusive, toExclusive: band.toExclusive };
-  return [head, ...extra.map((code): FactGridKey => (code === null ? null : { key: code }))];
+  return [
+    head,
+    ...extra.map((code): FactGridKey => {
+      if (code === null) return null;
+      return decodeRange(code) ?? { key: code };
+    }),
+  ];
 }
 
 /**
@@ -502,7 +534,9 @@ export function setPlanFigure(
   const index = origin.cellIndex;
   const current = grid.cells[index];
   if (current === undefined) return grids;
-  if (current.value === raw) return grids;
+  // Clearing a figure removes its cell, a blank one included — or a column just added and
+  // left empty could never be taken back off the table.
+  if (current.value === raw && raw.trim() !== '') return grids;
 
   if (raw.trim() === '') {
     const cells = grid.cells.filter((_, i) => i !== index);
@@ -732,6 +766,11 @@ export function addPlanCase(
   slot: PlanSlotKey,
   factKey: string,
   optionCode: string,
+  /**
+   * An existing column this case narrows ("1–2 years" TOGETHER WITH "insured"), by its index
+   * in `table.columns`. The new column starts from that column's figures; absent = the base.
+   */
+  withColumn?: number,
 ): PlanDefaults | null {
   if (grids === null) return grids;
   const grid = grids[slot];
@@ -748,11 +787,20 @@ export function addPlanCase(
   }
 
   const width = axes.length - 1;
+  const partner = withColumn === undefined ? undefined : table.columns[withColumn];
   const extra: (string | null)[] = new Array(width).fill(null) as (string | null)[];
+  if (partner !== undefined && partner.slot === slot) {
+    partner.extra.forEach((code, i) => {
+      extra[i] = code;
+    });
+  }
   extra[axisIndex - 1] = optionCode;
   if (table.columns.some((c) => c.slot === slot && sameExtra(c.extra, extra))) return grids;
 
-  const baseIndex = table.columns.findIndex((c) => c.slot === slot && c.isBase);
+  const baseIndex =
+    partner !== undefined && partner.slot === slot
+      ? (withColumn ?? -1)
+      : table.columns.findIndex((c) => c.slot === slot && c.isBase);
   const appended: FactGridCell[] = [];
   for (const row of table.rows) {
     const value = baseIndex < 0 ? '' : (row.cells[baseIndex]?.value ?? '');
@@ -825,25 +873,32 @@ export function removePlanSlot(grids: PlanDefaults | null, slot: PlanSlotKey): P
 }
 
 /**
- * Start a table the product does not state yet, keyed by the deposit and covering the bands
- * the card already has.
+ * Start a column the table does not have yet, keyed by the deposit and covering every band.
  *
- * One cell per band, blank — so the operator types figures rather than deleting a skeleton,
- * and a band they leave blank keeps meaning "each bank's own", which for the floor and the
- * two term ends is the normal answer.
+ * Every band starts at `fill` — the program's own figure for it today — so adding the column
+ * moves no quote until somebody changes a figure. With nothing to fill from, the first band
+ * gets one blank to type into (clearing it removes the column again).
+ *
+ * A rate refuses a miss (no rate is never a safe default); every other column falls back to
+ * the program's own figure, which is what a band it says nothing about means.
  */
 export function addPlanSlot(
   grids: PlanDefaults | null,
   table: PlanTable | null,
   slot: PlanSlotKey,
+  fill = '',
 ): PlanDefaults | null {
   if (grids !== null && grids[slot] !== undefined) return grids;
-  const first = table?.rows[0]?.band ?? { fromInclusive: '', toExclusive: null };
+  const bands = table?.rows.map((row) => row.band) ?? [];
+  const first = bands[0] ?? { fromInclusive: '0', toExclusive: null };
+  const cells =
+    fill.trim() === ''
+      ? [{ keys: keysFor(first, []), value: '' }]
+      : (bands.length > 0 ? bands : [first]).map((band) => ({ keys: keysFor(band, []), value: fill }));
   const grid: FactGridConfig = {
     axes: [{ factKey: DOWN_PAYMENT_PERCENT_FACT_KEY }],
-    cells: [{ keys: keysFor(first, []), value: '' }],
-    // Matches `emptyFactGrid()`: a new table refuses a miss until somebody says otherwise.
-    onNoMatch: 'reject',
+    cells,
+    onNoMatch: slot === 'rateByFact' ? 'reject' : 'useFallback',
   };
   return withSlot(grids, slot, grid);
 }

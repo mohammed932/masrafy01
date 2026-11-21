@@ -86,4 +86,16 @@ export class TenorConfigDto {
   @ValidateNested()
   @Type(() => FactGridDto)
   maxVehicleAgeYearsByFact?: FactGridDto;
+
+  /**
+   * The oldest the car may be at the END of the loan, in years — the car's age plus the term.
+   * A term ceiling, not a refusal: the term is shortened to fit, and only a car with no term
+   * left is refused.
+   *
+   * `@ValidateIf`, not `@IsOptional()` — same reason as `maxMonthsByFact` above.
+   */
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  maxCarAgeAtEndYearsByFact?: FactGridDto;
 }

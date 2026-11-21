@@ -295,6 +295,13 @@ export interface TenorConfig {
    * regardless of what term was asked for — there is no "too old, but only for 84 months".
    */
   maxVehicleAgeYearsByFact?: FactGridConfig;
+  /**
+   * The oldest the car may be when the LAST instalment is paid, in years (2026-11-20): "model
+   * year + term ≤ 14 years". Read in `quote.ts` as one more term ceiling — the term is cut to
+   * (N − the car's age) years, and only a car with no term left is refused. Keyed like every
+   * plan table: by the down payment first, then any answer (origin, dealer).
+   */
+  maxCarAgeAtEndYearsByFact?: FactGridConfig;
 }
 
 export interface EligibilityConfig {

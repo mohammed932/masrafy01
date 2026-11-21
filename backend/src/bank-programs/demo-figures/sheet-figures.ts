@@ -225,7 +225,9 @@ export function dpBand(
 }
 
 /**
- * Suez Canal Bank's auto card, as the plan tables the one merged programme reads.
+ * Suez Canal Bank's auto card, as plan tables. Since 2026-11-20 a bank program states its own
+ * plans (the product carries none); the Car Buyers programmes seeded in
+ * `car-buyers-programs.ts` each hold a copy of this card.
  *
  * The DEPOSIT is the axis every one of them keys on, which is what makes them one card
  * rather than four unrelated tables: a row says "put this much down and here is the rate, the
@@ -250,7 +252,16 @@ export function dpBand(
  * — including an applicant who skipped the optional origin or fuel question. Without it those
  * applicants would fall to `onNoMatch` and be refused for not answering something optional.
  */
-const SCB_AUTO_PLANS: Record<string, unknown> = {
+export const SCB_AUTO_PLANS: Readonly<
+  Record<
+    | 'rateByFact'
+    | 'ltvCeilingByFact'
+    | 'maxMonthsByFact'
+    | 'minAmountByFact'
+    | 'carInsuranceRateByFact',
+    unknown
+  >
+> = {
   rateByFact: {
     axes: [
       { factKey: 'car_down_payment_percent' },
@@ -632,7 +643,6 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
     // The loan size the programmes selling this product fall back to — the operator's figures
     // (2026-09-23), so a seeded database quotes the same range the admin screens were set to.
     loanAmountDefaults: { minAmountEGP: '300000', maxAmountEGP: '2500000' },
-    planDefaults: SCB_AUTO_PLANS,
     // The illustrative tiers, the same three rows on every product (§10.10), every
     // figure marked an estimate. A COLUMN since v30.3.0, not a rule slot.
     stepParams: {
@@ -648,49 +658,9 @@ export const CATALOG_FIGURES: readonly CatalogFigureSet[] = [
       alt: divisor('6'),
       alt__cash_buyer: divisor('10'),
     },
-    // THE PLAN FIGURES THIS TEAM INVENTED, marked as such — and only those.
-    //
-    // Twenty rates because no Suez Canal slide publishes a profit rate at all, and three term
-    // ceilings because App. §4.2 prints 6–84 months for EVERY tier: shortening the shortest
-    // deposits to 60 and 72 is this team's illustration, not the bank's policy.
-    //
-    // Deliberately NOT marked: the five financed shares (§4.2 prints 60% down → 40% financed
-    // and its four siblings), the 1,000,000 floor on the 20% tier (§4.2 again), and every band
-    // EDGE — all published, and marking a stated figure as a guess is the same defect as the
-    // reverse. The edges ARE markable paths (`fromInclusive` / `toExclusive` are numeric
-    // leaves), which is why they are excluded by being listed out rather than by a wildcard.
-    //
-    // Addressed by cell INDEX, because a grid cell has no key to be addressed by. Inserting a
-    // cell shifts what each of these describes, so the list is generated from the tables above
-    // rather than typed by hand.
-    estimated: [
-      'planDefaults.rateByFact.cells.0.value',
-      'planDefaults.rateByFact.cells.1.value',
-      'planDefaults.rateByFact.cells.2.value',
-      'planDefaults.rateByFact.cells.3.value',
-      'planDefaults.rateByFact.cells.4.value',
-      'planDefaults.rateByFact.cells.5.value',
-      'planDefaults.rateByFact.cells.6.value',
-      'planDefaults.rateByFact.cells.7.value',
-      'planDefaults.rateByFact.cells.8.value',
-      'planDefaults.rateByFact.cells.9.value',
-      'planDefaults.rateByFact.cells.10.value',
-      'planDefaults.rateByFact.cells.11.value',
-      'planDefaults.rateByFact.cells.12.value',
-      'planDefaults.rateByFact.cells.13.value',
-      'planDefaults.rateByFact.cells.14.value',
-      'planDefaults.rateByFact.cells.15.value',
-      'planDefaults.rateByFact.cells.16.value',
-      'planDefaults.rateByFact.cells.17.value',
-      'planDefaults.rateByFact.cells.18.value',
-      'planDefaults.rateByFact.cells.19.value',
-      'planDefaults.maxMonthsByFact.cells.0.value',
-      'planDefaults.maxMonthsByFact.cells.1.value',
-      'planDefaults.maxMonthsByFact.cells.2.value',
-      // NOT the cover percentage: the sheets never state what cover costs, but the operator
-      // typed both figures on the product screen (2026-09-23), which clears the estimate mark,
-      // and the seed states what the database holds.
-    ],
+    // The plan tables moved onto each bank program (2026-11-20), and their estimate marks
+    // with them (`car-buyers-programs.ts`).
+    estimated: [],
   },
 
   {

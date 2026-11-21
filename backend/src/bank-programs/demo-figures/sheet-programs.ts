@@ -1328,11 +1328,18 @@ const SPECS: readonly ProgramSpec[] = [
      * with no dealer stated still lands on 60, so the extension has to be claimed, never
      * assumed.
      */
+    // Keyed by the down payment first (2026-11-20) so the program page draws it in the one
+    // plan table, from the band the financed-share table starts at; below it the program
+    // refuses anyway.
     maxMonthsByFact: {
-      axes: [{ factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      axes: [
+        { factKey: 'car_down_payment_percent' },
+        { factKey: 'car_origin' },
+        { factKey: 'car_dealer' },
+      ],
       cells: [
-        { keys: [{ key: 'china' }, null], value: '60' },
-        { keys: [{ key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
+        { keys: [dpBand('20', null), { key: 'china' }, null], value: '60' },
+        { keys: [dpBand('20', null), { key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
       ],
       onNoMatch: 'useFallback',
     },
@@ -1410,11 +1417,18 @@ const SPECS: readonly ProgramSpec[] = [
      * with no dealer stated still lands on 60, so the extension has to be claimed, never
      * assumed.
      */
+    // Keyed by the down payment first (2026-11-20) so the program page draws it in the one
+    // plan table, from the band the financed-share table starts at; below it the program
+    // refuses anyway.
     maxMonthsByFact: {
-      axes: [{ factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      axes: [
+        { factKey: 'car_down_payment_percent' },
+        { factKey: 'car_origin' },
+        { factKey: 'car_dealer' },
+      ],
       cells: [
-        { keys: [{ key: 'china' }, null], value: '60' },
-        { keys: [{ key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
+        { keys: [dpBand('40', null), { key: 'china' }, null], value: '60' },
+        { keys: [dpBand('40', null), { key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
       ],
       onNoMatch: 'useFallback',
     },
@@ -1513,17 +1527,36 @@ const SPECS: readonly ProgramSpec[] = [
       // programme's own 84. Stating the Chinese rows for BOTH fuels is not duplication — a
       // wildcard on axis 0 would also match petrol, and petrol matching anything at all is
       // what this grid exists to prevent.
-      axes: [{ factKey: 'car_fuel_type' }, { factKey: 'car_origin' }, { factKey: 'car_dealer' }],
+      // Down payment first (2026-11-20), from the 35% the financed-share table starts at.
+      axes: [
+        { factKey: 'car_down_payment_percent' },
+        { factKey: 'car_fuel_type' },
+        { factKey: 'car_origin' },
+        { factKey: 'car_dealer' },
+      ],
       cells: [
-        { keys: [{ key: 'electric' }, null, null], value: '84' },
-        { keys: [{ key: 'hybrid' }, null, null], value: '84' },
-        { keys: [{ key: 'electric' }, { key: 'china' }, null], value: '60' },
-        { keys: [{ key: 'hybrid' }, { key: 'china' }, null], value: '60' },
+        { keys: [dpBand('35', null), { key: 'electric' }, null, null], value: '84' },
+        { keys: [dpBand('35', null), { key: 'hybrid' }, null, null], value: '84' },
+        { keys: [dpBand('35', null), { key: 'electric' }, { key: 'china' }, null], value: '60' },
+        { keys: [dpBand('35', null), { key: 'hybrid' }, { key: 'china' }, null], value: '60' },
         {
-          keys: [{ key: 'electric' }, { key: 'china' }, { key: 'ghabbour_mansour' }],
+          keys: [
+            dpBand('35', null),
+            { key: 'electric' },
+            { key: 'china' },
+            { key: 'ghabbour_mansour' },
+          ],
           value: '84',
         },
-        { keys: [{ key: 'hybrid' }, { key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
+        {
+          keys: [
+            dpBand('35', null),
+            { key: 'hybrid' },
+            { key: 'china' },
+            { key: 'ghabbour_mansour' },
+          ],
+          value: '84',
+        },
       ],
       onNoMatch: 'reject',
     },

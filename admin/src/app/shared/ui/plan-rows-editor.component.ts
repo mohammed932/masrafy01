@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  input,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -11,6 +20,9 @@ import { group } from '../../core/directives/money-format';
 import type { PlanDefaults, RegistryFact } from '../../features/bank-programs/bank-programs.types';
 import {
   addPlanCase,
+  addPlanSlot,
+  decodeRange,
+  encodeRange,
   appendPlanBand,
   planColumnFigureCount,
   planRowsAdviceFor,
@@ -98,6 +110,8 @@ interface CaseGroup {
   readonly name: string;
   readonly unit: string | null;
   readonly items: readonly CaseItem[];
+  /** Said as one +/− per case; "Type a figure per row" opens a column per case instead. */
+  readonly simple: boolean;
 }
 
 /**
@@ -433,8 +447,24 @@ interface CaseGroup {
                      one is "Edit one table at a time" on the page that hosts this card. -->
                 @if (unstatedSlots(); as waiting) {
                   @if (waiting.length > 0) {
-                    <p class="prt__foot">
-                      <span>{{ unstatedLabel() }}</span>
+                    <div class="prt__foot">
+                      <span class="prt__micro" i18n="@@spd.plan_table.add_column"
+                        >Add a column</span
+                      >
+                      @for (slot of waiting; track slot) {
+                        <button
+                          type="button"
+                          class="prt__link prt__addcol"
+                          (click)="onAddSlot(slot)"
+                        >
+                          <span nz-icon nzType="plus" aria-hidden="true"></span>
+                          <span>{{ headNameOf(slot) }}</span>
+                        </button>
+                      }
+                    </div>
+                    <p class="prt__hint" i18n="@@spd.plan_table.add_column_hint">
+                      A new column starts at this program's own figure on every row. Clear all of
+                      its figures to take it off again.
                     </p>
                   }
                 }
@@ -451,7 +481,19 @@ interface CaseGroup {
                     </h4>
 
                     @for (g of caseGroups(); track g.slot) {
-                      <p class="prt__sec-name">{{ g.name }}</p>
+                      <p class="prt__sec-name">
+                        {{ g.name }}
+                        @if (g.simple) {
+                          <button
+                            type="button"
+                            class="prt__link"
+                            (click)="typeRowByRow(g.slot)"
+                            i18n="@@spd.plan_table.row_by_row"
+                          >
+                            Type a figure per row
+                          </button>
+                        }
+                      </p>
                       <ul class="prt__rows" role="list">
                         @for (item of g.items; track item.columnIndex) {
                           <li class="prt__row">
@@ -526,24 +568,70 @@ interface CaseGroup {
                             }
                           </nz-select>
                         </span>
-                        <span class="prt__pickwrap">
-                          <span class="prt__micro">{{ caseOptionLabel }}</span>
-                          <nz-select
-                            class="prt__pick"
-                            [ngModel]="caseOption()"
-                            (ngModelChange)="caseOption.set($event)"
-                            [ngModelOptions]="{ standalone: true }"
-                            [nzDisabled]="caseFact() === null"
-                            [attr.aria-label]="caseOptionAria"
-                          >
-                            @for (option of caseOptions(); track option.code) {
-                              <nz-option
-                                [nzValue]="option.code"
-                                [nzLabel]="option.label"
-                              ></nz-option>
-                            }
-                          </nz-select>
-                        </span>
+                        @if (caseFact() === TERM) {
+                          <span class="prt__pickwrap">
+                            <span class="prt__micro" i18n="@@spd.plan_table.term_from"
+                              >From year</span
+                            >
+                            <app-figure-field
+                              fieldId="prt-term-from"
+                              [value]="termFrom()"
+                              (valueChange)="termFrom.set($event)"
+                              [ariaLabel]="termFromAria"
+                            />
+                          </span>
+                          <span class="prt__pickwrap">
+                            <span class="prt__micro" i18n="@@spd.plan_table.term_to"
+                              >To year</span
+                            >
+                            <app-figure-field
+                              fieldId="prt-term-to"
+                              [value]="termTo()"
+                              (valueChange)="termTo.set($event)"
+                              [ariaLabel]="termToAria"
+                            />
+                          </span>
+                        } @else {
+                          <span class="prt__pickwrap">
+                            <span class="prt__micro">{{ caseOptionLabel }}</span>
+                            <nz-select
+                              class="prt__pick"
+                              [ngModel]="caseOption()"
+                              (ngModelChange)="caseOption.set($event)"
+                              [ngModelOptions]="{ standalone: true }"
+                              [nzDisabled]="caseFact() === null"
+                              [nzLoading]="pendingQuestion() !== null"
+                              [attr.aria-label]="caseOptionAria"
+                            >
+                              @for (option of caseOptions(); track option.code) {
+                                <nz-option
+                                  [nzValue]="option.code"
+                                  [nzLabel]="option.label"
+                                ></nz-option>
+                              }
+                            </nz-select>
+                          </span>
+                        }
+                        @if (partnerOptions().length > 0) {
+                          <span class="prt__pickwrap">
+                            <span class="prt__micro" i18n="@@spd.plan_table.together_with"
+                              >Together with (optional)</span
+                            >
+                            <nz-select
+                              class="prt__pick"
+                              nzAllowClear
+                              [ngModel]="casePartner()"
+                              (ngModelChange)="casePartner.set($event ?? null)"
+                              [ngModelOptions]="{ standalone: true }"
+                              [nzPlaceHolder]="nothingElse"
+                              [attr.aria-label]="togetherAria"
+                            >
+                              @for (p of partnerOptions(); track p.index) {
+                                <nz-option [nzValue]="p.index" [nzLabel]="p.label"></nz-option>
+                              }
+                            </nz-select>
+                          </span>
+                        }
                         <button
                           nz-button
                           nzType="dashed"
@@ -801,9 +889,16 @@ interface CaseGroup {
         flex-wrap: wrap;
       }
 
+      .prt__link.prt__addcol {
+        font-size: var(--text-sm);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+      }
+
       .prt__foot {
         display: flex;
-        align-items: baseline;
+        align-items: center;
         gap: var(--space-2);
         flex-wrap: wrap;
         margin: 0;
@@ -946,6 +1041,9 @@ interface CaseGroup {
       }
 
       .prt__sec-name {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-3);
         margin: 0;
         color: var(--color-text-primary);
         font-size: var(--text-sm);
@@ -1045,6 +1143,19 @@ export class PlanRowsEditorComponent {
   readonly grids = input.required<PlanDefaults | null>();
   readonly facts = input.required<readonly RegistryFact[]>();
 
+  /**
+   * The program's own figure for each column, as a new column's starting value: the base rate,
+   * the longest and shortest term, the financed share, the smallest loan. Absent = blank.
+   */
+  readonly startFigures = input<Partial<Record<PlanSlotKey, string>>>({});
+
+  /**
+   * Choice questions no fact reads yet. Picking one asks the host to bind it
+   * (`bindQuestion`); it then arrives in `facts` and is selected — any question can price.
+   */
+  readonly moreQuestions = input<ReadonlyArray<{ code: string; label: string }>>([]);
+  readonly bindQuestion = output<string>();
+
   readonly gridsChange = output<PlanDefaults | null>();
   readonly removeRequest = output<PlanRemoveRequest>();
 
@@ -1062,6 +1173,29 @@ export class PlanRowsEditorComponent {
   protected readonly caseSlot = signal<PlanSlotKey | null>(null);
   protected readonly caseFact = signal<string | null>(null);
   protected readonly caseOption = signal<string | null>(null);
+  /** The loan term, offered beside the answers on the rate: its value is a range of years. */
+  protected readonly TERM = 'tenor_months';
+  protected readonly termFrom = signal('');
+  protected readonly termTo = signal('');
+  /** An existing column the new case narrows, by its index in the table's columns. */
+  protected readonly casePartner = signal<number | null>(null);
+  /** A question being bound to a fact; selected as soon as it arrives. */
+  protected readonly pendingQuestion = signal<string | null>(null);
+  protected readonly termFromAria = $localize`:@@spd.plan_table.term_from:From year`;
+  protected readonly termToAria = $localize`:@@spd.plan_table.term_to:To year`;
+  protected readonly togetherAria = $localize`:@@spd.plan_table.together_with:Together with (optional)`;
+  protected readonly nothingElse = $localize`:@@spd.plan_table.nothing_else:Nothing else`;
+
+  private readonly selectBound = effect(() => {
+    const code = this.pendingQuestion();
+    const fact = code === null ? undefined : this.facts().find((f) => f.question?.code === code);
+    if (fact === undefined) return;
+    untracked(() => {
+      this.caseFact.set(fact.key);
+      this.caseOption.set(null);
+      this.pendingQuestion.set(null);
+    });
+  });
 
   protected readonly blankNote = $localize`:@@spd.plan_table.blank_note:Blank — this table says nothing for that band, so each bank's own figure stands.`;
   // Visible labels, not placeholders — see the picker's own note in the template.
@@ -1138,11 +1272,6 @@ export class PlanRowsEditorComponent {
     return PLAN_SLOTS.filter((slot) => !t.slots.includes(slot));
   });
 
-  protected unstatedLabel(): string {
-    const names = this.unstatedSlots().map((slot) => this.headNameOf(slot));
-    const list = names.join(' · ');
-    return $localize`:@@spd.plan_table.unstated:Not stated here, so each bank's own figure stands: ${list}:tables:.`;
-  }
 
   private exceptionCount(): number {
     return this.caseGroups().reduce((n, g) => n + g.items.length, 0);
@@ -1154,9 +1283,30 @@ export class PlanRowsEditorComponent {
     const t = this.table();
     const out = new Map<PlanSlotKey, PlanSlotShape>();
     if (t === null) return out;
-    for (const slot of t.slots) out.set(slot, planSlotShapeOf(t, slot));
+    for (const slot of t.slots) {
+      const shape = planSlotShapeOf(t, slot);
+      // Asked for row by row: every case keeps its own column, so each down payment gets its
+      // own figure (a bank whose gap differs by row). Display only — the table is unchanged.
+      out.set(
+        slot,
+        shape.kind === 'simple' && shape.cases.length > 0 && this.rowByRow().has(slot)
+          ? {
+              kind: 'detailed',
+              columns: [shape.baseColumn, ...shape.cases.map((c) => c.columnIndex)],
+            }
+          : shape,
+      );
+    }
     return out;
   });
+
+  /** The figures the operator asked to type row by row. */
+  protected readonly rowByRow = signal<ReadonlySet<PlanSlotKey>>(new Set());
+
+  protected typeRowByRow(slot: PlanSlotKey): void {
+    this.rowByRow.set(new Set([...this.rowByRow(), slot]));
+    this.tab.set('figures');
+  }
 
   /**
    * The columns actually drawn: one per STATED figure, except where a table's cases cannot
@@ -1301,15 +1451,21 @@ export class PlanRowsEditorComponent {
       }
       if (items.length > 0) {
         items.sort((a, b) => a.columnIndex - b.columnIndex);
-        out.push({ slot, name: this.headNameOf(slot), unit: this.unitOf(slot), items });
+        out.push({
+          slot,
+          name: this.headNameOf(slot),
+          unit: this.unitOf(slot),
+          items,
+          simple: shape.kind === 'simple',
+        });
       }
     }
     return out;
   });
 
   /** The tables a case can be added to: stated, and not already stating one per band. */
-  protected readonly variableSlots = computed<readonly PlanSlotKey[]>(() =>
-    (this.table()?.slots ?? []).filter((slot) => this.canVary(slot)),
+  protected readonly variableSlots = computed<readonly PlanSlotKey[]>(
+    () => this.table()?.slots ?? [],
   );
 
   // ─── LABELS ────────────────────────────────────────────────────────────────
@@ -1328,6 +1484,8 @@ export class PlanRowsEditorComponent {
         return $localize`:@@spd.plan_table.col_floor:Smallest loan`;
       case 'carInsuranceRateByFact':
         return $localize`:@@spd.plan_table.col_car_insurance:Insurance`;
+      case 'maxCarAgeAtEndYearsByFact':
+        return $localize`:@@spd.plan_table.col_car_age_end:Oldest car at the end`;
     }
   }
 
@@ -1358,6 +1516,8 @@ export class PlanRowsEditorComponent {
         return $localize`:@@spd.plan_table.unit_months:mo`;
       case 'amountEGP':
         return null;
+      case 'years':
+        return $localize`:@@spd.plan_table.unit_years:yr`;
     }
   }
 
@@ -1377,6 +1537,8 @@ export class PlanRowsEditorComponent {
   }
 
   private optionLabel(factKey: string, code: string): string {
+    const range = decodeRange(code);
+    if (range !== null) return this.termLabel(range.fromInclusive, range.toExclusive);
     const fact = this.facts().find((f) => f.key === factKey);
     const option = fact?.question?.options.find((o) => o.code === code);
     if (option === undefined) return code;
@@ -1647,13 +1809,45 @@ export class PlanRowsEditorComponent {
    * case is one key, so the projection refuses such a table and the card would fall back to
    * the free-form editor the moment it was built.
    */
-  protected readonly caseFacts = computed<ReadonlyArray<{ key: string; label: string }>>(() =>
-    this.facts()
-      .filter(
-        (fact) => fact.question?.type === 'SINGLE_SELECT' || fact.question?.type === 'MULTI_SELECT',
-      )
-      .map((fact) => ({ key: fact.key, label: fact.label })),
+  protected readonly caseFacts = computed<ReadonlyArray<{ key: string; label: string }>>(() => {
+    const bound = this.facts().filter(
+      (fact) => fact.question?.type === 'SINGLE_SELECT' || fact.question?.type === 'MULTI_SELECT',
+    );
+    const boundCodes = new Set(bound.map((f) => f.question?.code));
+    return [
+      ...(this.caseSlot() === 'rateByFact'
+        ? [{ key: this.TERM, label: $localize`:@@spd.plan_table.term_case:Loan term` }]
+        : []),
+      ...bound.map((fact) => ({ key: fact.key, label: fact.label })),
+      ...this.moreQuestions()
+        .filter((q) => !boundCodes.has(q.code))
+        .map((q) => ({ key: 'q:' + q.code, label: q.label })),
+    ].sort((a, b) => (a.key === this.TERM ? -1 : b.key === this.TERM ? 1 : 0));
+  });
+
+  /** Columns the new case can narrow: the slot's own cases, named as the table names them. */
+  protected readonly partnerOptions = computed<ReadonlyArray<{ index: number; label: string }>>(
+    () => {
+      const slot = this.caseSlot();
+      if (slot === null) return [];
+      return (this.table()?.columns ?? []).flatMap((column, index) =>
+        column.slot === slot && !column.isBase
+          ? [{ index, label: this.extraLabel(slot, column.extra) }]
+          : [],
+      );
+    },
   );
+
+  /** "1–2 years", "3–5 years" — a range of months said as the bank's card says it. */
+  private termLabel(fromInclusive: string, toExclusive: string | null): string {
+    const from = Number(fromInclusive);
+    const fromYear = Math.floor((from - 1) / 12) + 1;
+    if (toExclusive === null) {
+      return $localize`:@@spd.plan_table.term_from_years:${fromYear}:from: years and longer`;
+    }
+    const toYear = Math.floor((Number(toExclusive) - 1) / 12);
+    return $localize`:@@spd.plan_table.term_years:${fromYear}:from:–${toYear}:to: years`;
+  }
 
   protected readonly caseOptions = computed<ReadonlyArray<{ code: string; label: string }>>(() => {
     const key = this.caseFact();
@@ -1670,22 +1864,48 @@ export class PlanRowsEditorComponent {
   });
 
   protected onCaseFact(key: string): void {
-    this.caseFact.set(key);
     this.caseOption.set(null);
+    if (key.startsWith('q:')) {
+      // A question no fact reads yet: the host binds it, and it is selected when it arrives.
+      this.caseFact.set(null);
+      this.pendingQuestion.set(key.slice(2));
+      this.bindQuestion.emit(key.slice(2));
+      return;
+    }
+    this.caseFact.set(key);
+  }
+
+  /** The term range typed, as whole years: from ≥ 1, to ≥ from. */
+  private termRange(): { from: number; to: number } | null {
+    const from = Number(this.termFrom());
+    const to = Number(this.termTo());
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from) return null;
+    return { from, to };
   }
 
   protected canAddCase(): boolean {
-    return this.caseSlot() !== null && this.caseFact() !== null && this.caseOption() !== null;
+    if (this.caseSlot() === null || this.caseFact() === null) return false;
+    return this.caseFact() === this.TERM ? this.termRange() !== null : this.caseOption() !== null;
   }
 
   protected onAddCase(): void {
     const t = this.table();
     const slot = this.caseSlot();
     const fact = this.caseFact();
-    const option = this.caseOption();
-    if (t === null || slot === null || fact === null || option === null) return;
-    this.emit(addPlanCase(this.grids(), t, slot, fact, option));
+    if (t === null || slot === null || fact === null) return;
+    let code = this.caseOption();
+    if (fact === this.TERM) {
+      // "1–2 years" is every term from the first month to the 24th: months 1 up to 25.
+      const range = this.termRange();
+      if (range === null) return;
+      code = encodeRange(String((range.from - 1) * 12 + 1), String(range.to * 12 + 1));
+    }
+    if (code === null) return;
+    this.emit(addPlanCase(this.grids(), t, slot, fact, code, this.casePartner() ?? undefined));
     this.caseOption.set(null);
+    this.termFrom.set('');
+    this.termTo.set('');
+    this.casePartner.set(null);
   }
 
   // ─── VERBS ─────────────────────────────────────────────────────────────────
@@ -1756,6 +1976,10 @@ export class PlanRowsEditorComponent {
     const last = rows[rows.length - 1];
     if (last === undefined || last.band.toExclusive !== null) return false;
     return n > Number(last.band.fromInclusive);
+  }
+
+  protected onAddSlot(slot: PlanSlotKey): void {
+    this.emit(addPlanSlot(this.grids(), this.table(), slot, this.startFigures()[slot] ?? ''));
   }
 
   protected onAddBand(): void {

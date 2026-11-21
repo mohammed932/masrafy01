@@ -996,7 +996,12 @@ export class PostgresPlatformEnumerationsRepository
       }
       const tenor = effectivePlanTenor((program.tenor ?? {}) as unknown as TenorConfig, src, plans);
       for (const key of factsReadByTenor(tenor)) reads.add(key);
-      if (tenor.maxVehicleAgeYearsByFact !== undefined) mustAnswer.add(CAR_MODEL_YEAR_FACT_KEY);
+      if (
+        tenor.maxVehicleAgeYearsByFact !== undefined ||
+        tenor.maxCarAgeAtEndYearsByFact !== undefined
+      ) {
+        mustAnswer.add(CAR_MODEL_YEAR_FACT_KEY);
+      }
       for (const key of factsReadByFees(
         effectivePlanFees((program.fees ?? {}) as unknown as FeesConfig, src, plans),
       )) {

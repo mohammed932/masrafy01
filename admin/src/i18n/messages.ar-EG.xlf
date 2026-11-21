@@ -4342,8 +4342,14 @@
       <trans-unit id="bank_programs.plans.card_title" datatype="html"><source> Plans by deposit </source><target> الخطط حسب الدفعة المقدمة </target></trans-unit>
       <trans-unit id="bank_programs.plans.own_tag" datatype="html"><source>This bank&apos;s own plans</source><target>خطط خاصة بهذا البنك</target></trans-unit>
       <trans-unit id="bank_programs.plans.card_note_inherited" datatype="html"><source>These are the product&apos;s figures. Change any of them and this bank gets its own copy — the product and the other banks on it stay as they are.</source><target>هذه قيم المنتج. غيّر أيًّا منها ويحصل هذا البنك على نسخته الخاصة — ويبقى المنتج والبنوك الأخرى عليه كما هي.</target></trans-unit>
+      <trans-unit id="bank_programs.plans.card_note_bank" datatype="html"><source>What this bank charges, lends over and finances, by how much the customer puts down. A figure left blank uses this program's own.</source><target>ما يفرضه هذا البنك من عائد، والمدة التي يقرض عليها، والنسبة التي يموّلها، حسب ما يدفعه العميل مقدمًا. الخانة الفارغة تأخذ قيمة البرنامج نفسه.</target></trans-unit>
+      <trans-unit id="bank_programs.plans.remove_table" datatype="html"><source>Remove the table</source><target>إزالة الجدول</target></trans-unit>
+      <trans-unit id="bank_programs.plans.start_note" datatype="html"><source>Every car is priced the same here. Start a table if this bank's rate, longest term or financed share depends on how much the customer puts down.</source><target>كل السيارات تُسعَّر هنا بنفس الطريقة. ابدأ جدولًا إذا كان عائد هذا البنك أو أطول مدة أو نسبة التمويل تعتمد على ما يدفعه العميل مقدمًا.</target></trans-unit>
+      <trans-unit id="bank_programs.plans.start" datatype="html"><source>Start the table</source><target>ابدأ الجدول</target></trans-unit>
+      <trans-unit id="spd.plan_table.add_column" datatype="html"><source>Add a column</source><target>أضف عمودًا</target></trans-unit>
+      <trans-unit id="spd.plan_table.add_column_hint" datatype="html"><source>A new column starts at this program's own figure on every row. Clear all of its figures to take it off again.</source><target>يبدأ العمود الجديد بقيمة البرنامج نفسه في كل صف. امسح كل قيمه لإزالته مرة أخرى.</target></trans-unit>
       <trans-unit id="bank_programs.plans.card_note_own" datatype="html"><source>This bank prices, lends and finances on the figures below. Changing the product no longer moves them.</source><target>هذا البنك يسعّر ويقرض ويموّل وفق القيم أدناه. تغيير المنتج لم يعد يحرّكها.</target></trans-unit>
-      <trans-unit id="bank_programs.plans.card_error" datatype="html"><source> A row of this bank&apos;s plans is not finished — fill it in, or remove the row. </source><target> هناك صف غير مكتمل في خطط هذا البنك — أكمله أو احذف الصف. </target></trans-unit>
+      <trans-unit id="bank_programs.plans.card_error" datatype="html"><source> A figure in the table is empty — type it, or clear its whole column or row. </source><target> هناك خانة فارغة في الجدول — اكتب قيمتها، أو امسح العمود أو الصف كله. </target></trans-unit>
       <trans-unit id="bank_programs.step.issue_plan_card" datatype="html"><source>A row of this bank&apos;s plans is not finished — fill it in, or remove the row.</source><target>هناك صف غير مكتمل في خطط هذا البنك — أكمله أو احذف الصف.</target></trans-unit>
       <trans-unit id="bank_programs.plans.set_own" datatype="html"><source>Set this bank&apos;s own plans</source><target>حدّد خططًا خاصة بهذا البنك</target></trans-unit>
       <trans-unit id="bank_programs.plans.back_to_product" datatype="html"><source>Back to the product&apos;s plans</source><target>ارجع إلى خطط المنتج</target></trans-unit>
@@ -4396,6 +4402,16 @@
       <trans-unit id="spd.plan_table.col_min_months" datatype="html"><source>Shortest term</source><target>أقصر مدة</target></trans-unit>
       <trans-unit id="spd.plan_table.col_ltv" datatype="html"><source>We finance</source><target>نموّل</target></trans-unit>
       <trans-unit id="spd.plan_table.col_floor" datatype="html"><source>Smallest loan</source><target>أصغر قرض</target></trans-unit>
+      <trans-unit id="spd.plan_table.col_car_age_end" datatype="html"><source>Oldest car at the end</source><target>أقصى عمر للسيارة عند نهاية القرض</target></trans-unit>
+      <trans-unit id="spd.plan_table.unit_years" datatype="html"><source>yr</source><target>سنة</target></trans-unit>
+      <trans-unit id="spd.plan_table.term_from" datatype="html"><source>From year</source><target>من سنة</target></trans-unit>
+      <trans-unit id="spd.plan_table.term_to" datatype="html"><source>To year</source><target>إلى سنة</target></trans-unit>
+      <trans-unit id="spd.plan_table.together_with" datatype="html"><source>Together with (optional)</source><target>مع (اختياري)</target></trans-unit>
+      <trans-unit id="spd.plan_table.nothing_else" datatype="html"><source>Nothing else</source><target>لا شيء آخر</target></trans-unit>
+      <trans-unit id="spd.plan_table.term_case" datatype="html"><source>Loan term</source><target>مدة القرض</target></trans-unit>
+      <trans-unit id="spd.plan_table.term_from_years" datatype="html"><source><x id="from" equiv-text="fromYear"/> years and longer</source><target><x id="from" equiv-text="fromYear"/> سنوات فأكثر</target></trans-unit>
+      <trans-unit id="spd.plan_table.term_years" datatype="html"><source><x id="from" equiv-text="fromYear"/>–<x id="to" equiv-text="toYear"/> years</source><target><x id="from" equiv-text="fromYear"/>–<x id="to" equiv-text="toYear"/> سنوات</target></trans-unit>
+      <trans-unit id="spd.plan_table.row_by_row" datatype="html"><source> Type a figure per row </source><target> اكتب قيمة لكل صف </target></trans-unit>
       <trans-unit id="spd.plan_table.col_car_insurance" datatype="html"><source>Insurance</source><target>التأمين</target></trans-unit>
       <trans-unit id="spd.plan_table.and_above" datatype="html"><source>and above</source><target>فأكثر</target></trans-unit>
       <trans-unit id="spd.plan_table.up_to" datatype="html"><source>up to <x id="to" equiv-text="band.toExclusive"/>%</source><target>حتى <x id="to" equiv-text="band.toExclusive"/>%</target></trans-unit>

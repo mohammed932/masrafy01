@@ -49,6 +49,8 @@ export interface TenorConfig {
    * actually in the object, rather than silently narrower than the runtime blob.
    */
   maxVehicleAgeYearsByFact?: FactGridConfig;
+  /** The oldest the car may be when the loan ends, in years — cuts the term to fit. */
+  maxCarAgeAtEndYearsByFact?: FactGridConfig;
 }
 
 export interface LoanLimitsConfig {
@@ -1061,6 +1063,8 @@ export interface PlanDefaults {
   ltvCeilingByFact?: FactGridConfig;
   minAmountByFact?: FactGridConfig;
   carInsuranceRateByFact?: FactGridConfig;
+  /** A bank program's own only (2026-11-20): the oldest the car may be when the loan ends. */
+  maxCarAgeAtEndYearsByFact?: FactGridConfig;
 }
 
 /**

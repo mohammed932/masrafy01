@@ -241,10 +241,13 @@ export function factsReadByTenor(raw: unknown): Set<string> {
   const keys = gridAxisKeys(raw.maxMonthsByFact);
   for (const key of gridAxisKeys(raw.minMonthsByFact)) keys.add(key);
   for (const key of gridAxisKeys(raw.maxVehicleAgeYearsByFact)) keys.add(key);
+  for (const key of gridAxisKeys(raw.maxCarAgeAtEndYearsByFact)) keys.add(key);
   // The age table's VALUE is compared with the car's age, which the engine derives from the
   // model year — no axis names it, so without this line the model year was invisible to every
   // guard and the refusal quietly skipped for anyone who left it blank.
-  if (isRecord(raw.maxVehicleAgeYearsByFact)) keys.add(CAR_MODEL_YEAR_FACT_KEY);
+  if (isRecord(raw.maxVehicleAgeYearsByFact) || isRecord(raw.maxCarAgeAtEndYearsByFact)) {
+    keys.add(CAR_MODEL_YEAR_FACT_KEY);
+  }
   return keys;
 }
 

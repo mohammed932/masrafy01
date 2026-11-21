@@ -56,7 +56,7 @@ export interface FactGridConfig {
 }
 
 /** What the figure in a cell means — the only thing that differs between the grids. */
-export type FactGridValueKind = 'ratePercent' | 'months' | 'sharePercent' | 'amountEGP';
+export type FactGridValueKind = 'ratePercent' | 'months' | 'sharePercent' | 'amountEGP' | 'years';
 
 /** The subset of the backend's reasons this editor can see before a save. */
 export type FactGridError =
@@ -102,6 +102,8 @@ function valueValid(raw: string, kind: FactGridValueKind): boolean {
   // the operator can still see the box they typed it in.
   if (kind === 'sharePercent') return n <= 100;
   if (kind === 'amountEGP') return n <= 99999999999.99;
+  // Mirrors the server: a car's age in whole years.
+  if (kind === 'years') return Number.isInteger(n) && n <= 60;
   return Number.isInteger(n) && n <= 480;
 }
 

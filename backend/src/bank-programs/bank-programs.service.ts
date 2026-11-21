@@ -734,6 +734,7 @@ export class BankProgramsService {
       [dto.tenor?.maxMonthsByFact, 'tenor.maxMonthsByFact', 'months'],
       [dto.tenor?.minMonthsByFact, 'tenor.minMonthsByFact', 'months'],
       [dto.tenor?.maxVehicleAgeYearsByFact, 'tenor.maxVehicleAgeYearsByFact', 'years'],
+      [dto.tenor?.maxCarAgeAtEndYearsByFact, 'tenor.maxCarAgeAtEndYearsByFact', 'years'],
       [dto.loanLimits?.ltvCeilingByFact, 'loanLimits.ltvCeilingByFact', 'sharePercent'],
       [dto.loanLimits?.minAmountByFact, 'loanLimits.minAmountByFact', 'amountEGP'],
       // Comprehensive cover on the car, a percent of the car's PRICE per policy year.

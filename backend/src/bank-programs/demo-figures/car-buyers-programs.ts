@@ -7,14 +7,18 @@
  * 2026-09-23, read back off the database row for row (codes included, since a re-run finds the
  * row it wrote by its code). Nothing here is a sheet figure, so nothing is marked estimated.
  *
- * Three of the four read the product's plan tables (`plansSource: 'product'`) and state only
+ * Since 2026-11-20 each states its own plan tables: three hold a copy of the Suez Canal card
+ * the product used to carry (`ownPlans` below), National Bank of Egypt its own. Before that
+ * the three read the product's plan tables (`plansSource: 'product'`) and stated only
  * what differs; National Bank of Egypt states its own plans. The product's own defaults — the
  * plans, the duration, the loan size and the I-Score tiers these inherit — are seeded on the
  * product in `sheet-figures.ts` (`down_payment_income`).
  */
 import { PRODUCT_RULE_STRATEGY } from '@/matching/types';
 import type { CreateBankProgramDto } from '../dto/create-bank-program.dto';
+import type { FactGridDto } from '../dto/sub-configs/fact-grid.dto';
 import type { ProgramSpec } from './sheet-programs';
+import { SCB_AUTO_PLANS } from './sheet-figures';
 
 /**
  * Cast, for the reason `sheet-programs.ts` states at its own: `strategy` is validated by
@@ -25,12 +29,41 @@ const rule = (value: object): CreateBankProgramDto['incomeAssumption'] =>
 
 const SOURCE = 'Admin-entered, 2026-09-23 — car_buyers_program';
 
+const grid = (key: keyof typeof SCB_AUTO_PLANS): FactGridDto =>
+  structuredClone(SCB_AUTO_PLANS[key]) as FactGridDto;
+
+/** The Suez Canal card as a program's own plan tables, merged into what it already states. */
+function ownPlans(dto: Omit<CreateBankProgramDto, 'plansSource'>): CreateBankProgramDto {
+  return {
+    ...dto,
+    plansSource: 'own',
+    pricing: { ...dto.pricing, rateByFact: grid('rateByFact') },
+    tenor: { ...dto.tenor, maxMonthsByFact: grid('maxMonthsByFact') },
+    loanLimits: {
+      ...dto.loanLimits,
+      ltvCeilingByFact: grid('ltvCeilingByFact'),
+      minAmountByFact: grid('minAmountByFact'),
+    },
+    fees: { ...dto.fees, carInsuranceRateByFact: grid('carInsuranceRateByFact') },
+  } as CreateBankProgramDto;
+}
+
+/**
+ * The card's own estimates, moved with it: all twenty rates and the three term ceilings are
+ * this team's illustration (no Suez Canal slide prints them). The cover percentage is not —
+ * the operator typed it.
+ */
+const PLAN_ESTIMATED = [
+  ...Array.from({ length: 20 }, (_, i) => `pricing.rateByFact.cells.${i}.value`),
+  ...Array.from({ length: 3 }, (_, i) => `tenor.maxMonthsByFact.cells.${i}.value`),
+];
+
 export const CAR_BUYERS_PROGRAMS: readonly ProgramSpec[] = [
   {
     programCode: 'CRE-CAR-3743',
     sheet: SOURCE,
-    estimated: [],
-    dto: {
+    estimated: PLAN_ESTIMATED,
+    dto: ownPlans({
       programCode: 'CRE-CAR-3743',
       bankName: 'Crédit Agricole Egypt',
       friendlyName: 'Agricole Car Buyers Program',
@@ -39,7 +72,6 @@ export const CAR_BUYERS_PROGRAMS: readonly ProgramSpec[] = [
       programType: 'income_surrogate',
       productCategory: 'car',
       isShariaCompliant: false,
-      plansSource: 'product',
       requiredDocuments: ['NATIONAL_ID_FRONT', 'NATIONAL_ID_BACK', 'national_id'],
       tenor: {
         maxMonths: 84,
@@ -97,13 +129,13 @@ export const CAR_BUYERS_PROGRAMS: readonly ProgramSpec[] = [
         latePaymentFeePercent: '4.0',
         lifeInsuranceMandatory: false,
       },
-    },
+    }),
   },
   {
     programCode: 'BANK-CAR-EA65',
     sheet: SOURCE,
-    estimated: [],
-    dto: {
+    estimated: PLAN_ESTIMATED,
+    dto: ownPlans({
       programCode: 'BANK-CAR-EA65',
       bankName: 'Bank NXT',
       friendlyName: 'NXT Car',
@@ -112,7 +144,6 @@ export const CAR_BUYERS_PROGRAMS: readonly ProgramSpec[] = [
       programType: 'income_surrogate',
       productCategory: 'car',
       isShariaCompliant: false,
-      plansSource: 'product',
       requiredDocuments: [],
       tenor: {},
       loanLimits: {},
@@ -170,13 +201,13 @@ export const CAR_BUYERS_PROGRAMS: readonly ProgramSpec[] = [
         latePaymentFeePercent: '4.0',
         lifeInsuranceMandatory: false,
       },
-    },
+    }),
   },
   {
     programCode: 'BANQUE-CAR-0549',
     sheet: SOURCE,
-    estimated: [],
-    dto: {
+    estimated: PLAN_ESTIMATED,
+    dto: ownPlans({
       programCode: 'BANQUE-CAR-0549',
       bankName: 'Banque Misr',
       friendlyName: 'Banque Misr Car Buyers',
@@ -185,7 +216,6 @@ export const CAR_BUYERS_PROGRAMS: readonly ProgramSpec[] = [
       programType: 'income_surrogate',
       productCategory: 'car',
       isShariaCompliant: false,
-      plansSource: 'product',
       requiredDocuments: ['property_deed', 'NATIONAL_ID_FRONT', 'NATIONAL_ID_BACK'],
       tenor: {
         maxMonths: 84,
@@ -243,7 +273,7 @@ export const CAR_BUYERS_PROGRAMS: readonly ProgramSpec[] = [
         latePaymentFeePercent: '4.0',
         lifeInsuranceMandatory: false,
       },
-    },
+    }),
   },
   {
     programCode: 'NATIONAL-CAR-C483',

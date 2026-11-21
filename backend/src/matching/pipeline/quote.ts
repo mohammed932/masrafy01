@@ -407,6 +407,40 @@ export function quoteProgram(raw: QuoteInput): QuoteOutcome {
     }
   }
 
+  // ── 1b½. The oldest the car may be when the loan ENDS ────────────────────
+  //
+  // "Model year + term ≤ 14 years": a car aged 11 is financed for 3 years at most. One more
+  // term ceiling beside the vehicle table above — the smaller wins — so a car with years left
+  // is financed for those years, and one with none is refused (`VEHICLE_NOT_ELIGIBLE`) by the
+  // below-the-floor check at step 3, exactly as the vehicle table's own cut is.
+  //
+  // The car's age is engine-derived from the model year. Never answered: unknown, not zero,
+  // so no cut (the questionnaire requires it wherever this table exists). Answered but
+  // ahead of the clock: no car a bank finances — refused, as the age refusal above does.
+  const ageAtEndGrid = program.tenor?.maxCarAgeAtEndYearsByFact;
+  if (ageAtEndGrid !== undefined) {
+    const facts = firstPass.ctx.facts ?? programFacts;
+    const carAge = facts[CAR_AGE_YEARS_FACT_KEY];
+    if (carAge !== undefined && carAge.kind === 'numeric' && carAge.value.isFinite()) {
+      const hit = resolveFactGrid({
+        config: ageAtEndGrid,
+        facts,
+        ...(input.parentKeyByValue !== undefined
+          ? { parentKeyByValue: input.parentKeyByValue }
+          : {}),
+      });
+      if (hit.matched) {
+        const monthsLeft = Math.floor(hit.value.minus(carAge.value).times(12).toNumber());
+        vehicleMaxMonths =
+          vehicleMaxMonths === null ? monthsLeft : Math.min(vehicleMaxMonths, monthsLeft);
+      } else if (hit.action === 'reject') {
+        return { ok: false, unavailable: vehicleRefusal(hit.missingFactKeys) };
+      }
+    } else if (facts[CAR_MODEL_YEAR_FACT_KEY] !== undefined) {
+      return { ok: false, unavailable: { reason: 'VEHICLE_NOT_ELIGIBLE' } };
+    }
+  }
+
   // The term FLOOR this plan states, composed by `max` so it only ever RAISES the program's
   // own. A floor that could lower one would let a table undercut a minimum the bank typed,
   // which is the direction `minAmountByFact` below is also refused.

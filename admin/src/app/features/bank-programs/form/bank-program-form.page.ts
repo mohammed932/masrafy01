@@ -110,6 +110,7 @@ import {
 import type { FactGridConfig } from '@shared/ui/fact-grid-editor.component';
 import { PlanRowsEditorComponent } from '@shared/ui/plan-rows-editor.component';
 import { planRowsErrorFor, planRowsFrom } from '@shared/ui/plan-rows.rules';
+import type { PlanSlotKey } from '@shared/ui/plan-rows.rules';
 import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { catalogRuleIsProductBacked, catalogRuleOf } from '@shared/income-rule/catalog-rule';
 import { nameChangeLoss, type NameChangeLoss } from './name-change-losses';
@@ -347,6 +348,7 @@ const TENOR_KEYS_EDITED_HERE = [
   'maxMonths',
   'maxMonthsByFact',
   'minMonthsByFact',
+  'maxCarAgeAtEndYearsByFact',
 ] as const;
 /**
  * The `fees` keys this form owns. Everything else on that blob is CARRIED.
@@ -1602,17 +1604,19 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                       <h3 class="dbr-bands-title" i18n="@@bank_programs.plans.card_title">
                         Plans by deposit
                       </h3>
-                      <p class="tenor-inherited-value">
-                        @if (plansInherits()) {
-                          <span class="tag" i18n="@@bank_programs.plans.from_product"
-                            >The product's plans apply</span
-                          >
-                        } @else {
-                          <span class="tag" i18n="@@bank_programs.plans.own_tag"
-                            >This bank's own plans</span
-                          >
-                        }
-                      </p>
+                      @if (plansInheritable()) {
+                        <p class="tenor-inherited-value">
+                          @if (plansInherits()) {
+                            <span class="tag" i18n="@@bank_programs.plans.from_product"
+                              >The product's plans apply</span
+                            >
+                          } @else {
+                            <span class="tag" i18n="@@bank_programs.plans.own_tag"
+                              >This bank's own plans</span
+                            >
+                          }
+                        </p>
+                      }
                       <p class="tenor-inherited-note">
                         @if (plansInherits()) {
                           <span i18n="@@bank_programs.plans.card_note_inherited"
@@ -1620,27 +1624,46 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                             its own copy — the product and the other banks on it stay as they
                             are.</span
                           >
-                        } @else {
+                        } @else if (plansInheritable()) {
                           <span i18n="@@bank_programs.plans.card_note_own"
                             >This bank prices, lends and finances on the figures below. Changing the
                             product no longer moves them.</span
+                          >
+                        } @else {
+                          <span i18n="@@bank_programs.plans.card_note_bank"
+                            >What this bank charges, lends over and finances, by how much the
+                            customer puts down. A figure left blank uses this program's own.</span
                           >
                         }
                       </p>
                       <app-plan-rows-editor
                         [grids]="planCardGrids()"
                         [facts]="incomeFacts()"
+                        [startFigures]="planStartFigures()"
+                        [moreQuestions]="planQuestions()"
+                        (bindQuestion)="bindPlanQuestion($event)"
                         (gridsChange)="onPlanCardGrids($event)"
                         (removeRequest)="onPlanCardGrids($event.next)"
                       />
                       @if (planCardError()) {
                         <p class="field-error" role="alert" i18n="@@bank_programs.plans.card_error">
-                          A row of this bank's plans is not finished — fill it in, or remove the
+                          A figure in the table is empty — type it, or clear its whole column or
                           row.
                         </p>
                       }
                       <div class="plans-verbs">
-                        @if (plansInherits()) {
+                        @if (!plansInheritable()) {
+                          <button
+                            nz-button
+                            nzType="link"
+                            nzSize="small"
+                            type="button"
+                            (click)="stateNoPlans()"
+                            i18n="@@bank_programs.plans.remove_table"
+                          >
+                            Remove the table
+                          </button>
+                        } @else if (plansInherits()) {
                           <button
                             nz-button
                             nzType="link"
@@ -1663,6 +1686,28 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                             Back to the product's plans
                           </button>
                         }
+                      </div>
+                    </div>
+                  } @else if (planStartShown()) {
+                    <div class="plan-card">
+                      <h3 class="dbr-bands-title" i18n="@@bank_programs.plans.card_title">
+                        Plans by deposit
+                      </h3>
+                      <p class="tenor-inherited-note" i18n="@@bank_programs.plans.start_note">
+                        Every car is priced the same here. Start a table if this bank's rate,
+                        longest term or financed share depends on how much the customer puts down.
+                      </p>
+                      <div class="plans-verbs">
+                        <button
+                          nz-button
+                          nzType="default"
+                          nzSize="small"
+                          type="button"
+                          (click)="startPlans()"
+                        >
+                          <span nz-icon nzType="plus" aria-hidden="true"></span>
+                          <span i18n="@@bank_programs.plans.start">Start the table</span>
+                        </button>
                       </div>
                     </div>
                   } @else if (plansInheritable()) {
@@ -1743,7 +1788,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                        third question nobody asked for. The grid outranks every other rate
                        setting when it matches, which the hint says outright rather than
                        leaving an operator to discover it from a quote. -->
-                  @if (!plansInherits() && !planCardShown()) {
+                  @if (!plansInherits() && !planCardShown() && !planStartShown()) {
                     <label
                       nz-checkbox
                       [nzChecked]="toggles.rateGrid()"
@@ -2046,7 +2091,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                      under 50%, and a number in code would be wrong for one of them. Hidden
                      while this bank reads the product's plans: the table it would edit is
                      not this bank's to change. -->
-                @if (isAutoLoan() && !plansInherits() && !planCardShown()) {
+                @if (isAutoLoan() && !plansInherits() && !planCardShown() && !planStartShown()) {
                   <div class="fees-cover">
                     <label
                       nz-checkbox
@@ -4632,6 +4677,8 @@ export class BankProgramFormPage implements OnInit {
   readonly ltvCeilingByFact = signal<FactGridConfig | null>(null);
   readonly minAmountByFact = signal<FactGridConfig | null>(null);
   readonly minMonthsByFact = signal<FactGridConfig | null>(null);
+  /** The oldest the car may be when the loan ends — a column of the plan table only. */
+  readonly maxCarAgeAtEndYearsByFact = signal<FactGridConfig | null>(null);
   readonly rateGridError = computed(() =>
     this.toggles.rateGrid() ? factGridErrorFor(this.rateByFact(), 'ratePercent') : null,
   );
@@ -6500,6 +6547,8 @@ export class BankProgramFormPage implements OnInit {
     if (minAmount !== null) out.minAmountByFact = minAmount;
     const minMonths = this.minMonthsByFact();
     if (minMonths !== null) out.minMonthsByFact = minMonths;
+    const ageAtEnd = this.maxCarAgeAtEndYearsByFact();
+    if (ageAtEnd !== null) out.maxCarAgeAtEndYearsByFact = ageAtEnd;
     return Object.keys(out).length > 0 ? out : null;
   });
 
@@ -6520,8 +6569,87 @@ export class BankProgramFormPage implements OnInit {
    * a program under no such product, or one that stated no plans, sees no change.
    */
   readonly planCardShown = computed<boolean>(
-    () => this.plansInheritable() && planRowsFrom(this.planCardGrids()) !== null,
+    () =>
+      (this.plansInheritable() || this.isAutoLoan()) &&
+      planRowsFrom(this.planCardGrids()) !== null,
   );
+
+  /**
+   * A car program with no plan table yet: one button starts it. Every car program edits its
+   * plans in the one table (2026-11-20), so the per-table editors stay hidden behind it. A
+   * program whose tables cannot be drawn as one table keeps those editors.
+   */
+  readonly planStartShown = computed<boolean>(
+    () => this.isAutoLoan() && !this.plansInherits() && this.ownPlans() === null,
+  );
+
+  /** This program's own figures today, as each new column's starting value. */
+  protected planStartFigures(): Partial<Record<PlanSlotKey, string>> {
+    const v = this.form.getRawValue();
+    const text = (x: unknown): string => (x === null || x === undefined ? '' : String(x));
+    return {
+      rateByFact: text(v.pricing.baseRatePercent),
+      maxMonthsByFact: text(v.tenor.maxMonths),
+      minMonthsByFact: text(v.tenor.minMonths),
+      ltvCeilingByFact: text(v.loanLimits.ltvCeilingPercent),
+      minAmountByFact: text(v.loanLimits.minAmountEGP),
+    };
+  }
+
+  /**
+   * Choice questions no fact reads yet, offered in the table's "which answer" list: any
+   * question can price a car (e.g. "Do you want car insurance?"). Loaded once.
+   */
+  protected readonly planQuestions = signal<ReadonlyArray<{ code: string; label: string }>>([]);
+
+  private async loadPlanQuestions(): Promise<void> {
+    try {
+      const isAr = document.documentElement.lang.startsWith('ar');
+      const rows = (await this.api.listMethodQuestions()).data;
+      this.planQuestions.set(
+        rows
+          .filter((q) => q.type === 'SINGLE_SELECT' && q.factKey === null)
+          .map((q) => ({ code: q.code, label: (isAr ? q.labelAr : q.labelEn) || q.labelEn })),
+      );
+    } catch {
+      // Not fatal: the table still offers every answer a fact already reads.
+      this.planQuestions.set([]);
+    }
+  }
+
+  /** A question picked in the table: give it a fact, so the table can key on its answers. */
+  protected async bindPlanQuestion(code: string): Promise<void> {
+    try {
+      await this.api.ensureMethodFact(code);
+      await this.enums.refresh('surrogate_fact');
+      this.planQuestions.set(this.planQuestions().filter((q) => q.code !== code));
+    } catch (err) {
+      const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })
+        ?.error;
+      this.message.error(
+        this.errorsService.toLocalizedMessage(
+          (envelope?.code ?? 'INTERNAL_ERROR') as never,
+          envelope?.meta,
+        ),
+      );
+    }
+  }
+
+  /** "Start the table": one row for every down payment, at this program's own rate. */
+  startPlans(): void {
+    this.onPlanCardGrids({
+      rateByFact: {
+        axes: [{ factKey: 'car_down_payment_percent' }],
+        cells: [
+          {
+            keys: [{ fromInclusive: '0', toExclusive: null }],
+            value: this.planStartFigures().rateByFact ?? '',
+          },
+        ],
+        onNoMatch: 'reject',
+      },
+    } as PlanDefaults);
+  }
 
   /** A half-typed row in this bank's own plans. The product's are checked on its own screen. */
   readonly planCardError = computed<boolean>(
@@ -6547,6 +6675,7 @@ export class BankProgramFormPage implements OnInit {
     this.ltvCeilingByFact.set(plans?.ltvCeilingByFact ?? null);
     this.minAmountByFact.set(plans?.minAmountByFact ?? null);
     this.minMonthsByFact.set(plans?.minMonthsByFact ?? null);
+    this.maxCarAgeAtEndYearsByFact.set(plans?.maxCarAgeAtEndYearsByFact ?? null);
     // The toggles follow the tables, or a table the card shows is one the save drops.
     this.toggles.rateGrid.set(this.rateByFact() !== null);
     this.toggles.vehicleGrid.set(this.maxMonthsByFact() !== null);
@@ -6612,6 +6741,7 @@ export class BankProgramFormPage implements OnInit {
     this.ltvCeilingByFact.set(null);
     this.minAmountByFact.set(null);
     this.minMonthsByFact.set(null);
+    this.maxCarAgeAtEndYearsByFact.set(null);
     this.carInsuranceRateByFact.set(null);
     this.toggles.rateGrid.set(false);
     this.toggles.vehicleGrid.set(false);
@@ -6634,6 +6764,7 @@ export class BankProgramFormPage implements OnInit {
     this.ltvCeilingByFact.set(null);
     this.minAmountByFact.set(null);
     this.minMonthsByFact.set(null);
+    this.maxCarAgeAtEndYearsByFact.set(null);
     this.carInsuranceRateByFact.set(null);
     this.toggles.rateGrid.set(false);
     this.toggles.vehicleGrid.set(false);
@@ -7806,6 +7937,8 @@ export class BankProgramFormPage implements OnInit {
     // (e.g. a new name under a no-payslip product) was missing from the picker until a
     // full page reload. The calculations ride along for the picker's group headings.
     void this.enums.refresh('program_name');
+    // The questions a car plan table can key on, for its "which answer" list.
+    void this.loadPlanQuestions();
     void this.enums.refresh('surrogate_product');
 
     this.banksLoaded = this.loadActiveBanks();
@@ -8367,6 +8500,9 @@ export class BankProgramFormPage implements OnInit {
         ...(!this.plansInherits() && this.minMonthsByFact() !== null
           ? { minMonthsByFact: this.minMonthsByFact()! }
           : {}),
+        ...(this.maxCarAgeAtEndYearsByFact() !== null
+          ? { maxCarAgeAtEndYearsByFact: this.maxCarAgeAtEndYearsByFact()! }
+          : {}),
       },
       loanLimits: {
         // Carried FIRST so an edited key can never be overwritten by a stale stored copy of
@@ -8608,6 +8744,7 @@ export class BankProgramFormPage implements OnInit {
     this.minMonthsByFact.set(
       (initial.tenor as { minMonthsByFact?: FactGridConfig }).minMonthsByFact ?? null,
     );
+    this.maxCarAgeAtEndYearsByFact.set(initial.tenor.maxCarAgeAtEndYearsByFact ?? null);
     // Whose plan tables this program reads. ABSENT READS AS `'own'` — every program written
     // before the field existed carries its own figures.
     this.plansSource.set(initial.plansSource === 'product' ? 'product' : 'own');

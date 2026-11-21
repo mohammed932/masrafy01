@@ -37,7 +37,11 @@ export const PLAN_TABLES = [
 export type PlanTable = (typeof PLAN_TABLES)[number];
 
 /** A programme's own tables, keyed by where they live on the row. */
-export type ProgramTable = PlanTable | 'maxLoanByFact' | 'maxVehicleAgeYearsByFact';
+export type ProgramTable =
+  | PlanTable
+  | 'maxLoanByFact'
+  | 'maxVehicleAgeYearsByFact'
+  | 'maxCarAgeAtEndYearsByFact';
 
 export type NeededReader =
   | { kind: 'calculation' }
@@ -285,6 +289,7 @@ export function neededFactsOf(input: NeededFactsInput): NeededFact[] {
       readGrid(program.tenor.maxMonthsByFact, at('maxMonthsByFact'), out);
       readGrid(program.tenor.minMonthsByFact, at('minMonthsByFact'), out);
       readGrid(program.tenor.maxVehicleAgeYearsByFact, at('maxVehicleAgeYearsByFact'), out);
+      readGrid(program.tenor.maxCarAgeAtEndYearsByFact, at('maxCarAgeAtEndYearsByFact'), out);
     }
     if (isRecord(program.loanLimits)) {
       readMaxLoanTable(program.loanLimits.maxLoanByFact, at('maxLoanByFact'), out);
