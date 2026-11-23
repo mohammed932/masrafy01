@@ -271,6 +271,8 @@ export const ENUMERATION_BULK_MAX = 500;
 
 /** One pasted row on the wire. No `key` and no `sortOrder` — the server owns both. */
 export interface BulkCreateEnumerationValueRow {
+  /** Stated by a caller whose keys mean something (the car list's models); else slugged. */
+  key?: string;
   labelEn: string;
   labelAr: string;
   /** Required when the list has a class axis; the server refuses a blank one per row. */

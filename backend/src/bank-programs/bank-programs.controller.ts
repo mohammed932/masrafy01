@@ -48,6 +48,8 @@ import {
   RenameSurrogateProductDto,
   SetProductGroupsDto,
 } from './products/surrogate-product-lifecycle.dto';
+import { QuestionFactLinkService } from './asks/question-fact-link.service';
+import { LinkQuestionFactDto } from './dto/question-facts.dto';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 
 interface ActorCtx {
@@ -64,6 +66,7 @@ export class BankProgramsController {
     private readonly blueprints: BlueprintService,
     private readonly asks: ProductAsksService,
     private readonly lifecycle: SurrogateProductLifecycleService,
+    private readonly questionFacts: QuestionFactLinkService,
   ) {}
 
   @Get()
@@ -776,6 +779,69 @@ export class BankProgramsController {
     @Req() req: Request,
   ) {
     return ok(await this.asks.askNeeded(key, factKey, this.actor(user, req)));
+  }
+
+  /**
+   * Feature 012 — what reads each question's answer, for every active pool question.
+   *
+   * Declared BEFORE `@Get(':programCode')`, and it has to be: Nest matches in declaration
+   * order, and `question-facts` is a perfectly good programme code to a route that comes first.
+   */
+  @Get('question-facts')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({ summary: "What reads every question's answer (Used by)" })
+  async listQuestionFacts() {
+    return ok(await this.questionFacts.usage());
+  }
+
+  @Get('question-facts/:questionCode')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({ summary: "What reads one question's answer, and the figures it could answer" })
+  @ApiResponse({ status: 404, description: 'QUESTION_NOT_FOUND' })
+  async getQuestionFact(@Param('questionCode') questionCode: string) {
+    return ok(await this.questionFacts.detail(questionCode));
+  }
+
+  /**
+   * Link a question to a calculation figure. Body `{}` — the figure is the question's own
+   * (reuse-first, else created under the question code); `{ factKey }` — an existing unbound
+   * figure. Writes ONLY the binding (and the fact row when new); where the figure is used is
+   * typed on the bank-programme or product table the screen opens next.
+   */
+  @Put('question-facts/:questionCode')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Make a question answer a calculation figure' })
+  @ApiResponse({ status: 404, description: 'QUESTION_NOT_FOUND' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'QUESTION_FACT_ALREADY_LINKED | SURROGATE_FACT_KEY_TAKEN | SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION',
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      'SURROGATE_FACT_SHAPE_MISMATCH | SURROGATE_FACT_KEY_RESERVED | SURROGATE_FACT_QUESTION_TYPE_INVALID',
+  })
+  async linkQuestionFact(
+    @Param('questionCode') questionCode: string,
+    @Body() body: LinkQuestionFactDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.questionFacts.link(questionCode, body.factKey, this.actor(user, req)));
+  }
+
+  /** Unlink. Refused (`ENUMERATION_IN_USE`) while anything reads the figure or a product asks it. */
+  @Delete('question-facts/:questionCode')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Stop a question answering its calculation figure' })
+  @ApiResponse({ status: 409, description: 'ENUMERATION_IN_USE' })
+  async unlinkQuestionFact(
+    @Param('questionCode') questionCode: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.questionFacts.unlink(questionCode, this.actor(user, req)));
   }
 
   @Get(':programCode')

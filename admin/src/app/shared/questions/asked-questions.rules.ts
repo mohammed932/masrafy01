@@ -104,11 +104,15 @@ export interface ServedQuestion {
   readonly isRequired: boolean;
   readonly displayOrder: number;
   readonly enabledWhen: EnabledWhenLike | null;
+  /** v36.4.0 — the question whose answer filters these (the car list: brand ← country). */
+  readonly optionsDependOn?: string;
   readonly options: readonly {
     readonly code: string;
     readonly labelAr: string;
     readonly labelEn: string;
     readonly displayOrder: number;
+    /** The answer of `optionsDependOn` this one is filed under. */
+    readonly parentCode?: string;
   }[];
 }
 

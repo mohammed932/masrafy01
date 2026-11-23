@@ -26,6 +26,8 @@
  * parity holds by construction rather than by a test that has to be remembered.
  */
 
+import { evaluateProgramConditions, conditionGateId } from './program-conditions';
+import { applyCaseToProgram, caseGateId, matchProgramCase } from './program-cases';
 import { Decimal } from '@prisma/client/runtime/library';
 import { groupsFor } from './product-groups';
 import type {
@@ -309,6 +311,62 @@ export function quoteProgram(raw: QuoteInput): QuoteOutcome {
     facts: programFacts,
     ...(input.parentKeyByValue !== undefined ? { parentKeyByValue: input.parentKeyByValue } : {}),
   };
+
+  // ── 0½. The bank's own eligibility conditions (feature 013) ─────────────
+  //
+  // Before any figure: a program whose bank does not lend to this applicant has no price to
+  // work out. A STATED refusal on the same reason a product gate gives — the program stays
+  // listed and ranked (Principle V), with a code the app already translates. Read off the
+  // same facts every table below reads, so a band means here what it means in a rate grid.
+  const conditionOutcome = evaluateProgramConditions(program.conditions, programFacts);
+  if (!conditionOutcome.ok) {
+    return {
+      ok: false,
+      unavailable: {
+        reason: 'PRODUCT_RULE_GATE_FAILED',
+        gateId: conditionGateId(conditionOutcome.conditionId),
+        gateReasonCode: conditionOutcome.reasonCode,
+      },
+    };
+  }
+
+  // ── 0¾. The bank's CASES (v36.4.0) ──────────────────────────────────────
+  //
+  // A combination of answers that replaces a figure, read top to bottom, first match wins.
+  // Applied by quoting the program again with the case's figures in place of its own (and
+  // its cases removed, so this runs once). A refusing case is a stated refusal, like a
+  // condition. The case applied is reported on the trace, so the simulator can say which.
+  if (program.cases !== undefined && program.cases.length > 0) {
+    const matched = matchProgramCase(program.cases, programFacts);
+    if (matched?.refuse === true) {
+      return {
+        ok: false,
+        unavailable: {
+          reason: 'PRODUCT_RULE_GATE_FAILED',
+          gateId: caseGateId(matched.id),
+          gateReasonCode: 'GATE_NOT_MET',
+        },
+      };
+    }
+    const plain: BankProgramSnapshot = { ...program };
+    delete plain.cases;
+    const outcome = quoteProgram({
+      ...raw,
+      program: matched === null ? plain : applyCaseToProgram(program, matched),
+    });
+    if (matched === null || !outcome.ok) return outcome;
+    return {
+      ...outcome,
+      quote: {
+        ...outcome.quote,
+        cascadeTrace: {
+          ...outcome.quote.cascadeTrace,
+          appliedCaseId: matched.id,
+          appliedCaseNumber: program.cases.indexOf(matched) + 1,
+        },
+      },
+    };
+  }
 
   const firstPass = runCascade(program, profile, gridExtras);
   const problems: string[] = [];

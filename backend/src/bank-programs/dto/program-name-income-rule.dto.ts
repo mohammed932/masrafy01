@@ -10,6 +10,7 @@
  * on platform-enumerations, never the reverse).
  */
 
+import type { LoanCategory } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
@@ -308,6 +309,8 @@ export interface SurrogateProductSummaryDto {
    * refuse.
    */
   capOnly: boolean;
+  /** v36.5.0 — the loan type the product is for; `null` = not said. A label, not a restriction. */
+  loanCategory: LoanCategory | null;
   /**
    * What stops it going live, or `[]` when nothing does (v33.0.0). `no_calculation`: an
    * income or ceiling product with no calculation; `asks_nothing`: it reads no answer.
@@ -716,6 +719,12 @@ export class SurrogateProductPlansDto {
   @ValidateNested()
   @Type(() => FactGridDto)
   carInsuranceRateByFact?: FactGridDto;
+
+  @ApiPropertyOptional({ description: "The car's age at the end of the loan, years, by deposit" })
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  maxCarAgeAtEndYearsByFact?: FactGridDto;
 }
 
 /**

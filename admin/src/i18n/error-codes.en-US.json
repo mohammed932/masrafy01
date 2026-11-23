@@ -241,5 +241,8 @@
   "FACT_GRID_INVALID": "This program’s rate grid cannot be saved as it stands — check that every axis names a question the applicant is asked, that each cell fills one box per axis, and that every figure is set.",
   "METHOD_TEMPLATE_NOT_FOUND": "That ready method doesn't exist any more. It may have been deleted.",
   "METHOD_TEMPLATE_NAME_TAKEN": "Another ready method already has that name. Pick a different name.",
-  "METHOD_TEMPLATE_IN_USE": "{count} product(s) use this ready method: {products}. Unlink it on those products first."
+  "METHOD_TEMPLATE_IN_USE": "{count} product(s) use this ready method: {products}. Unlink it on those products first.",
+  "QUESTION_FACT_ALREADY_LINKED": "This question already answers the figure “{factKey}”. A question answers one figure — unlink it first, or work with that one.",
+  "SURROGATE_FACT_SHAPE_MISMATCH": "The figure “{factKey}” is already read by bank tables that this question's answers cannot fill. Linking it would make those tables miss.",
+  "LOAN_ENGINE_RULE_INVALID": "This rule can't be saved as written. Check the highlighted row and try again."
 }

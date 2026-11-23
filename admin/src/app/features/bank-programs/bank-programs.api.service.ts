@@ -1,3 +1,4 @@
+import type { LoanCategory } from '@core/loan-category';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
@@ -245,7 +246,7 @@ export class BankProgramsApiService {
   /** Both names; the key never changes. Answers with the product's page. */
   async renameSurrogateProduct(
     key: string,
-    labels: { labelEn: string; labelAr: string },
+    labels: { labelEn: string; labelAr: string; loanCategory?: LoanCategory },
   ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
     return firstValueFrom(
       this.http.put<SuccessEnvelope<SurrogateProductDetail>>(

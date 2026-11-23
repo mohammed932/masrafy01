@@ -60,7 +60,8 @@ export type NeededReader =
 export type NeededShape =
   | { kind: 'choice'; optionKeys: string[] }
   | { kind: 'number' }
-  | { kind: 'unknown' };
+  /** `mixed`: read both by option and as a number — no single answer type can fill it. */
+  | { kind: 'unknown'; mixed?: true };
 
 export interface NeededFact {
   factKey: string;
@@ -136,7 +137,7 @@ function sameReader(a: NeededReader, b: NeededReader): boolean {
 function mergeShape(seen: readonly Seen[]): NeededShape {
   if (seen.length === 0) return { kind: 'unknown' };
   const kinds = new Set(seen.map((s) => s.kind));
-  if (kinds.size > 1) return { kind: 'unknown' };
+  if (kinds.size > 1) return { kind: 'unknown', mixed: true };
   if (kinds.has('number')) return { kind: 'number' };
   const keys: string[] = [];
   for (const s of seen) {
@@ -168,7 +169,7 @@ function readGrid(grid: unknown, reader: NeededReader, out: Collector): void {
       if (!isRecord(key)) continue;
       if (typeof key.key === 'string') {
         if (!keys.includes(key.key)) keys.push(key.key);
-      } else if ('fromInclusive' in key || 'toExclusive' in key) {
+      } else if (BAND_EDGES.some((edge) => edge in key)) {
         banded = true;
       }
     }
@@ -181,12 +182,18 @@ function readGrid(grid: unknown, reader: NeededReader, out: Collector): void {
   });
 }
 
+/** Every spelling a numeric band edge can take (feature 013 adds the last two). */
+const BAND_EDGES = ['fromInclusive', 'toExclusive', 'fromExclusive', 'toInclusive'] as const;
+
 /** `maxLoanByFact`: a row fact and an optional column fact. */
 function readMaxLoanTable(table: unknown, reader: NeededReader, out: Collector): void {
   if (!isRecord(table) || typeof table.factKey !== 'string' || table.factKey === '') return;
   const rows = Array.isArray(table.rows) ? table.rows.filter(isRecord) : [];
   const rowKeys = rows.map((r) => r.rowKey).filter((k): k is string => typeof k === 'string');
-  const banded = rows.some((r) => 'fromInclusive' in r);
+  // `toExclusive` alone stays unread here, as it always was; the 013 edges each mark a band.
+  const banded = rows.some(
+    (r) => 'fromInclusive' in r || 'fromExclusive' in r || 'toInclusive' in r,
+  );
   out.add(
     table.factKey,
     reader,

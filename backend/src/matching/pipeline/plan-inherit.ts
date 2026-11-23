@@ -58,6 +58,8 @@ export interface PlanDefaults {
   readonly ltvCeilingByFact?: FactGridConfig;
   readonly minAmountByFact?: FactGridConfig;
   readonly carInsuranceRateByFact?: FactGridConfig;
+  /** The car's age at the end of the loan, in years (2026-11-20) — a term cap. */
+  readonly maxCarAgeAtEndYearsByFact?: FactGridConfig;
 }
 
 export const PLANS_SOURCES = ['product', 'own'] as const;
@@ -71,6 +73,7 @@ const PLAN_SLOTS = [
   'ltvCeilingByFact',
   'minAmountByFact',
   'carInsuranceRateByFact',
+  'maxCarAgeAtEndYearsByFact',
 ] as const satisfies ReadonlyArray<keyof PlanDefaults>;
 
 /**
@@ -147,11 +150,19 @@ export function effectivePlanTenor(
   if (!inheritsProductPlans(source) || defaults === undefined) return tenor;
   const max = tenor.maxMonthsByFact ?? defaults.maxMonthsByFact;
   const min = tenor.minMonthsByFact ?? defaults.minMonthsByFact;
-  if (max === tenor.maxMonthsByFact && min === tenor.minMonthsByFact) return tenor;
+  const ageAtEnd = tenor.maxCarAgeAtEndYearsByFact ?? defaults.maxCarAgeAtEndYearsByFact;
+  if (
+    max === tenor.maxMonthsByFact &&
+    min === tenor.minMonthsByFact &&
+    ageAtEnd === tenor.maxCarAgeAtEndYearsByFact
+  ) {
+    return tenor;
+  }
   return {
     ...tenor,
     ...(max !== undefined ? { maxMonthsByFact: max } : {}),
     ...(min !== undefined ? { minMonthsByFact: min } : {}),
+    ...(ageAtEnd !== undefined ? { maxCarAgeAtEndYearsByFact: ageAtEnd } : {}),
   };
 }
 

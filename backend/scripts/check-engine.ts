@@ -163,6 +163,8 @@ interface Fixture {
   programType?: 'income_proof' | 'income_surrogate';
   incomeAssumption?: Json;
   ltvPercent?: number;
+  /** Part F: tables merged into the program's own blocks (plans by deposit, car-age rules). */
+  extra?: { pricing?: Json; loanLimits?: Json; tenor?: Json };
 }
 const DOCS = ['national_id', 'salary_certificate', 'hr_letter', 'bank_statement'];
 const FIXTURES: Fixture[] = [
@@ -263,6 +265,14 @@ async function upsertFixture(f: Fixture, bankName: string, bankId: string): Prom
       lifeInsuranceMandatory: false,
     },
   };
+  if (f.extra) {
+    Object.assign(body, {
+      plansSource: 'own',
+      pricing: { ...body.pricing, ...(f.extra.pricing ?? {}) },
+      loanLimits: { ...body.loanLimits, ...(f.extra.loanLimits ?? {}) },
+      tenor: { ...body.tenor, ...(f.extra.tenor ?? {}) },
+    });
+  }
   if (existing['success'] === true) {
     await ok('POST', `/bank-programs/${f.code}`, { ...body, version: existing['data']['version'] });
   } else {
@@ -278,7 +288,7 @@ async function upsertFixture(f: Fixture, bankName: string, bankId: string): Prom
  * shows on that product's card). The next run creates them again.
  */
 async function removeFixtures(): Promise<void> {
-  for (const fx of [...FIXTURES, ...EXTRA_FIXTURES]) {
+  for (const fx of [...FIXTURES, ...EXTRA_FIXTURES, ...AUTO_FIXTURES]) {
     const now = await call('GET', `/bank-programs/${fx.code}`);
     if (now['success'] !== true) continue;
     const res = await fetch(`${API}/bank-programs/${fx.code}`, {
@@ -288,7 +298,7 @@ async function removeFixtures(): Promise<void> {
     if (res.status >= 300) throw new Error(`delete ${fx.code} → ${res.status} ${await res.text()}`);
   }
   const names = (await ok('GET', '/enumerations?type=program_name')) as Json[];
-  for (const n of names.filter((x) => x['key'] === NAME_KEY || x['key'] === NOPAY_NAME_KEY)) {
+  for (const n of names.filter((x) => [NAME_KEY, NOPAY_NAME_KEY, AUTO_NAME_KEY].includes(x['key']))) {
     await ok('DELETE', `/enumerations/${n['id']}`);
   }
   for (const b of (await ok('GET', '/banks')) as Json[]) {
@@ -768,6 +778,220 @@ async function partD(): Promise<void> {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════
+// PART F — auto loans with many questions: plans by deposit, both Car Buyers methods, the Loan
+// Engine's rules and conditions. TESTING programs, exact expectations worked out by hand.
+// ═════════════════════════════════════════════════════════════════════════════════════════════
+const AUTO_NAME_KEY = 'testing_auto_buyers';
+const INS = 'do_you_want_insurance_on_the_car';
+const CLS = 'what_kind_of_car_is_it';
+const JOB = 'is_your_job_or_degree_printed_on_your_national_id';
+const KM = 'how_many_kilometres_does_the_car_drive_a_year';
+const DP = { factKey: 'car_down_payment_percent' };
+const band = (from: string, to: string | null): Json => ({ fromInclusive: from, toExclusive: to });
+const AUTO_FIXTURES: Fixture[] = [
+  // Payslip used-car card: rate by deposit x insurance x car class, financed share by deposit,
+  // the car's age at the end of the loan by origin; conditions and a term rule added below
+  // through the Loan Engine.
+  { code: 'TESTING-AUTO-PLANS', friendly: 'TESTING Auto Plans', category: 'car', rate: 20, basis: 'reducing', minMonths: 12, maxMonths: 84,
+    minAmount: 50000, maxAmount: 5000000, dbrCap: 50, adminFeePct: 1, docs: DOCS,
+    extra: {
+      pricing: { rateByFact: { axes: [DP, { factKey: INS }, { factKey: CLS }], onNoMatch: 'reject', cells: [
+        { keys: [band('30', '50'), { key: 'with_insurance' }, { key: 'economy' }], value: '15' },
+        { keys: [band('30', '50'), { key: 'without_insurance' }, { key: 'economy' }], value: '16' },
+        { keys: [band('50', null), { key: 'with_insurance' }, { key: 'economy' }], value: '13' },
+        { keys: [band('50', null), { key: 'without_insurance' }, { key: 'economy' }], value: '14' },
+        { keys: [band('40', null), { key: 'without_insurance' }, { key: 'luxury' }], value: '17' },
+      ] } },
+      loanLimits: { ltvCeilingByFact: { axes: [DP], onNoMatch: 'reject', cells: [
+        { keys: [band('30', '50')], value: '70' }, { keys: [band('50', null)], value: '50' } ] } },
+      tenor: { maxCarAgeAtEndYearsByFact: { axes: [{ factKey: 'car_origin' }], onNoMatch: 'reject', cells: [
+        { keys: [{ key: 'germany' }], value: '14' }, { keys: [{ key: 'china' }], value: '10' } ] } },
+    } },
+  // No payslip, the Car Buyers product's DOWN-PAYMENT way: income = deposit / 3.6.
+  { code: 'TESTING-AUTO-DP', friendly: 'TESTING Auto Down Payment', category: 'car', nameKey: AUTO_NAME_KEY, programType: 'income_surrogate',
+    incomeAssumption: { wayId: 'primary', amounts: 'own', strategy: 'steps', stepParams: { primary: { scalar: { unit: 'multiplier', value: '3.6' } } } },
+    rate: 20, basis: 'reducing', minMonths: 12, maxMonths: 84, minAmount: 50000, maxAmount: 5000000, dbrCap: 50, adminFeePct: 1, docs: DOCS.slice(0, 1),
+    extra: {
+      pricing: { rateByFact: { axes: [DP], onNoMatch: 'reject', cells: [
+        { keys: [band('20', '40')], value: '12' }, { keys: [band('40', null)], value: '10' } ] } },
+      loanLimits: { ltvCeilingByFact: { axes: [DP], onNoMatch: 'reject', cells: [
+        { keys: [band('20', '40')], value: '80' }, { keys: [band('40', null)], value: '60' } ] } },
+    } },
+  // No payslip, the SAVINGS way: instalment buyer / 6, cash buyer / 10.
+  { code: 'TESTING-AUTO-SAVINGS', friendly: 'TESTING Auto Savings', category: 'car', nameKey: AUTO_NAME_KEY, programType: 'income_surrogate',
+    incomeAssumption: { wayId: 'alt', amounts: 'own', strategy: 'steps', stepParams: {
+      alt: { scalar: { unit: 'multiplier', value: '6' } }, alt__cash_buyer: { scalar: { unit: 'multiplier', value: '10' } } } },
+    rate: 18, basis: 'reducing', minMonths: 12, maxMonths: 84, minAmount: 50000, maxAmount: 5000000, dbrCap: 50, adminFeePct: 1, docs: DOCS.slice(0, 1),
+    extra: { loanLimits: { ltvCeilingPercent: '80' } } },
+  // A plain car program; every rule on it is written through the Loan Engine below — the
+  // "any product with many questions" proof: brand, engine size, use, mileage, guarantor,
+  // assembled or imported.
+  { code: 'TESTING-AUTO-QUESTIONS', friendly: 'TESTING Auto Questions', category: 'car', rate: 20, basis: 'reducing', minMonths: 12, maxMonths: 84,
+    minAmount: 50000, maxAmount: 5000000, dbrCap: 50, adminFeePct: 1, docs: DOCS },
+];
+
+interface AutoCase {
+  label: string;
+  code: string;
+  key: string;
+  over: Record<string, string | number | string[] | undefined>;
+  rate?: number;
+  term?: number;
+  /** Cash to the customer, worked out by hand. */
+  cash?: number;
+  binding?: string;
+  refused?: string;
+  gate?: string;
+}
+
+async function partF(): Promise<void> {
+  console.log('\n══ Part F — auto loans: plans by deposit, both Car Buyers methods, Loan Engine rules ══');
+  // The TESTING no-payslip car name, sold on the Car Buyers product.
+  const names = (await ok('GET', '/enumerations?type=program_name')) as Json[];
+  let auto = names.find((n) => n['key'] === AUTO_NAME_KEY);
+  if (!auto) {
+    auto = await ok('POST', '/enumerations', { type: 'program_name', key: AUTO_NAME_KEY, labelEn: 'TESTING Auto Buyers', labelAr: 'TESTING مشترو السيارات', incomeBases: ['no_payslip'], categories: ['car'], surrogateProductKey: 'down_payment_income' });
+  } else if (!auto['active']) {
+    await ok('PATCH', `/enumerations/${auto['id']}`, { active: true });
+  }
+  const banks = (await ok('GET', '/banks')) as Json[];
+  const bank = (i: number): Json => banks.find((b) => b['nameEnglish'] === bankNameOf(i))!;
+  await upsertFixture(AUTO_FIXTURES[0]!, bankNameOf(1), bank(1)['id']);
+  await upsertFixture(AUTO_FIXTURES[1]!, bankNameOf(1), bank(1)['id']);
+  await upsertFixture(AUTO_FIXTURES[2]!, bankNameOf(2), bank(2)['id']);
+
+  // The Loan Engine, as an operator would use it: two conditions (economy cars up to 40,000 km a
+  // year, every car up to 100,000) and a term rule on one answer (job not on the ID -> 48 months).
+  const plans = await ok('GET', '/bank-programs/TESTING-AUTO-PLANS');
+  await ok('PUT', '/loan-engine/programs/TESTING-AUTO-PLANS/conditions', { expectedVersion: plans['version'], conditions: [
+    { id: 'economy_km', reasonCode: 'GATE_NOT_MET', anyOf: [{ questionCode: KM, criterion: { op: 'lte', a: '40000' } }, { questionCode: CLS, criterion: { option: 'luxury' } }] },
+    { id: 'any_km', reasonCode: 'GATE_NOT_MET', anyOf: [{ questionCode: KM, criterion: { op: 'lte', a: '100000' } }] },
+  ] });
+  const again = await ok('GET', '/bank-programs/TESTING-AUTO-PLANS');
+  await ok('PUT', `/loan-engine/questions/${JOB}/programs/TESTING-AUTO-PLANS/effects/max_term`, {
+    expectedVersion: again['version'], onNoMatch: 'useFallback', rows: [{ criterion: { option: 'no' }, value: '48' }] });
+
+  const year = new Date().getFullYear();
+  const car = (price: number, down: number, more: Record<string, string | number | string[] | undefined> = {}) => ({
+    monthly_income: 100000, car_price: price, car_down_payment: down, amount_requested: price - down,
+    car_model_year: year - 3, car_origin: 'germany', car_fuel_type: 'petrol_diesel', car_dealer: 'other_authorized',
+    [INS]: 'with_insurance', [CLS]: 'economy', [KM]: 20000, [JOB]: 'yes', ...more });
+  const P = 'TESTING-AUTO-PLANS';
+  const cases: AutoCase[] = [
+    { label: 'economy 40% insured', code: P, key: NAME_KEY, over: car(1000000, 400000), rate: 15, term: 60, cash: 600000 },
+    { label: 'economy 40% uninsured', code: P, key: NAME_KEY, over: car(1000000, 400000, { [INS]: 'without_insurance' }), rate: 16 },
+    { label: 'economy 60% insured — 50% financed', code: P, key: NAME_KEY, over: car(1000000, 600000), rate: 13, cash: 400000 },
+    { label: 'economy 35% asks more than 70%', code: P, key: NAME_KEY, over: { ...car(1000000, 350000), amount_requested: 800000 }, rate: 15, cash: 700000, binding: 'ltv_ceiling' },
+    { label: 'luxury 45% uninsured', code: P, key: NAME_KEY, over: car(1000000, 450000, { [INS]: 'without_insurance', [CLS]: 'luxury' }), rate: 17 },
+    { label: 'luxury 45% insured — no rate', code: P, key: NAME_KEY, over: car(1000000, 450000, { [CLS]: 'luxury' }), refused: 'NO_RATE_FOR_ANSWER' },
+    { label: 'economy 20% — below every row', code: P, key: NAME_KEY, over: car(1000000, 200000), refused: 'NO_RATE_FOR_ANSWER' },
+    { label: 'Chinese car aged 6 asks 84 -> 48', code: P, key: NAME_KEY, over: car(1000000, 400000, { car_origin: 'china', car_model_year: year - 6, repayment_period_months: 84 }), rate: 15, term: 48 },
+    { label: 'German car aged 15 — too old', code: P, key: NAME_KEY, over: car(1000000, 400000, { car_model_year: year - 15 }), refused: 'VEHICLE_NOT_ELIGIBLE' },
+    { label: 'Egyptian car — not on the age table', code: P, key: NAME_KEY, over: car(1000000, 400000, { car_origin: 'egypt' }), refused: 'VEHICLE_NOT_ELIGIBLE' },
+    { label: 'economy 50,000 km — condition refuses', code: P, key: NAME_KEY, over: car(1000000, 400000, { [KM]: 50000 }), refused: 'PRODUCT_RULE_GATE_FAILED', gate: 'GATE_NOT_MET' },
+    { label: 'luxury 50,000 km — passes', code: P, key: NAME_KEY, over: car(1000000, 450000, { [KM]: 50000, [INS]: 'without_insurance', [CLS]: 'luxury' }), rate: 17 },
+    { label: 'luxury 120,000 km — second condition', code: P, key: NAME_KEY, over: car(1000000, 450000, { [KM]: 120000, [INS]: 'without_insurance', [CLS]: 'luxury' }), refused: 'PRODUCT_RULE_GATE_FAILED' },
+    { label: 'job not on the ID asks 84 -> 48 (Loan Engine)', code: P, key: NAME_KEY, over: car(1000000, 400000, { [JOB]: 'no', repayment_period_months: 84 }), rate: 15, term: 48 },
+    // Down-payment method: income = deposit / 3.6; the financed share binds at 60 months.
+    { label: 'DP method 30% — 80% financed', code: 'TESTING-AUTO-DP', key: AUTO_NAME_KEY, over: { ...car(1000000, 300000), monthly_income: undefined }, rate: 12, term: 60, cash: 700000 },
+    { label: 'DP method 50% — 60% financed', code: 'TESTING-AUTO-DP', key: AUTO_NAME_KEY, over: { ...car(1000000, 500000), monthly_income: undefined }, rate: 10, cash: 500000 },
+    { label: 'DP method 15% — below every row', code: 'TESTING-AUTO-DP', key: AUTO_NAME_KEY, over: { ...car(1000000, 150000), monthly_income: undefined }, refused: 'NO_RATE_FOR_ANSWER' },
+    // 3,000,000 car, 600,000 down over 12 months: income 166,666.67 -> 83,333.33 a month.
+    { label: 'DP method — debt ratio binds over 12 months', code: 'TESTING-AUTO-DP', key: AUTO_NAME_KEY,
+      over: { ...car(3000000, 600000), monthly_income: undefined, repayment_period_months: 12 }, rate: 12, term: 12,
+      cash: pvAnnuity(600000 / 3.6 / 2, 12, 12) / 1.01, binding: 'dbr_affordability' },
+    // Savings method: instalment buyer / 6, cash buyer / 10; 80% financed.
+    { label: 'savings, instalment buyer — 80% financed', code: 'TESTING-AUTO-SAVINGS', key: AUTO_NAME_KEY,
+      over: { ...car(1000000, 200000), monthly_income: undefined, total_savings: 600000, green_buyer_type: 'instalment_buyer' }, rate: 18, cash: 800000 },
+    // Cash buyer: 600,000 / 10 = 60,000 -> 30,000 a month over 24 months.
+    { label: 'savings, cash buyer — debt ratio binds over 24 months', code: 'TESTING-AUTO-SAVINGS', key: AUTO_NAME_KEY,
+      over: { ...car(1000000, 200000), monthly_income: undefined, total_savings: 600000, green_buyer_type: 'cash_buyer', repayment_period_months: 24 },
+      rate: 18, term: 24, cash: pvAnnuity(30000, 18, 24) / 1.01, binding: 'dbr_affordability' },
+  ];
+  for (const c of cases) {
+    const m = lookup(await simulate({ category: 'car', age: 35, programNameKey: c.key, answers: answers(c.over) }), c.code);
+    const label = `F · ${c.label}`;
+    if (!m) { failures.push(`${label} — program missing`); continue; }
+    const fig = m['figures'] as Json | null;
+    if (c.refused) {
+      expect(label, fig === null && m['figuresUnavailableReason'] === c.refused, `expected ${c.refused}, got ${fig ? 'figures' : m['figuresUnavailableReason']}`);
+      if (c.gate) expect(label + ' reason', m['gateReasonCode'] === c.gate, `reason ${m['gateReasonCode']}`);
+      continue;
+    }
+    if (!fig) { failures.push(`${label} — expected figures, got ${m['figuresUnavailableReason']} ${JSON.stringify(m['missingFactKeys'] ?? '')}`); continue; }
+    if (c.rate !== undefined) expect(label + ' rate', near(+fig['effectiveRatePercent'], c.rate, 0.0001), `rate ${fig['effectiveRatePercent']} ≠ ${c.rate}`);
+    if (c.term !== undefined) expect(label + ' term', fig['effectiveTenorMonths'] === c.term, `term ${fig['effectiveTenorMonths']} ≠ ${c.term}`);
+    if (c.cash !== undefined) expect(label + ' cash', near(+fig['cashToCustomerEGP'], c.cash, 1), `cash ${fig['cashToCustomerEGP']} ≠ ${c.cash.toFixed(2)}`);
+    if (c.binding !== undefined) expect(label + ' binding', fig['bindingConstraint'] === c.binding, `binding ${fig['bindingConstraint']} ≠ ${c.binding}`);
+  }
+
+  // The simulator's deposit rows: the payslip card quoted at 30%, 40% and 50%, the applicant's marked.
+  const sim = await simulate({ category: 'car', age: 35, programNameKey: NAME_KEY, answers: answers(car(1000000, 400000)) });
+  const rows = ((lookup(sim, P)?.['depositRows'] ?? []) as Json[]).map((r) => `${r['fromPercent']}${r['current'] ? '*' : ''}:${r['effectiveRatePercent'] === null ? r['unavailableReason'] : +r['effectiveRatePercent']}`);
+  expect('F · deposit rows', rows.join(' ') === '30:15 40*:15 50:13', `rows ${rows.join(' ')}`);
+
+  // ── The usual car-loan questions, every rule written through the Loan Engine ──
+  const Q = 'TESTING-AUTO-QUESTIONS';
+  const BRAND = 'what_brand_is_the_car';
+  const ASSEMBLY = 'is_the_car_assembled_in_egypt_or_imported';
+  const CC = 'what_is_the_engine_size';
+  const USE = 'what_will_you_use_the_car_for';
+  const TOTAL_KM = 'how_many_kilometres_has_the_car_been_driven';
+  const GUARANTOR = 'do_you_have_a_guarantor';
+  await upsertFixture(AUTO_FIXTURES[3]!, bankNameOf(3), bank(3)['id']);
+  const effect = async (question: string, name: string, onNoMatch: string, rows: Json[]) => {
+    const now = await ok('GET', `/bank-programs/${Q}`);
+    await ok('PUT', `/loan-engine/questions/${question}/programs/${Q}/effects/${name}`, { expectedVersion: now['version'], onNoMatch, rows });
+  };
+  // Rate by brand (an unnamed brand keeps the program's 20%); 2,000 cc and up → 48 months at most;
+  // an imported car → 70% financed.
+  await effect(BRAND, 'rate', 'useFallback', [{ criterion: { option: 'toyota' }, value: '14' }, { criterion: { option: 'mercedes_benz' }, value: '17' }]);
+  await effect(CC, 'max_term', 'useFallback', [{ criterion: { op: 'gte', a: '2000' }, value: '48' }]);
+  await effect(ASSEMBLY, 'financed_share', 'useFallback', [{ criterion: { option: 'imported' }, value: '70' }]);
+  // Conditions: no taxis; and a car past 150,000 km only with a guarantor.
+  const qNow = await ok('GET', `/bank-programs/${Q}`);
+  await ok('PUT', `/loan-engine/programs/${Q}/conditions`, { expectedVersion: qNow['version'], conditions: [
+    { id: 'not_a_taxi', reasonCode: 'GATE_NOT_MET', anyOf: [{ questionCode: USE, criterion: { option: 'personal_use' } }, { questionCode: USE, criterion: { option: 'business_use' } }] },
+    { id: 'mileage_or_guarantor', reasonCode: 'GATE_NOT_MET', anyOf: [{ questionCode: TOTAL_KM, criterion: { op: 'lte', a: '150000' } }, { questionCode: GUARANTOR, criterion: { option: 'yes' } }] },
+  ] });
+  const usual = (more: Record<string, string | number | string[] | undefined> = {}) =>
+    car(1000000, 400000, { [BRAND]: 'toyota', [ASSEMBLY]: 'assembled_in_egypt', [CC]: 1600, [USE]: 'personal_use', [TOTAL_KM]: 50000, [GUARANTOR]: 'no', ...more });
+  const usualCases: AutoCase[] = [
+    { label: 'questions · Toyota → 14%', code: Q, key: NAME_KEY, over: usual(), rate: 14, term: 60, cash: 600000 },
+    { label: 'questions · Mercedes-Benz → 17%', code: Q, key: NAME_KEY, over: usual({ [BRAND]: 'mercedes_benz' }), rate: 17 },
+    { label: 'questions · a brand with no row → the program 20%', code: Q, key: NAME_KEY, over: usual({ [BRAND]: 'kia' }), rate: 20 },
+    { label: 'questions · 2,500 cc asks 84 → 48', code: Q, key: NAME_KEY, over: usual({ [CC]: 2500, repayment_period_months: 84 }), term: 48 },
+    { label: 'questions · 1,600 cc asks 84 → 84', code: Q, key: NAME_KEY, over: usual({ repayment_period_months: 84 }), term: 84 },
+    { label: 'questions · imported asks 900,000 → 70% financed', code: Q, key: NAME_KEY, over: { ...usual({ [ASSEMBLY]: 'imported' }), amount_requested: 900000 }, cash: 700000, binding: 'ltv_ceiling' },
+    { label: 'questions · taxi — refused', code: Q, key: NAME_KEY, over: usual({ [USE]: 'taxi_or_ride_hailing' }), refused: 'PRODUCT_RULE_GATE_FAILED', gate: 'GATE_NOT_MET' },
+    { label: 'questions · 200,000 km, no guarantor — refused', code: Q, key: NAME_KEY, over: usual({ [TOTAL_KM]: 200000 }), refused: 'PRODUCT_RULE_GATE_FAILED' },
+    { label: 'questions · 200,000 km with a guarantor — quotes', code: Q, key: NAME_KEY, over: usual({ [TOTAL_KM]: 200000, [GUARANTOR]: 'yes' }), rate: 14 },
+  ];
+  for (const c of usualCases) {
+    const m = lookup(await simulate({ category: 'car', age: 35, programNameKey: c.key, answers: answers(c.over) }), c.code);
+    const label = `F · ${c.label}`;
+    if (!m) { failures.push(`${label} — program missing`); continue; }
+    const fig = m['figures'] as Json | null;
+    if (c.refused) {
+      expect(label, fig === null && m['figuresUnavailableReason'] === c.refused, `expected ${c.refused}, got ${fig ? 'figures' : m['figuresUnavailableReason']}`);
+      if (c.gate) expect(label + ' reason', m['gateReasonCode'] === c.gate, `reason ${m['gateReasonCode']}`);
+      continue;
+    }
+    if (!fig) { failures.push(`${label} — expected figures, got ${m['figuresUnavailableReason']} ${JSON.stringify(m['missingFactKeys'] ?? '')}`); continue; }
+    if (c.rate !== undefined) expect(label + ' rate', near(+fig['effectiveRatePercent'], c.rate, 0.0001), `rate ${fig['effectiveRatePercent']} ≠ ${c.rate}`);
+    if (c.term !== undefined) expect(label + ' term', fig['effectiveTenorMonths'] === c.term, `term ${fig['effectiveTenorMonths']} ≠ ${c.term}`);
+    if (c.cash !== undefined) expect(label + ' cash', near(+fig['cashToCustomerEGP'], c.cash, 1), `cash ${fig['cashToCustomerEGP']} ≠ ${c.cash.toFixed(2)}`);
+    if (c.binding !== undefined) expect(label + ' binding', fig['bindingConstraint'] === c.binding, `binding ${fig['bindingConstraint']} ≠ ${c.binding}`);
+  }
+  // The questions a bank now reads are asked on that program's name.
+  const served = await ok('GET', `/questionnaire/served?category=car&programNameKey=${NAME_KEY}`);
+  const servedCodes = JSON.stringify(served);
+  for (const code of [BRAND, ASSEMBLY, CC, USE, TOTAL_KM, GUARANTOR]) {
+    expect(`F · questions · ${code} is asked`, servedCodes.includes(code), 'not served');
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════
 // PART C — live programs priced simply from their own settings: exact expectations
 // ═════════════════════════════════════════════════════════════════════════════════════════════
 const ONLY = (o: Json | null | undefined, keys: string[]): boolean => Object.keys(o ?? {}).every((k) => keys.includes(k));
@@ -1055,6 +1279,7 @@ async function main(): Promise<void> {
   try {
     await partA();
     await partD();
+    await partF();
     await partE();
   } finally {
     if (!KEEP) {

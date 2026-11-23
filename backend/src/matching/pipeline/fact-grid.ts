@@ -73,10 +73,76 @@ export interface FactGridAxis {
  * has to treat the empty one as a non-match to avoid pricing every applicant at whatever
  * figure sat beside it. Here the operator can say which they meant.
  */
-export type FactGridKey =
-  | { key: string }
-  | { fromInclusive?: string; toExclusive?: string | null }
-  | null;
+export type FactGridKey = { key: string } | FactGridBand | null;
+
+/**
+ * A numeric band. Each edge is stated at most ONCE, inclusive or exclusive (feature 013):
+ * `[fromInclusive, toExclusive)` is every table stored before it and stays the default
+ * reading; `fromExclusive` ("more than") and `toInclusive` ("at most") let the Loan Engine
+ * say the six operators an operator thinks in without inventing a boundary figure (an ε on a
+ * Decimal is a made-up number, Principle I). A stored row carries neither new edge, so every
+ * table written before 013 matches exactly as it did.
+ */
+export interface FactGridBand {
+  fromInclusive?: string;
+  fromExclusive?: string;
+  toExclusive?: string | null;
+  toInclusive?: string;
+}
+
+/** A band's edges, read once. `null` edge = open on that side. */
+export interface BandEdges {
+  from: Decimal | null;
+  fromInclusive: boolean;
+  to: Decimal | null;
+  toInclusive: boolean;
+}
+
+/**
+ * The edges a band states, or `'invalid'` when it states one edge twice (both the inclusive
+ * and the exclusive spelling) — a cell no reader can interpret without guessing which was
+ * meant. Unparseable edges read as absent, which is what `toGridDecimal` always did.
+ */
+export function bandEdgesOf(band: FactGridBand): BandEdges | 'invalid' {
+  const fromIncl = toGridDecimal(band.fromInclusive);
+  const fromExcl = toGridDecimal(band.fromExclusive);
+  const toExcl = toGridDecimal(band.toExclusive);
+  const toIncl = toGridDecimal(band.toInclusive);
+  if ((fromIncl !== null && fromExcl !== null) || (toExcl !== null && toIncl !== null)) {
+    return 'invalid';
+  }
+  return {
+    from: fromIncl ?? fromExcl,
+    fromInclusive: fromExcl === null,
+    to: toExcl ?? toIncl,
+    toInclusive: toIncl !== null,
+  };
+}
+
+/** Does a number fall inside these edges? A band with neither edge holds nothing. */
+export function bandHolds(edges: BandEdges, value: Decimal): boolean {
+  if (edges.from === null && edges.to === null) return false;
+  if (edges.from !== null) {
+    if (edges.fromInclusive ? value.lessThan(edges.from) : value.lessThanOrEqualTo(edges.from)) {
+      return false;
+    }
+  }
+  if (edges.to !== null) {
+    if (edges.toInclusive ? value.greaterThan(edges.to) : value.greaterThanOrEqualTo(edges.to)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Can ANY number fall inside these edges? (`from > to`, or a point whose edge is open.) */
+export function bandIsEmpty(edges: BandEdges): boolean {
+  if (edges.from === null && edges.to === null) return true;
+  if (edges.from === null || edges.to === null) return false;
+  if (edges.from.greaterThan(edges.to)) return true;
+  if (edges.from.equals(edges.to)) return !(edges.fromInclusive && edges.toInclusive);
+  return false;
+}
 
 /** One cell: its key per axis, positionally, and the figure it yields. */
 export interface FactGridCell {
@@ -140,13 +206,11 @@ export function keyMatchesAnswer(key: FactGridKey, answer: SurrogateFactValue): 
     return answer.kind !== 'numeric' && factAnswerHasKey(answer, key.key);
   }
   if (answer.kind !== 'numeric') return false;
-  const from = toGridDecimal(key.fromInclusive);
-  const to = toGridDecimal(key.toExclusive);
-  // Neither edge stated — a half-typed cell. Matches nothing; see `FactGridKey`.
-  if (from === null && to === null) return false;
-  if (from !== null && answer.value.lessThan(from)) return false;
-  if (to !== null && answer.value.greaterThanOrEqualTo(to)) return false;
-  return true;
+  const edges = bandEdgesOf(key);
+  // One edge stated twice can't be read without guessing which was meant: it matches nothing,
+  // like the half-typed cell with neither edge (see `FactGridKey`). Saves refuse both.
+  if (edges === 'invalid') return false;
+  return bandHolds(edges, answer.value);
 }
 
 /**

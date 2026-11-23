@@ -27,6 +27,7 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
     <span
       class="ff__field"
       [class.is-narrow]="!money()"
+      [class.is-fill]="fill()"
       [class.has-default]="!!placeholder()"
       [class.is-quiet]="tone() === 'quiet'"
       [class.is-blank]="tone() === 'blank'"
@@ -108,6 +109,10 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
          reads as a money field somebody gave up on. */
       .ff__field.is-narrow {
         inline-size: 9rem;
+      }
+      /* The caller sets the width (a row of fields that must line up, whatever each holds). */
+      .ff__field.is-fill {
+        inline-size: 100%;
       }
 
       /* BLANK IS AN ANSWER, and a filled slab around an em-dash is not how it looks.
@@ -243,6 +248,8 @@ export class FigureFieldComponent {
    * is worse than a blank one. */
   readonly unit = input<string | null>(null);
   readonly money = input<boolean>(false);
+  /** Fill the width the caller gives the field, rather than sizing it by kind. */
+  readonly fill = input<boolean>(false);
   /** Visible label before the field ("At least"). `null` → the field stands alone. */
   readonly label = input<string | null>(null);
   /** Accessible name, used only when there is no visible label. */

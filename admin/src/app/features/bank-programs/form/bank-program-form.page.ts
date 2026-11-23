@@ -108,7 +108,10 @@ import {
   factGridErrorFor,
 } from '@shared/ui/fact-grid-editor.component';
 import type { FactGridConfig } from '@shared/ui/fact-grid-editor.component';
+import { DOWN_PAYMENT_PERCENT_FACT_KEY } from '@shared/ui/fact-grid.rules';
 import { PlanRowsEditorComponent } from '@shared/ui/plan-rows-editor.component';
+import { ProgramCasesEditorComponent } from './program-cases-editor.component';
+import { casesHaveProblem, type ProgramCase } from './program-cases.rules';
 import { planRowsErrorFor, planRowsFrom } from '@shared/ui/plan-rows.rules';
 import type { PlanSlotKey } from '@shared/ui/plan-rows.rules';
 import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/income-rule.rules';
@@ -133,6 +136,7 @@ import {
   type WaysAre,
 } from '@shared/income-rule/product-rule-ways';
 import {
+  STEP_ORDER,
   indexOfOrPreceding,
   indexOfStep,
   isLaterStep,
@@ -187,6 +191,7 @@ type StepIssue =
   | 'vehicleGrid'
   | 'carInsuranceGrid'
   | 'planCard'
+  | 'cases'
   | 'tenor'
   | 'loanAmounts';
 
@@ -395,6 +400,12 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
   return out as Omit<T, K[number]>;
 }
 
+
+/** Is this table keyed on the down payment first — a table the plans card can draw? */
+function keyedByDeposit(grid: FactGridConfig): boolean {
+  return grid.axes[0]?.factKey === DOWN_PAYMENT_PERCENT_FACT_KEY;
+}
+
 @Component({
   selector: 'app-bank-program-form-page',
   standalone: true,
@@ -419,6 +430,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
     IncomeAssumptionSectionComponent,
     FactGridEditorComponent,
     PlanRowsEditorComponent,
+    ProgramCasesEditorComponent,
     MoneyInputDirective,
     WizardStepsComponent,
   ],
@@ -1290,7 +1302,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
               </section>
 
               <!-- Tenor -->
-              <section class="card" formGroupName="tenor">
+              <section id="card-tenor" class="card" formGroupName="tenor">
                 <header class="card-head">
                   <div>
                     <h2 class="card-title" i18n="@@bank_programs.form.tenor.title">
@@ -1443,7 +1455,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                 <header class="card-head">
                   <div>
                     <h2 class="card-title" i18n="@@bank_programs.form.rate.title">Interest rate</h2>
-                    @if (rateInheritable()) {
+                    @if (rateInheritable() && !isAutoLoan()) {
                       <p class="card-sub" i18n="@@bank_programs.form.rate.from_product">
                         Stated once on the product. Change it there and every programme selling the
                         product moves with it.
@@ -1462,7 +1474,9 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                   </div>
                 </header>
                 <div class="card-body">
-                  @if (rateInheritable()) {
+                  <!-- A car program edits its own rate: it starts from a copy of the product's
+                       (Bank defaults), and a blank box reads the product's. -->
+                  @if (rateInheritable() && !isAutoLoan()) {
                     <div class="tenor-inherited">
                       <p class="tenor-inherited-value" id="rate-from-product">
                         <span class="tenor-months">{{ productRateFigure() }}</span>
@@ -1515,7 +1529,7 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                         <nz-form-item>
                           <nz-form-label
                             [nzFor]="'baseRatePercent'"
-                            nzRequired
+                            [nzRequired]="!rateInheritable()"
                             i18n="@@bank_programs.field.base_rate"
                             >Base rate</nz-form-label
                           >
@@ -1529,6 +1543,11 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                                 placeholder="24.0000"
                               />
                             </nz-input-group>
+                            @if (rateInheritable() && rateInherits()) {
+                              <p class="field-hint" i18n="@@bank_programs.form.rate.blank_product">
+                                Blank: the product's {{ productRateFigure() }} applies.
+                              </p>
+                            }
                           </nz-form-control>
                         </nz-form-item>
                       }
@@ -1703,12 +1722,18 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                           nzType="default"
                           nzSize="small"
                           type="button"
+                          [disabled]="!planStartFigures().rateByFact"
                           (click)="startPlans()"
                         >
                           <span nz-icon nzType="plus" aria-hidden="true"></span>
                           <span i18n="@@bank_programs.plans.start">Start the table</span>
                         </button>
                       </div>
+                      @if (!planStartFigures().rateByFact) {
+                        <p class="field-hint" i18n="@@bank_programs.plans.start_needs_rate">
+                          Type the base rate above first: every row of the table starts at it.
+                        </p>
+                      }
                     </div>
                   } @else if (plansInheritable()) {
                     @if (plansInherits()) {
@@ -2122,6 +2147,16 @@ function carriedKeysOf<T extends object, K extends readonly (keyof T & string)[]
                   </div>
                 }
               </section>
+              <!-- The bank's cases: a combination of answers that changes its offer (car loans). -->
+              @if (isAutoLoan()) {
+                <section id="card-cases" class="card">
+                  <app-program-cases-editor
+                    [cases]="cases()"
+                    [facts]="incomeFacts()"
+                    (casesChange)="onCasesChange($event)"
+                  />
+                </section>
+              }
             }
 
             <!-- ═══ STEP 4 — REQUIREMENTS ═══════════════════════════════════════
@@ -4346,6 +4381,7 @@ export class BankProgramFormPage implements OnInit {
     // The plan card, for the same reason as the two grids above: six tables in signals, so a
     // half-typed row walks past Continue and comes back FACT_GRID_INVALID from the server.
     if (id === 'money' && this.planCardError()) out.push('planCard');
+    if (id === 'money' && this.isAutoLoan() && casesHaveProblem(this.cases())) out.push('cases');
     // The DURATION, which is a verdict and not a control error for one reason: blank is legal
     // exactly when a surrogate product stands behind the program's name, and that answer
     // lives in a response the control cannot see. Without this the step would report every
@@ -4542,6 +4578,8 @@ export class BankProgramFormPage implements OnInit {
           return $localize`:@@bank_programs.step.issue_car_insurance_grid:The car-insurance table needs fixing before you continue — see the message under it.`;
         case 'planCard':
           return $localize`:@@bank_programs.step.issue_plan_card:A row of this bank's plans is not finished — fill it in, or remove the row.`;
+        case 'cases':
+          return $localize`:@@bank_programs.step.issue_cases:A case is not finished — see the message on it.`;
         case 'tenor':
           return $localize`:@@bank_programs.step.issue_tenor:Say how long this bank lends for — both months, or neither if it follows the product's duration.`;
         case 'loanAmounts':
@@ -5381,6 +5419,7 @@ export class BankProgramFormPage implements OnInit {
     // operator has to be able to type straight into it.
     this.seedFromCatalog();
     this.seedDbrFromProduct();
+    this.seedMoneyFromProduct();
     this.seedCapFromProduct();
     this.recordSingleWay();
     if (this.fillOnArrival) {
@@ -6209,6 +6248,38 @@ export class BankProgramFormPage implements OnInit {
     }
   }
 
+  /**
+   * A NEW car program starts its Money step from the product's Bank defaults: the loan size,
+   * the term, the rate and the plans by down payment, COPIED into this program's own fields so
+   * the bank edits its figures rather than following the product's. Same terms as the DBR
+   * seed above: a plain create only, and never over a box the operator has typed in.
+   */
+  private seedMoneyFromProduct(): void {
+    if (this.editProgramCode() || this.route.snapshot.queryParamMap.has('copy')) return;
+    if (!this.isAutoLoan()) return;
+    const product = this.catalogRule()?.surrogateProduct ?? null;
+    if (product === null) return;
+    const limits = this.form.controls.loanLimits;
+    const amounts = product.loanAmountDefaults;
+    if (amounts && !limits.controls.minAmountEGP.dirty && !limits.controls.maxAmountEGP.dirty) {
+      limits.patchValue({ minAmountEGP: amounts.minAmountEGP, maxAmountEGP: amounts.maxAmountEGP });
+    }
+    const tenor = product.tenorDefaults;
+    const t = this.form.controls.tenor;
+    if (tenor && !t.controls.minMonths.dirty && !t.controls.maxMonths.dirty) {
+      t.patchValue({ minMonths: tenor.minMonths, maxMonths: tenor.maxMonths });
+    }
+    const rate = product.rateDefaults;
+    const base = this.pricingGroup.controls.baseRatePercent;
+    if (rate && !rate.isVariableRate && rate.baseRatePercent && !base?.dirty) {
+      this.pricingGroup.patchValue({
+        baseRatePercent: rate.baseRatePercent,
+        rateBasis: rate.rateBasis ?? 'reducing',
+      });
+    }
+    if (product.planDefaults && this.ownPlans() === null) this.stateOwnPlans();
+  }
+
   // ── The fourth cap on the Debt burden card: the income rule's own ──────────────────
   //
   // The VALUE stays where it has always been, on `incomeAssumption` — it is scoped to the
@@ -6491,6 +6562,18 @@ export class BankProgramFormPage implements OnInit {
    */
   readonly plansSource = signal<PlansSource>(newProgramDefaults().plansSource);
 
+  /**
+   * v36.4.0 — the bank's CASES: answers that together replace a figure, or refuse. Held here
+   * and posted whole with the program, like the plans; edited on the Money step of a car
+   * program (`ProgramCasesEditorComponent`).
+   */
+  readonly cases = signal<ProgramCase[]>([]);
+
+  protected onCasesChange(next: ProgramCase[]): void {
+    this.cases.set(next);
+    this.markPlansDirty();
+  }
+
   readonly productPlans = computed<PlanDefaults | null>(
     () => this.catalogRule()?.surrogateProduct?.planDefaults ?? null,
   );
@@ -6547,8 +6630,11 @@ export class BankProgramFormPage implements OnInit {
     if (minAmount !== null) out.minAmountByFact = minAmount;
     const minMonths = this.minMonthsByFact();
     if (minMonths !== null) out.minMonthsByFact = minMonths;
+    // Only when keyed on the down payment: the plans table draws deposit rows, and a car-age
+    // table keyed on something else (ADIB's, by where the car was built) is kept and saved as
+    // it is, not drawn here — one such table would stop the whole card from drawing.
     const ageAtEnd = this.maxCarAgeAtEndYearsByFact();
-    if (ageAtEnd !== null) out.maxCarAgeAtEndYearsByFact = ageAtEnd;
+    if (ageAtEnd !== null && keyedByDeposit(ageAtEnd)) out.maxCarAgeAtEndYearsByFact = ageAtEnd;
     return Object.keys(out).length > 0 ? out : null;
   });
 
@@ -6675,7 +6761,12 @@ export class BankProgramFormPage implements OnInit {
     this.ltvCeilingByFact.set(plans?.ltvCeilingByFact ?? null);
     this.minAmountByFact.set(plans?.minAmountByFact ?? null);
     this.minMonthsByFact.set(plans?.minMonthsByFact ?? null);
-    this.maxCarAgeAtEndYearsByFact.set(plans?.maxCarAgeAtEndYearsByFact ?? null);
+    // A car-age table keyed on something other than the deposit is not on the card (see
+    // `ownPlans`), so the card never hands it back — keep it rather than read that as a removal.
+    const ageNow = this.maxCarAgeAtEndYearsByFact();
+    if (ageNow === null || keyedByDeposit(ageNow)) {
+      this.maxCarAgeAtEndYearsByFact.set(plans?.maxCarAgeAtEndYearsByFact ?? null);
+    }
     // The toggles follow the tables, or a table the card shows is one the save drops.
     this.toggles.rateGrid.set(this.rateByFact() !== null);
     this.toggles.vehicleGrid.set(this.maxMonthsByFact() !== null);
@@ -6715,6 +6806,9 @@ export class BankProgramFormPage implements OnInit {
       }
       if (plans.carInsuranceRateByFact !== undefined) {
         this.carInsuranceRateByFact.set(structuredClone(plans.carInsuranceRateByFact));
+      }
+      if (plans.maxCarAgeAtEndYearsByFact !== undefined) {
+        this.maxCarAgeAtEndYearsByFact.set(structuredClone(plans.maxCarAgeAtEndYearsByFact));
       }
       // The toggles follow the copy, or the tables that DO have editors are held in signals
       // nothing renders and nothing emits — a copy that saves as a delete.
@@ -7940,6 +8034,9 @@ export class BankProgramFormPage implements OnInit {
     // The questions a car plan table can key on, for its "which answer" list.
     void this.loadPlanQuestions();
     void this.enums.refresh('surrogate_product');
+    // Re-read as well as preloaded: a figure just created from a question (feature 012's
+    // "Use in calculation") must be pickable as a table axis without a full reload.
+    void this.enums.refresh('surrogate_fact');
 
     this.banksLoaded = this.loadActiveBanks();
 
@@ -8308,6 +8405,7 @@ export class BankProgramFormPage implements OnInit {
       this.currentVersion = res.data.version;
       this.loadedProgramCode.set(res.data.programCode);
       this.autodetectToggles(res.data);
+      this.applyDeepLink();
     } catch (err) {
       this.handleError(err);
     }
@@ -8345,6 +8443,27 @@ export class BankProgramFormPage implements OnInit {
 
   /** The program this one is being copied from — said under the title. */
   protected readonly copiedFrom = signal<string | null>(null);
+
+  /**
+   * Feature 012 — a question's "What should it affect?" tile lands here with
+   * `?step=<stepId>&card=<card id>&axis=<figure key>`. Read ONCE, after the program is
+   * loaded (every step is reachable on edit), straight to the step rather than through
+   * `goTo`, whose forward gate would refuse a jump over a step the operator has not opened.
+   * A step this program does not walk falls back to the nearest earlier one. `axis` is not
+   * pre-filled here: the bank tables are keyed in place, and the figure is already pickable.
+   */
+  private applyDeepLink(): void {
+    const params = this.route.snapshot.queryParamMap;
+    const step = params.get('step');
+    const card = params.get('card');
+    const stepId = STEP_ORDER.find((id) => id === step);
+    if (stepId === undefined) return;
+    const index = indexOfOrPreceding(this.steps(), stepId);
+    const target = this.steps()[index]?.id;
+    if (target === undefined) return;
+    this.currentStepId.set(target);
+    this.revealStepStart(card !== null && /^card-[a-z-]+$/.test(card) ? card : undefined);
+  }
 
   /**
    * On edit the program already exists, so every step is reachable immediately —
@@ -8475,6 +8594,8 @@ export class BankProgramFormPage implements OnInit {
       // full-replacement PUT — right for a program that states its own tables, and WRONG for
       // one the operator has just put on the product's.
       plansSource: this.plansSource(),
+      // Full replacement, like the plans source: always sent, `[]` clears them.
+      cases: this.cases(),
       operatorNotes: dc.operatorNotes ?? undefined,
       operatorTips: dc.operatorTips,
       requiredDocuments: dc.requiredDocuments,
@@ -8748,6 +8869,7 @@ export class BankProgramFormPage implements OnInit {
     // Whose plan tables this program reads. ABSENT READS AS `'own'` — every program written
     // before the field existed carries its own figures.
     this.plansSource.set(initial.plansSource === 'product' ? 'product' : 'own');
+    this.cases.set(structuredClone(initial.cases ?? []));
     this.toggles.vehicleGrid.set(storedVehicleGrid !== undefined);
     // Presence on the stored row IS the state, exactly as it is for the two above. The signal
     // itself was seeded from `initial.fees` beside `carriedFees`.

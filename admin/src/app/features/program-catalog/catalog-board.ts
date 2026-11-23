@@ -260,6 +260,20 @@ function matchesCategory(categories: readonly LoanCategory[], filter: CategoryFi
   return filter === 'all' || categories.includes(filter);
 }
 
+/**
+ * Is this product filed under `cat`? Its own loan type when it has one (v36.5.0) — a new
+ * product is listed where it belongs before anything sells it; otherwise, as before, the
+ * loan types the names selling it are sold under without a payslip.
+ */
+function productIsFor(
+  card: { product: { loanCategory?: LoanCategory | null }; names: readonly EnumerationRow[] },
+  cat: LoanCategory,
+): boolean {
+  const own = card.product.loanCategory ?? null;
+  if (own !== null) return own === cat;
+  return card.names.some((r) => soldWith(r, 'no_payslip', cat));
+}
+
 export function buildBoard(input: BuildBoardInput): CatalogBoard {
   const q = input.search.trim().toLowerCase();
   const categoryFilter: CategoryFilter = input.category ?? 'all';
@@ -329,9 +343,7 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
   const products =
     categoryFilter === 'all'
       ? searchedProducts
-      : searchedProducts.filter((c) =>
-          c.names.some((r) => soldWith(r, 'no_payslip', categoryFilter)),
-        );
+      : searchedProducts.filter((c) => productIsFor(c, categoryFilter));
   const unlinked = searchedUnlinked.filter((u) => soldWith(u.row, 'no_payslip', categoryFilter));
 
   const deprecated = q
@@ -349,9 +361,7 @@ export function buildBoard(input: BuildBoardInput): CatalogBoard {
   const categoryCounts = { all: noPayslip } as Record<CategoryFilter, number>;
   const proofCategoryCounts = { all: payslip } as Record<CategoryFilter, number>;
   for (const cat of LOAN_CATEGORIES) {
-    categoryCounts[cat] = searchedProducts.filter((c) =>
-      c.names.some((r) => soldWith(r, 'no_payslip', cat)),
-    ).length;
+    categoryCounts[cat] = searchedProducts.filter((c) => productIsFor(c, cat)).length;
     proofCategoryCounts[cat] = searchedProofNames.filter((r) => soldWith(r, 'payslip', cat)).length;
   }
 

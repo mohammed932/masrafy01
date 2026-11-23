@@ -466,6 +466,30 @@ export const ERROR_CODES = {
    */
   SURROGATE_FACT_KEY_TAKEN: 'SURROGATE_FACT_KEY_TAKEN',
   /**
+   * Feature 012 — linking a question to a calculation figure when the question already
+   * answers one. A question answers at most one figure: two keys over one answer would file
+   * two banks' tables under two names for one number. Unlink first, or link the figure the
+   * question already answers. `meta.factKey` names it.
+   */
+  QUESTION_FACT_ALREADY_LINKED: 'QUESTION_FACT_ALREADY_LINKED',
+  /**
+   * Feature 012 — the figure a question would answer is already READ by a bank table in a
+   * shape this question cannot give: a band table over a number, but the question is a pick,
+   * or a key table over options, but the question is a number or free text. Linking it would
+   * make every one of those tables miss. `meta.expected` is `number` or `choice`.
+   */
+  SURROGATE_FACT_SHAPE_MISMATCH: 'SURROGATE_FACT_SHAPE_MISMATCH',
+  /**
+   * Feature 013 — a Loan Engine rule cannot be written as stated. `meta.problem` says why:
+   * `both_edges` (one band edge given twice), `empty_band` (no number can fall in it),
+   * `unknown_option` (not one of the question's options), `engine_input` (a condition on an
+   * amount / term / income / debt / employment / age / I-Score input — A33), `shape` (the
+   * wrong kind of criterion for the question type), `read_only_surface` (the table is owned
+   * elsewhere: inherited from a product, keyed on another fact or on more than one), or
+   * `not_linked` (the question answers no figure yet). Admin-only, so no ARB.
+   */
+  LOAN_ENGINE_RULE_INVALID: 'LOAN_ENGINE_RULE_INVALID',
+  /**
    * The fact key a tick would mint is one the platform computes for itself.
    *
    * Two families: the per-bank DERIVED facts (a relationship axis is a set read once per
@@ -1220,6 +1244,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   // shape that has no single right answer, and only an operator can pick one.
   SURROGATE_FACT_AMBIGUOUS_FOR_QUESTION: 409,
   SURROGATE_FACT_KEY_TAKEN: 409,
+  QUESTION_FACT_ALREADY_LINKED: 409,
+  SURROGATE_FACT_SHAPE_MISMATCH: 422,
+  LOAN_ENGINE_RULE_INVALID: 422,
   SURROGATE_FACT_KEY_RESERVED: 422,
   SURROGATE_FACT_QUESTION_INACTIVE: 422,
   SURROGATE_FACT_QUESTION_NOT_ELIGIBLE: 422,

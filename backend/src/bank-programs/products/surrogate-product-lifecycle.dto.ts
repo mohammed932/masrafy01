@@ -12,6 +12,9 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import type { LoanCategory } from '@prisma/client';
+import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
+
 export const PRODUCT_START_FROM = ['blank', 'starter', 'copy', 'cap'] as const;
 export type ProductStartFrom = (typeof PRODUCT_START_FROM)[number];
 
@@ -32,6 +35,12 @@ export class CreateSurrogateProductDto {
   @ApiProperty({ enum: PRODUCT_START_FROM })
   @IsIn(PRODUCT_START_FROM)
   startFrom!: ProductStartFrom;
+
+  /** v36.5.0 — the loan type the product is for. A label, never a restriction. */
+  @ApiPropertyOptional({ enum: ALL_LOAN_CATEGORIES })
+  @IsOptional()
+  @IsIn(ALL_LOAN_CATEGORIES)
+  loanCategory?: LoanCategory;
 
   @ApiPropertyOptional({ description: 'Required when `startFrom` is `starter`.' })
   @ValidateIf((o: CreateSurrogateProductDto) => o.startFrom === 'starter')
@@ -59,6 +68,12 @@ export class RenameSurrogateProductDto {
   @IsNotEmpty()
   @MaxLength(120)
   labelAr!: string;
+
+  /** v36.5.0 — the loan type the product is for; absent leaves it as it is. */
+  @ApiPropertyOptional({ enum: ALL_LOAN_CATEGORIES })
+  @IsOptional()
+  @IsIn(ALL_LOAN_CATEGORIES)
+  loanCategory?: LoanCategory;
 }
 
 /** One sample answer: a choice, several choices, or a number (a Decimal string). */

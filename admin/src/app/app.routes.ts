@@ -76,6 +76,13 @@ export const APP_ROUTES: Routes = [
     loadChildren: () => import('./features/banks/banks.routes').then((m) => m.BANKS_ROUTES),
   },
   {
+    // The car list (v36.4.0): country → brand → model, the answers of three questions.
+    path: 'car-list',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
+    loadComponent: () => import('./features/car-list/car-list.page').then((m) => m.CarListPage),
+  },
+  {
     path: 'lookups',
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
@@ -111,6 +118,15 @@ export const APP_ROUTES: Routes = [
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager'])],
     loadChildren: () =>
       import('./features/questionnaire/questionnaire.routes').then((m) => m.QUESTIONNAIRE_ROUTES),
+  },
+  {
+    // Feature 013 — the Loan Engine: one question's effects per bank program, and each
+    // program's eligibility conditions. Writes are super_admin; sales_manager reads.
+    path: 'loan-engine',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager'])],
+    loadComponent: () =>
+      import('./features/loan-engine/loan-engine.page').then((m) => m.LoanEnginePageComponent),
   },
   {
     // Admin matching simulator — full pricing engine, read-only.

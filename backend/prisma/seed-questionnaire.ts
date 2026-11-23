@@ -645,6 +645,155 @@ const CAR_DEALER_Q: SeedQuestion = {
 };
 
 /**
+ * "Do you want insurance on the car?" — an ORDINARY question, not one of the six car questions
+ * ticked on every car program. It is asked only where a bank program reads it: ADIB's used-car
+ * card prices a different rate with and without insurance (`adib-programs.ts`), so a program
+ * that keys its rate table on this answer makes it asked, and required, there.
+ *
+ * Option codes are STATED, not slugged: they are the keys a bank's table is written against.
+ */
+const CAR_INSURANCE_WANTED_Q: SeedQuestion = {
+  code: 'do_you_want_insurance_on_the_car',
+  isRequired: false,
+  questionEn: 'Do you want insurance on the car?',
+  questionAr: 'هل تريد تأمينًا على السيارة؟',
+  options: [
+    { code: 'with_insurance', labelEn: 'With insurance', labelAr: 'مع تأمين' },
+    { code: 'without_insurance', labelEn: 'Without insurance', labelAr: 'بدون تأمين' },
+  ],
+};
+
+/**
+ * Three more ORDINARY car questions (2026-11-22), asked only where a bank program reads them —
+ * a condition or a table in the Loan Engine — like the insurance question above. Each code is
+ * the slug of its English wording, so a database where the operator created the question on
+ * the Questions screen holds the same code this seed would write.
+ *
+ *   · the car's class — the sheets price, cap and age a luxury car apart (CAE 10M / 12 years,
+ *     ADIB's luxury card);
+ *   · ADIB's home-verification-only card is sold where the job or degree is printed on the ID;
+ *   · CAE refuses a used car driven more than 40,000 km a year (100,000 for a luxury car).
+ */
+const CAR_CLASS_Q: SeedQuestion = {
+  code: 'what_kind_of_car_is_it',
+  isRequired: false,
+  questionEn: 'What kind of car is it?',
+  questionAr: 'ما فئة السيارة؟',
+  options: [
+    { code: 'economy', labelEn: 'Economy', labelAr: 'اقتصادية' },
+    { code: 'luxury', labelEn: 'Luxury', labelAr: 'فاخرة' },
+  ],
+};
+
+const JOB_ON_ID_Q: SeedQuestion = {
+  code: 'is_your_job_or_degree_printed_on_your_national_id',
+  isRequired: false,
+  questionEn: 'Is your job or degree printed on your national ID?',
+  questionAr: 'هل وظيفتك أو مؤهلك مكتوب في بطاقة الرقم القومي؟',
+  options: [
+    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
+    { code: 'no', labelEn: 'No', labelAr: 'لا' },
+  ],
+};
+
+const CAR_KM_PER_YEAR_Q: SeedQuestion = {
+  code: 'how_many_kilometres_does_the_car_drive_a_year',
+  type: 'NUMERIC',
+  isRequired: false,
+  numeric: { minValue: '0', maxValue: '500000', step: '1', unitEn: 'km', unitAr: 'كم' },
+  questionEn: 'How many kilometres does the car drive a year?',
+  questionAr: 'كم كيلومترًا تسير السيارة في السنة؟',
+};
+
+/**
+ * The rest of a car loan's usual questions (2026-11-22) — ordinary questions like the three
+ * above, asked only where a bank program reads them (the plans table's exceptions, a Loan
+ * Engine rule or condition). With these, a car product can price on anything a car loan form
+ * commonly asks; colour is left out on purpose — no bank sheet prices on it, and the operator
+ * can add it on the Questions screen if one ever does. Codes are the slugs of the wording.
+ */
+const CAR_BRAND_Q: SeedQuestion = {
+  code: 'what_brand_is_the_car',
+  isRequired: false,
+  questionEn: 'What brand is the car?',
+  questionAr: 'ما ماركة السيارة؟',
+  options: [
+    { code: 'toyota', labelEn: 'Toyota', labelAr: 'تويوتا' },
+    { code: 'hyundai', labelEn: 'Hyundai', labelAr: 'هيونداي' },
+    { code: 'kia', labelEn: 'Kia', labelAr: 'كيا' },
+    { code: 'nissan', labelEn: 'Nissan', labelAr: 'نيسان' },
+    { code: 'chevrolet', labelEn: 'Chevrolet', labelAr: 'شيفروليه' },
+    { code: 'mg', labelEn: 'MG', labelAr: 'إم جي' },
+    { code: 'chery', labelEn: 'Chery', labelAr: 'شيري' },
+    { code: 'byd', labelEn: 'BYD', labelAr: 'بي واي دي' },
+    { code: 'geely', labelEn: 'Geely', labelAr: 'جيلي' },
+    { code: 'peugeot', labelEn: 'Peugeot', labelAr: 'بيجو' },
+    { code: 'renault', labelEn: 'Renault', labelAr: 'رينو' },
+    { code: 'skoda', labelEn: 'Skoda', labelAr: 'سكودا' },
+    { code: 'volkswagen', labelEn: 'Volkswagen', labelAr: 'فولكس فاجن' },
+    { code: 'mitsubishi', labelEn: 'Mitsubishi', labelAr: 'ميتسوبيشي' },
+    { code: 'suzuki', labelEn: 'Suzuki', labelAr: 'سوزوكي' },
+    { code: 'jeep', labelEn: 'Jeep', labelAr: 'جيب' },
+    { code: 'mercedes_benz', labelEn: 'Mercedes-Benz', labelAr: 'مرسيدس بنز' },
+    { code: 'bmw', labelEn: 'BMW', labelAr: 'بي إم دبليو' },
+    { code: 'audi', labelEn: 'Audi', labelAr: 'أودي' },
+    { code: 'another_brand', labelEn: 'Another brand', labelAr: 'ماركة أخرى' },
+  ],
+};
+
+const CAR_ASSEMBLY_Q: SeedQuestion = {
+  code: 'is_the_car_assembled_in_egypt_or_imported',
+  isRequired: false,
+  questionEn: 'Is the car assembled in Egypt or imported?',
+  questionAr: 'هل السيارة مجمعة في مصر أم مستوردة؟',
+  options: [
+    { code: 'assembled_in_egypt', labelEn: 'Assembled in Egypt', labelAr: 'مجمعة في مصر' },
+    { code: 'imported', labelEn: 'Imported', labelAr: 'مستوردة' },
+  ],
+};
+
+const CAR_ENGINE_CC_Q: SeedQuestion = {
+  code: 'what_is_the_engine_size',
+  type: 'NUMERIC',
+  isRequired: false,
+  numeric: { minValue: '600', maxValue: '8000', step: '1', unitEn: 'cc', unitAr: 'سي سي' },
+  questionEn: 'What is the engine size?',
+  questionAr: 'ما سعة المحرك؟',
+};
+
+const CAR_USE_Q: SeedQuestion = {
+  code: 'what_will_you_use_the_car_for',
+  isRequired: false,
+  questionEn: 'What will you use the car for?',
+  questionAr: 'ما استخدام السيارة؟',
+  options: [
+    { code: 'personal_use', labelEn: 'Personal use', labelAr: 'استخدام شخصي' },
+    { code: 'business_use', labelEn: 'Business use', labelAr: 'استخدام تجاري' },
+    { code: 'taxi_or_ride_hailing', labelEn: 'Taxi or ride-hailing', labelAr: 'تاكسي أو نقل ركاب' },
+  ],
+};
+
+const CAR_TOTAL_KM_Q: SeedQuestion = {
+  code: 'how_many_kilometres_has_the_car_been_driven',
+  type: 'NUMERIC',
+  isRequired: false,
+  numeric: { minValue: '0', maxValue: '1000000', step: '1', unitEn: 'km', unitAr: 'كم' },
+  questionEn: 'How many kilometres has the car been driven?',
+  questionAr: 'كم كيلومترًا قطعت السيارة؟',
+};
+
+const GUARANTOR_Q: SeedQuestion = {
+  code: 'do_you_have_a_guarantor',
+  isRequired: false,
+  questionEn: 'Do you have a guarantor?',
+  questionAr: 'هل لديك ضامن؟',
+  options: [
+    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
+    { code: 'no', labelEn: 'No', labelAr: 'لا' },
+  ],
+};
+
+/**
  * The model year, as a NUMBER.
  *
  * It replaces `model_year`, which asked the same thing in buckets — "this year's model", "up
@@ -1603,6 +1752,16 @@ const CAR: CategoryConfig = {
         CAR_ORIGIN_Q,
         CAR_FUEL_TYPE_Q,
         CAR_DEALER_Q,
+        CAR_INSURANCE_WANTED_Q,
+        CAR_CLASS_Q,
+        JOB_ON_ID_Q,
+        CAR_KM_PER_YEAR_Q,
+        CAR_BRAND_Q,
+        CAR_ASSEMBLY_Q,
+        CAR_ENGINE_CC_Q,
+        CAR_USE_Q,
+        CAR_TOTAL_KM_Q,
+        GUARANTOR_Q,
         CAR_PRICE_Q,
         // Right after the price it is a share of (the client's order, 2026-10-13) — it used to
         // open the financing step, three steps before the price.
@@ -2340,6 +2499,63 @@ async function upsertCarFacts(): Promise<void> {
       labelEn: 'Who is selling the car',
       labelAr: 'جهة بيع السيارة',
       sortOrder: 127,
+    },
+    // Read by a bank's rate table (ADIB used car: insured or not). Same key as the question.
+    {
+      key: 'do_you_want_insurance_on_the_car',
+      labelEn: 'Insurance on the car',
+      labelAr: 'التأمين على السيارة',
+      sortOrder: 128,
+    },
+    // Read by the Loan Engine's conditions and tables (2026-11-22). Same key as the question.
+    { key: 'what_kind_of_car_is_it', labelEn: 'Car class', labelAr: 'فئة السيارة', sortOrder: 129 },
+    {
+      key: 'is_your_job_or_degree_printed_on_your_national_id',
+      labelEn: 'Job printed on the national ID',
+      labelAr: 'الوظيفة مكتوبة في البطاقة',
+      sortOrder: 130,
+    },
+    {
+      key: 'how_many_kilometres_does_the_car_drive_a_year',
+      labelEn: 'Kilometres a year',
+      labelAr: 'كيلومترات في السنة',
+      sortOrder: 131,
+    },
+    {
+      key: 'what_brand_is_the_car',
+      labelEn: 'Car brand',
+      labelAr: 'ماركة السيارة',
+      sortOrder: 132,
+    },
+    {
+      key: 'is_the_car_assembled_in_egypt_or_imported',
+      labelEn: 'Assembled or imported',
+      labelAr: 'مجمعة أم مستوردة',
+      sortOrder: 133,
+    },
+    {
+      key: 'what_is_the_engine_size',
+      labelEn: 'Engine size',
+      labelAr: 'سعة المحرك',
+      sortOrder: 134,
+    },
+    {
+      key: 'what_will_you_use_the_car_for',
+      labelEn: 'Car use',
+      labelAr: 'استخدام السيارة',
+      sortOrder: 135,
+    },
+    {
+      key: 'how_many_kilometres_has_the_car_been_driven',
+      labelEn: 'Total kilometres',
+      labelAr: 'إجمالي الكيلومترات',
+      sortOrder: 136,
+    },
+    {
+      key: 'do_you_have_a_guarantor',
+      labelEn: 'Has a guarantor',
+      labelAr: 'لديه ضامن',
+      sortOrder: 137,
     },
   ] as const;
 

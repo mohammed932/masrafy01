@@ -50,6 +50,7 @@ npm run seed:programs            # 6. the payslip catalog programs
 npm run build                    # 7. the next two seeds run from dist/
 npm run seed:blueprints          # 8. the no-payslip PRODUCTS
 npm run seed:sheet-figures       # 9. product figures + the surrogate PROGRAMS
+npm run seed:car-list            # 10. the car list: country → brand → model
 ```
 
 What each step leaves behind, measured on the empty database:
@@ -64,6 +65,7 @@ What each step leaves behind, measured on the empty database:
 | 6 | `seed:programs` | 47 catalog bank programs — 35 payslip, 12 business/professional no-payslip ones read on a declared income. None states an I-Score table; they read the shared one. |
 | 7 | `npm run build` | `dist/` — required: steps 8 and 9 run the compiled commands, and a stale build seeds stale data. |
 | 8 | `seed:blueprints` | The 10 no-payslip products (armed forces grades, academic rank, doctors, card limit share, car-loan cross-sell, pledged collateral, compound owner, school stage, car buyers down payment …), the questions each one asks, and a questionnaire publish per product. |
+| 10 | `seed:car-list` | The car list (v36.4.0): 11 countries (the car origin question's answers), 20 brands filed under them, 58 models filed under those, each list the answers of its question, and a fact on the model question. Also the demo car program **Nested car demo** (Bank NXT, New Car, `NXT-CAR-NEW_CAR`) whose five Cases price on country / brand / model — copied from Bank NXT's used-car program, created once. Additive: a second run writes nothing. |
 | 9 | `seed:sheet-figures` | Each product's figures (tables, amounts, durations, plan tables), the no-payslip catalog names linked to them, and 24 surrogate bank programs. No product or program is given an I-Score table: all of them read the shared one. |
 
 End state: **71 bank programs** (42 payslip, 29 no-payslip), **13 products** (10 with a
@@ -109,6 +111,7 @@ Every seed is idempotent. A second run of steps 3–9 on the same database repor
 - `seed:blueprints` — `0 created · 11 unchanged` (eleven since `club_branch_cap` became a
   ceiling, v30.10.0)
 - `seed:sheet-figures` — `0 I-Score tier tables written · 0 programs created · 0 updated`
+- `seed:car-list` — `0 written`
 - `seed:banks` rewrites the same 14 labels, and `seed:sheet-figures` rewrites one product
   (`doctors_in_practice`, "0 slots"); both are no-ops in effect.
 

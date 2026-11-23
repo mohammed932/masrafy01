@@ -20,6 +20,7 @@ import {
   inject,
   signal,
   viewChild,
+  type WritableSignal,
   type TemplateRef,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -37,13 +38,21 @@ import {
   type WizardStepStatus,
 } from '@shared/ui';
 import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
+import { PlanRowsEditorComponent } from '@shared/ui/plan-rows-editor.component';
+import { LoanTypePickerComponent } from './loan-type-picker.component';
+import type { LoanCategory } from '@core/loan-category';
+import { planRowsErrorFor, planRowsFrom } from '@shared/ui/plan-rows.rules';
+import type { PlanSlotKey } from '@shared/ui/plan-rows.rules';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import {
+  registryFacts,
   type MethodTemplate,
+  type PlanDefaults,
   type ProductAsksBoard,
+  type RateBasis,
   type SurrogateProductDetail,
 } from '@features/bank-programs/bank-programs.types';
 import { EngineRulesApiService } from '../questionnaire/engine-rules/engine-rules.api.service';
@@ -69,7 +78,13 @@ import {
   type SellAsProgramDrawerResult,
 } from './sell-as-program.drawer';
 
-type StepKey = 'name' | 'questions' | 'amount' | 'rules';
+type StepKey = 'name' | 'questions' | 'amount' | 'defaults' | 'rules';
+type DefPart = 'amounts' | 'tenor' | 'rate' | 'plans';
+interface DefIssue {
+  text: string;
+  /** An error (red), or a hint while a range is half typed. */
+  hard: boolean;
+}
 
 @Component({
   selector: 'app-product-studio-page',
@@ -85,6 +100,8 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
     ServedPagesComponent,
     FormDrawerComponent,
     AddableQuestionsComponent,
+    PlanRowsEditorComponent,
+    LoanTypePickerComponent,
   ],
   template: `
     <section class="studio-page">
@@ -220,6 +237,18 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                       ><input formControlName="labelAr" dir="rtl" />
                     </label>
                   </div>
+                </section>
+                <section class="blk">
+                  <h2 id="psLoanType" i18n="@@np.loan_type_title">What loan is it for?</h2>
+                  <app-loan-type-picker
+                    name="ps-loan-type"
+                    labelledBy="psLoanType"
+                    [value]="loanType()"
+                    (valueChange)="loanType.set($event)"
+                  />
+                  <p class="hint" i18n="@@np.loan_type_hint">
+                    Where the catalog lists it. Auto products also set the money most banks lend on.
+                  </p>
                 </section>
               }
               @case ('questions') {
@@ -463,6 +492,163 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
                 @if (dbrError(); as e) {
                   <p class="warn" role="alert">{{ e }}</p>
                 }
+              </section>
+            }
+
+            @if (step() === 'defaults') {
+              <!-- What most banks selling this car product lend on. A new bank program starts
+                   from a COPY of it (the bank form), so the bank edits its own figures. -->
+              <section class="blk dbr" aria-labelledby="psDefTitle">
+                <header class="dbr-head">
+                  <h2 id="psDefTitle" i18n="@@ps.def.title">Bank defaults</h2>
+                  <p class="dbr-sub" i18n="@@ps.def.sub">
+                    Most banks lend this product on the same terms. Set them once: each new bank
+                    program starts from a copy, and the bank can change it.
+                  </p>
+                </header>
+
+                <div class="dbr-part">
+                  <h3 class="def-h" id="psDefLoanTitle" i18n="@@ps.def.loan">The loan</h3>
+                  <!-- Three rows that read as the bank's own sentence: lends 150,000 to
+                       3,000,000 over 12 to 72 months at 16%. -->
+                  <div class="def-grid" role="group" aria-labelledby="psDefLoanTitle">
+                    <span class="def-label" i18n="@@bank_programs.form.amount.title"
+                      >Loan amount</span
+                    >
+                    <div class="def-range">
+                      <app-figure-field
+                        class="def-field"
+                        [fill]="true"
+                        fieldId="psDefMinAmount"
+                        unit="EGP"
+                        [money]="true"
+                        [ariaLabel]="minAmountAria"
+                        [placeholder]="minText"
+                        [value]="defMinAmount()"
+                        (valueChange)="setDef(defMinAmount, 'amounts', $event)"
+                      />
+                      <span class="def-to" i18n="@@ps.def.to">to</span>
+                      <app-figure-field
+                        class="def-field"
+                        [fill]="true"
+                        fieldId="psDefMaxAmount"
+                        unit="EGP"
+                        [money]="true"
+                        [ariaLabel]="maxAmountAria"
+                        [placeholder]="maxText"
+                        [value]="defMaxAmount()"
+                        (valueChange)="setDef(defMaxAmount, 'amounts', $event)"
+                      />
+                    </div>
+                    @if (amountsIssue(); as issue) {
+                      <p
+                        class="def-issue"
+                        [class.is-hard]="issue.hard"
+                        [attr.role]="issue.hard ? 'alert' : null"
+                      >
+                        {{ issue.text }}
+                      </p>
+                    }
+                    <span class="def-label" i18n="@@ps.def.duration">Loan duration</span>
+                    <div class="def-range">
+                      <app-figure-field
+                        class="def-field"
+                        [fill]="true"
+                        fieldId="psDefMinMonths"
+                        [unit]="monthsUnit"
+                        [ariaLabel]="minMonthsAria"
+                        [placeholder]="minText"
+                        [value]="defMinMonths()"
+                        (valueChange)="setDef(defMinMonths, 'tenor', $event)"
+                      />
+                      <span class="def-to" i18n="@@ps.def.to">to</span>
+                      <app-figure-field
+                        class="def-field"
+                        [fill]="true"
+                        fieldId="psDefMaxMonths"
+                        [unit]="monthsUnit"
+                        [ariaLabel]="maxMonthsAria"
+                        [placeholder]="maxText"
+                        [value]="defMaxMonths()"
+                        (valueChange)="setDef(defMaxMonths, 'tenor', $event)"
+                      />
+                    </div>
+                    @if (monthsIssue(); as issue) {
+                      <p
+                        class="def-issue"
+                        [class.is-hard]="issue.hard"
+                        [attr.role]="issue.hard ? 'alert' : null"
+                      >
+                        {{ issue.text }}
+                      </p>
+                    }
+                    <label class="def-label" for="psDefRate" i18n="@@bank_programs.field.base_rate"
+                      >Base rate</label
+                    >
+                    <div class="def-range">
+                      <app-figure-field
+                        class="def-field"
+                        [fill]="true"
+                        fieldId="psDefRate"
+                        unit="%"
+                        [placeholder]="dbrDash"
+                        [value]="defRate()"
+                        (valueChange)="setDef(defRate, 'rate', $event)"
+                      />
+                    </div>
+                    @if (rateIssue(); as issue) {
+                      <p
+                        class="def-issue"
+                        [class.is-hard]="issue.hard"
+                        [attr.role]="issue.hard ? 'alert' : null"
+                      >
+                        {{ issue.text }}
+                      </p>
+                    }
+                  </div>
+                </div>
+
+                <div class="dbr-part">
+                  <h3 class="def-h" i18n="@@ps.def.plans">Plans by down payment</h3>
+                  <p class="dbr-hint" i18n="@@ps.def.plans_hint">
+                    A row per down payment, with its rate, term and share financed. Leave it empty
+                    and each bank starts without one.
+                  </p>
+                  @if (defPlansDrawable()) {
+                    <app-plan-rows-editor
+                      [grids]="defPlans()"
+                      [facts]="incomeFacts()"
+                      [startFigures]="defStartFigures()"
+                      [moreQuestions]="planQuestions()"
+                      (bindQuestion)="bindPlanQuestion($event)"
+                      (gridsChange)="setDefPlans($event)"
+                      (removeRequest)="setDefPlans($event.next)"
+                    />
+                  } @else if (defPlans() === null) {
+                    <div>
+                      <button
+                        type="button"
+                        class="btn"
+                        [disabled]="defRate() === ''"
+                        (click)="startDefPlans()"
+                      >
+                        <span i18n="@@bank_programs.plans.start">Start the table</span>
+                      </button>
+                    </div>
+                    @if (defRate() === '') {
+                      <p class="dbr-hint" i18n="@@ps.def.start_needs_rate">
+                        Type the base rate above first: every row starts at it.
+                      </p>
+                    }
+                  } @else {
+                    <p class="dbr-hint" i18n="@@ps.def.plans_not_drawn">
+                      These plans cannot be shown as one table here. They are kept as they are.
+                    </p>
+                  }
+                  @if (plansIssue(); as issue) {
+                    <p class="def-issue is-hard" role="alert">{{ issue.text }}</p>
+                  }
+                </div>
               </section>
             }
 
@@ -892,6 +1078,64 @@ type StepKey = 'name' | 'questions' | 'amount' | 'rules';
       .dbr-emp-row:focus-within {
         border-color: var(--color-border-focus);
       }
+      /* Bank defaults: one row per figure, a range reads "min to max unit". */
+      .def-h {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .def-grid {
+        display: grid;
+        grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+        align-items: center;
+        column-gap: var(--space-6);
+        row-gap: var(--space-3);
+        margin-block-start: var(--space-1);
+      }
+      .def-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-secondary);
+      }
+      .def-range {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2) var(--space-3);
+        min-inline-size: 0;
+      }
+      .def-issue {
+        grid-column: 2;
+        margin: calc(-1 * var(--space-2)) 0 0;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+      .def-issue.is-hard {
+        color: var(--color-error);
+      }
+      /* One width for every figure in the rows, so the columns line up. */
+      .def-field {
+        display: block;
+        inline-size: 12rem;
+        max-inline-size: 100%;
+      }
+      .def-to {
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+      @media (max-width: 640px) {
+        .def-grid {
+          grid-template-columns: minmax(0, 1fr);
+          row-gap: var(--space-2);
+        }
+        .def-range {
+          margin-block-end: var(--space-2);
+        }
+        .def-issue {
+          grid-column: 1;
+        }
+      }
       .dbr-solo {
         max-inline-size: 34rem;
         margin-block-start: var(--space-1);
@@ -945,6 +1189,10 @@ export class ProductStudioPage {
       { key: 'name', label: $localize`:@@ps.step_name:Name` },
       { key: 'questions', label: $localize`:@@ps.step_questions:Questions` },
       { key: 'amount', label: $localize`:@@ps.step_amount:Amount` },
+      // Car products only: what most banks selling it lend on, copied into each new program.
+      ...(this.isCarProduct()
+        ? [{ key: 'defaults' as const, label: $localize`:@@ps.step_defaults:Bank defaults` }]
+        : []),
       // "Who can't get it" is hidden for now (operator's call). Its rules stay stored and are
       // saved back unchanged; the step returns by adding it here again:
       // { key: 'rules', label: $localize`:@@ps.step_rules:Who can't get it` },
@@ -959,7 +1207,12 @@ export class ProductStudioPage {
    * a question asked, and on the Amount step a calculation plus the required DBR cap.
    */
   protected readonly wizardSteps = computed<WizardStepItem[]>(() =>
-    this.steps().map((s) => ({ id: s.key, label: s.label, status: this.stepStatus(s.key) })),
+    this.steps().map((s) => ({
+      id: s.key,
+      label: s.label,
+      status: this.stepStatus(s.key),
+      ...(s.key === 'defaults' ? { optional: true } : {}),
+    })),
   );
 
   private stepStatus(key: StepKey): WizardStepStatus {
@@ -976,6 +1229,9 @@ export class ProductStudioPage {
       case 'amount':
         if (!p.capOnly && (this.dbrCap() === '' || this.dbrError() !== null)) return 'invalid';
         return p.notReady?.includes('no_calculation') ? 'todo' : 'done';
+      case 'defaults':
+        if (this.defError() !== null) return 'invalid';
+        return this.defAnything() ? 'done' : 'todo';
       case 'rules':
         return 'todo';
     }
@@ -1010,11 +1266,19 @@ export class ProductStudioPage {
 
   protected readonly nameForm = this.fb.nonNullable.group({ labelEn: '', labelAr: '' });
   private readonly nameRev = signal(0);
+  /** The loan type it is for (v36.5.0), held with the names until Save. */
+  protected readonly loanType = signal<LoanCategory | null>(null);
+
   protected readonly nameDirty = computed(() => {
     this.nameRev();
     const p = this.product();
     const v = this.nameForm.getRawValue();
-    return !!p && (v.labelEn.trim() !== p.labelEn || v.labelAr.trim() !== p.labelAr);
+    return (
+      !!p &&
+      (v.labelEn.trim() !== p.labelEn ||
+        v.labelAr.trim() !== p.labelAr ||
+        this.loanType() !== (p.loanCategory ?? null))
+    );
   });
 
   protected setOutput(kind: 'monthlyIncome' | 'maxAmount'): void {
@@ -1341,6 +1605,234 @@ export class ProductStudioPage {
     return null;
   });
 
+  // --- bank defaults (car products) ------------------------------------------------
+  //
+  // The loan size, the term, the rate and the plans by down payment most banks selling this
+  // product lend on. Stored on the product (`loanAmountDefaults`, `tenorDefaults`,
+  // `rateDefaults`, `planDefaults`); a NEW bank program copies them into its own fields, so
+  // the bank edits its own figures. Held until Save like everything else on this page.
+
+  /**
+   * An Auto product: its loan type says so (v36.5.0). A product made before the loan type
+   * existed and not given one yet falls back to what it asks — the car's price or deposit.
+   */
+  protected readonly isCarProduct = computed(() => {
+    const type = this.loanType();
+    if (type !== null) return type === 'car';
+    const codes = this.askedCodes();
+    return (
+      codes.includes('car_price') ||
+      codes.includes('car_down_payment') ||
+      this.product()?.planDefaults != null
+    );
+  });
+
+  protected readonly monthsUnit = $localize`:@@ps.def.months_unit:months`;
+  protected readonly minText = $localize`:@@ps.def.min:Minimum`;
+  protected readonly maxText = $localize`:@@ps.def.max:Maximum`;
+  protected readonly minAmountAria = $localize`:@@bank_programs.field.min_amount:Minimum amount`;
+  protected readonly maxAmountAria = $localize`:@@bank_programs.field.max_amount:Maximum amount`;
+  protected readonly minMonthsAria = $localize`:@@bank_programs.field.min_months:Minimum months`;
+  protected readonly maxMonthsAria = $localize`:@@bank_programs.field.max_months:Maximum months`;
+
+  protected readonly defMinAmount = signal('');
+  protected readonly defMaxAmount = signal('');
+  protected readonly defMinMonths = signal('');
+  protected readonly defMaxMonths = signal('');
+  protected readonly defRate = signal('');
+  protected readonly defBasis = signal<RateBasis>('reducing');
+  protected readonly defPlans = signal<PlanDefaults | null>(null);
+  /** Which of the four stored statements changed: each is saved by its own call. */
+  private readonly defDirty = signal<ReadonlySet<DefPart>>(new Set());
+
+  private markDef(part: DefPart): void {
+    this.defDirty.update((s) => new Set([...s, part]));
+  }
+
+  protected setDef(target: WritableSignal<string>, part: DefPart, raw: string): void {
+    target.set(this.clean(raw));
+    this.markDef(part);
+  }
+
+  protected setDefPlans(next: PlanDefaults | null): void {
+    this.defPlans.set(next === null ? null : structuredClone(next));
+    this.markDef('plans');
+  }
+
+  /** "Start the table": one row for every down payment, at the base rate above. */
+  protected startDefPlans(): void {
+    this.setDefPlans({
+      rateByFact: {
+        axes: [{ factKey: 'car_down_payment_percent' }],
+        cells: [{ keys: [{ fromInclusive: '0', toExclusive: null }], value: this.defRate() }],
+        onNoMatch: 'reject',
+      },
+    } as PlanDefaults);
+  }
+
+  protected readonly defPlansDrawable = computed(() => planRowsFrom(this.defPlans()) !== null);
+
+  /** The figures above, as each new column's starting value. */
+  protected readonly defStartFigures = computed<Partial<Record<PlanSlotKey, string>>>(() => ({
+    rateByFact: this.defRate(),
+    maxMonthsByFact: this.defMaxMonths(),
+    minMonthsByFact: this.defMinMonths(),
+    minAmountByFact: this.defMinAmount(),
+  }));
+
+  protected readonly incomeFacts = computed(() =>
+    registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
+  );
+
+  /** Choice questions no fact reads yet, offered in the table's "which answer" list. */
+  protected readonly planQuestions = signal<ReadonlyArray<{ code: string; label: string }>>([]);
+
+  private async loadPlanQuestions(): Promise<void> {
+    try {
+      const rows = (await this.api.listMethodQuestions()).data;
+      this.planQuestions.set(
+        rows
+          .filter((q) => q.type === 'SINGLE_SELECT' && q.factKey === null)
+          .map((q) => ({ code: q.code, label: (this.isAr ? q.labelAr : q.labelEn) || q.labelEn })),
+      );
+    } catch {
+      this.planQuestions.set([]);
+    }
+  }
+
+  /** A question picked in the table: give it a fact, so the table can key on its answers. */
+  protected async bindPlanQuestion(code: string): Promise<void> {
+    try {
+      await this.api.ensureMethodFact(code);
+      await this.enums.refresh('surrogate_fact');
+      this.planQuestions.set(this.planQuestions().filter((q) => q.code !== code));
+    } catch (err) {
+      this.message.error(this.localizedError(err));
+    }
+  }
+
+  protected readonly defAnything = computed(
+    () =>
+      this.defMinAmount() !== '' ||
+      this.defMaxAmount() !== '' ||
+      this.defMinMonths() !== '' ||
+      this.defMaxMonths() !== '' ||
+      this.defRate() !== '' ||
+      this.defPlans() !== null,
+  );
+
+  // Said under the row it is about. A half-typed range is a HINT (the operator is still
+  // typing); a wrong figure is an error. Both hold the step and the Save.
+  private rangeIssue(
+    lo: string,
+    hi: string,
+    ok: (v: string) => boolean,
+    badText: string,
+  ): DefIssue | null {
+    if (lo === '' && hi === '') return null;
+    if ((lo !== '' && !ok(lo)) || (hi !== '' && !ok(hi))) return { text: badText, hard: true };
+    if (lo === '')
+      return { text: $localize`:@@ps.def.need_min:Type the minimum too.`, hard: false };
+    if (hi === '')
+      return { text: $localize`:@@ps.def.need_max:Type the maximum too.`, hard: false };
+    if (+lo > +hi) {
+      return {
+        text: $localize`:@@ps.def.min_over_max:The minimum is bigger than the maximum.`,
+        hard: true,
+      };
+    }
+    return null;
+  }
+
+  protected readonly amountsIssue = computed(() =>
+    this.rangeIssue(
+      this.defMinAmount(),
+      this.defMaxAmount(),
+      (v) => /^\d+(\.\d{1,2})?$/.test(v) && +v > 0,
+      $localize`:@@ps.def.bad_amount:An amount is a number above 0.`,
+    ),
+  );
+
+  protected readonly monthsIssue = computed(() =>
+    this.rangeIssue(
+      this.defMinMonths(),
+      this.defMaxMonths(),
+      (v) => /^\d+$/.test(v) && +v >= 1,
+      $localize`:@@ps.def.bad_months:Months are whole numbers from 1.`,
+    ),
+  );
+
+  protected readonly rateIssue = computed<DefIssue | null>(() => {
+    const r = this.defRate();
+    return r !== '' && (!/^\d+(\.\d{1,4})?$/.test(r) || +r > 100)
+      ? {
+          text: $localize`:@@ps.def.err_rate:The base rate is a percentage from 0 to 100.`,
+          hard: true,
+        }
+      : null;
+  });
+
+  protected readonly plansIssue = computed<DefIssue | null>(() =>
+    planRowsErrorFor(this.defPlans()) !== null
+      ? {
+          text: $localize`:@@ps.def.err_plans:A figure in the plans table is empty. Type it, or clear its column or row.`,
+          hard: true,
+        }
+      : null,
+  );
+
+  /** Anything on the step still to fix — the rail's mark and the Save's reason. */
+  protected readonly defError = computed<string | null>(() =>
+    this.amountsIssue() || this.monthsIssue() || this.rateIssue() || this.plansIssue()
+      ? $localize`:@@ps.def.fix_step:Finish the figures on the Bank defaults step.`
+      : null,
+  );
+
+  private seedDefaults(p: SurrogateProductDetail): void {
+    if (this.defDirty().size > 0) return;
+    this.defMinAmount.set(p.loanAmountDefaults?.minAmountEGP ?? '');
+    this.defMaxAmount.set(p.loanAmountDefaults?.maxAmountEGP ?? '');
+    this.defMinMonths.set(p.tenorDefaults ? String(p.tenorDefaults.minMonths) : '');
+    this.defMaxMonths.set(p.tenorDefaults ? String(p.tenorDefaults.maxMonths) : '');
+    this.defRate.set(p.rateDefaults?.baseRatePercent ?? '');
+    this.defBasis.set(p.rateDefaults?.rateBasis ?? 'reducing');
+    this.defPlans.set(p.planDefaults ? structuredClone(p.planDefaults) : null);
+  }
+
+  private async saveDefaults(): Promise<void> {
+    const dirty = this.defDirty();
+    const done = (part: DefPart) =>
+      this.defDirty.update((s) => new Set([...s].filter((x) => x !== part)));
+    if (dirty.has('amounts')) {
+      const [min, max] = [this.defMinAmount(), this.defMaxAmount()];
+      await this.api.setSurrogateProductLoanAmountDefaults(this.key, {
+        loanAmounts: min === '' ? null : { minAmountEGP: min, maxAmountEGP: max },
+      });
+      done('amounts');
+    }
+    if (dirty.has('tenor')) {
+      const [min, max] = [this.defMinMonths(), this.defMaxMonths()];
+      await this.api.setSurrogateProductTenorDefaults(this.key, {
+        tenor: min === '' ? null : { minMonths: Number(min), maxMonths: Number(max) },
+      });
+      done('tenor');
+    }
+    if (dirty.has('rate')) {
+      const rate = this.defRate();
+      await this.api.setSurrogateProductRateDefaults(this.key, {
+        rate:
+          rate === ''
+            ? null
+            : { isVariableRate: false, baseRatePercent: rate, rateBasis: this.defBasis() },
+      });
+      done('rate');
+    }
+    if (dirty.has('plans')) {
+      await this.api.setSurrogateProductPlanDefaults(this.key, { plans: this.defPlans() });
+      done('plans');
+    }
+  }
+
   // --- save --------------------------------------------------------------------
 
   protected readonly saving = signal(false);
@@ -1353,7 +1845,8 @@ export class ProductStudioPage {
       this.stagedAttach().size +
       this.stagedDetach().size +
       (calcDirty ? 1 : 0) +
-      (this.dbrDirty() ? 1 : 0)
+      (this.dbrDirty() ? 1 : 0) +
+      this.defDirty().size
     );
   });
 
@@ -1367,6 +1860,7 @@ export class ProductStudioPage {
       return $localize`:@@ps.dbr_required:Type the DBR cap on the Amount step.`;
     }
     if (this.dbrDirty() && this.dbrError()) return this.dbrError();
+    if (this.defDirty().size > 0 && this.defError()) return this.defError();
     const c = this.calc();
     if (c?.dirty()) return c.saveBlockReason();
     return null;
@@ -1425,9 +1919,11 @@ export class ProductStudioPage {
     try {
       if (this.nameDirty()) {
         const v = this.nameForm.getRawValue();
+        const loanType = this.loanType();
         await this.api.renameSurrogateProduct(this.key, {
           labelEn: v.labelEn.trim(),
           labelAr: v.labelAr.trim(),
+          ...(loanType !== null ? { loanCategory: loanType } : {}),
         });
       }
       for (const code of this.stagedAttach()) {
@@ -1466,6 +1962,7 @@ export class ProductStudioPage {
         });
         this.dbrDirty.set(false);
       }
+      await this.saveDefaults();
       this.message.success($localize`:@@spd.bar.saved:Changes saved.`);
     } catch (err) {
       this.saveError.set(this.localizedError(err));
@@ -1478,6 +1975,8 @@ export class ProductStudioPage {
   protected async discardAll(): Promise<void> {
     this.stagedAttach.set(new Set());
     this.stagedDetach.set(new Set());
+    this.dbrDirty.set(false);
+    this.defDirty.set(new Set());
     this.saveError.set(null);
     await Promise.all([this.load({ silent: true }), this.calc()?.discard()]);
   }
@@ -1565,6 +2064,7 @@ export class ProductStudioPage {
     void this.load();
     void this.loadAsks();
     void this.loadFixedAsks();
+    void this.loadPlanQuestions();
     void this.api
       .listMethodTemplates()
       .then((res) => this.methods.set(res.data))
@@ -1578,10 +2078,12 @@ export class ProductStudioPage {
       const p = res.data;
       this.product.set(p);
       this.nameForm.reset({ labelEn: p.labelEn, labelAr: p.labelAr });
+      this.loanType.set(p.loanCategory ?? null);
       if (!this.dbrDirty()) {
         this.dbrCap.set(p.dbrDefaults?.dbrCapPercent ?? '');
         this.dbrByEmployment.set({ ...(p.dbrDefaults?.dbrCapPercentByEmploymentType ?? {}) });
       }
+      this.seedDefaults(p);
     } catch {
       this.product.set(null);
     } finally {

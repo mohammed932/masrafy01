@@ -34,7 +34,8 @@ import { HumanizePipe } from '../../../shared/humanize.pipe';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
 import type { BankProgramResponse, PricingConfig, RateBandMap } from '../bank-programs.types';
-import { incomeMethodLabel } from '../bank-programs.types';
+import { incomeMethodLabel, registryFacts } from '../bank-programs.types';
+import { criterionText } from '@features/loan-engine/loan-engine.labels';
 import { basisOf, incomeBasisLabel } from '@core/income-basis';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import type { EnumerationType } from '@core/platform-enumerations/platform-enumerations.types';
@@ -94,7 +95,6 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
           </span>
 
           <div class="hero-text">
-            <span class="eyebrow">{{ p.bankName }}</span>
             <h1 class="title">
               {{ p.friendlyName }}
               <span class="status-chip" [class.active]="p.active">
@@ -112,7 +112,22 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
             <!-- The humanize pipe on the raw type printed "Income surrogate" — a schema noun
                no operator uses. Same words as every other surface now. -->
             <p class="sub">
-              {{ p.productCategory | humanize }} · {{ basisLabel(p) }} · v{{ p.version }}
+              {{ p.bankName }} · {{ p.productCategory | humanize }} · {{ basisLabel(p) }}
+            </p>
+            <!-- What the Identity card used to repeat, said once: the code, the catalog name,
+                 Sharia when it is, and when it last changed. -->
+            <p class="meta">
+              <span class="code">{{ p.programCode }}</span>
+              @if (p.programNameKey; as nameKey) {
+                <span>{{ enumLabel('program_name', nameKey) }}</span>
+              }
+              @if (p.isShariaCompliant) {
+                <span i18n="@@bpd.meta.sharia">Sharia compliant</span>
+              }
+              <span
+                ><span i18n="@@bpd.meta.changed">Changed</span> {{ p.updatedAt | relativeTime }} ·
+                v{{ p.version }}</span
+              >
             </p>
           </div>
 
@@ -167,7 +182,7 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
         <dl class="terms" aria-label="Key terms" i18n-aria-label="@@bpd.terms.aria">
           <div class="term">
             <dt i18n="@@bpd.term.rate">Rate</dt>
-            <dd class="numeric">{{ headlineRate(p) }}<span class="unit">%</span></dd>
+            <dd class="numeric">{{ n(headlineRate(p)) }}<span class="unit">%</span></dd>
             <span class="term-hint">{{ rateBasisLabel(p) }}</span>
           </div>
           <div class="term">
@@ -189,7 +204,7 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
           </div>
           <div class="term">
             <dt i18n="@@bpd.term.dbr">Debt burden cap</dt>
-            <dd class="numeric">{{ p.eligibility.dbrCapPercent }}<span class="unit">%</span></dd>
+            <dd class="numeric">{{ n(p.eligibility.dbrCapPercent) }}<span class="unit">%</span></dd>
             <span class="term-hint">{{ dbrHint(p) }}</span>
           </div>
           <div class="term">
@@ -211,344 +226,230 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
           </div>
         }
 
-        <div class="grid">
-          <section class="card">
-            <h2 class="card-title" i18n="@@bank_programs.section.identity">Identity</h2>
-            <dl class="kv">
-              <div class="row">
-                <dt i18n="@@bank_programs.field.program_code">Program code</dt>
-                <dd>
-                  <span class="code">{{ p.programCode }}</span>
-                </dd>
-              </div>
-              <div class="row">
-                <dt i18n="@@bank_programs.field.bank_name">Bank</dt>
-                <dd>{{ p.bankName }}</dd>
-              </div>
-              <div class="row">
-                <dt i18n="@@bank_programs.field.friendly_name">Friendly name</dt>
-                <dd>{{ p.friendlyName }}</dd>
-              </div>
-              @if (p.friendlyNameAr) {
-                <div class="row">
-                  <dt i18n="@@bpd.field.friendly_name_ar">Arabic name</dt>
-                  <!-- The customer reads this one. It is Arabic inside a page that may be
-                     laid out either way, so it carries its own direction. -->
-                  <dd>
-                    <bdi dir="rtl">{{ p.friendlyNameAr }}</bdi>
-                  </dd>
-                </div>
-              }
-              @if (p.programNameKey; as nameKey) {
-                <div class="row">
-                  <dt i18n="@@bpd.field.catalog_name">Catalog name</dt>
-                  <!-- The catalog row's own words, not its key: the key is an addressing
-                     token and this row exists to say which product the bank sells. -->
-                  <dd>{{ enumLabel('program_name', nameKey) }}</dd>
-                </div>
-              }
-              <div class="row">
-                <dt i18n="@@bank_programs.field.product_category">Category</dt>
-                <dd>{{ p.productCategory | humanize }}</dd>
-              </div>
-              <div class="row">
-                <dt i18n="@@bank_programs.field.income_basis_short">Income</dt>
-                <dd>{{ basisLabel(p) }}</dd>
-              </div>
-              <div class="row">
-                <dt i18n="@@bank_programs.field.sharia_compliant">Sharia compliant</dt>
-                <dd>{{ p.isShariaCompliant ? yesLabel : noLabel }}</dd>
-              </div>
-              <div class="row">
-                <dt i18n="@@bpd.field.last_changed">Last changed</dt>
-                <dd>
-                  {{ p.updatedAt | relativeTime }}
-                  <span class="unit">· v{{ p.version }}</span>
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          <section class="card">
-            <h2 class="card-title" i18n="@@bank_programs.section.eligibility">
-              Who the bank will lend to
-            </h2>
-            <dl class="kv">
-              <div class="row">
-                <dt i18n="@@bank_programs.field.accepted_employment_types">Employment</dt>
-                <dd class="chips">
-                  @for (
-                    t of enumLabels('employment_type', p.eligibility.acceptedEmploymentTypes);
-                    track t
-                  ) {
-                    <span class="enum-chip">{{ t }}</span>
-                  } @empty {
-                    <span class="empty-dash">—</span>
+        <div class="layout">
+          <div class="col-main">
+            <!-- Typed codes the API has always returned and no screen has ever shown. -->
+            @if (p.warnings && p.warnings.length > 0) {
+              <section class="card warnings">
+                <h2 class="card-title" i18n="@@bank_programs.section.warnings">Needs attention</h2>
+                <ul class="warn-list">
+                  @for (w of p.warnings; track w.code + (w.meta ? '' : '')) {
+                    <li>{{ warningText(w) }}</li>
                   }
-                </dd>
-              </div>
-              <div class="row">
-                <dt i18n="@@bank_programs.field.age_min">Age</dt>
-                <dd class="numeric">
-                  <bdi dir="ltr">{{ p.eligibility.ageMin }}–{{ p.eligibility.ageMax }}</bdi>
-                </dd>
-              </div>
-              @if (selfEmployedAge(p); as range) {
-                <div class="row">
-                  <dt i18n="@@bpd.field.age_self_employed">Age — self-employed</dt>
-                  <dd class="numeric">
-                    <bdi dir="ltr">{{ range }}</bdi>
-                  </dd>
+                </ul>
+              </section>
+            }
+
+            <!-- What this bank changes for a combination of answers — the part of the program
+               that prices the car, so it comes first. -->
+            @if (caseLines(p).length > 0) {
+              <section class="card">
+                <div class="card-head">
+                  <h2 class="card-title" i18n="@@bpd.section.cases">Cases</h2>
+                  <p class="card-sub" i18n="@@bpd.cases.sub">
+                    Checked from the top. The first that matches sets the figures it names.
+                  </p>
                 </div>
-              }
-              <div class="row">
-                <dt i18n="@@bank_programs.field.min_monthly_income_egp">Min income (EGP)</dt>
-                <dd class="numeric">{{ money(p.eligibility.minMonthlyIncomeEGP) }}</dd>
-              </div>
-              @if (p.eligibility.minMonthlyIncomeSelfEmployedEGP; as se) {
+                <ol class="case-list">
+                  @for (c of caseLines(p); track c.id; let i = $index) {
+                    <li class="case-row">
+                      <span class="case-n" aria-hidden="true">{{ i + 1 }}</span>
+                      <span class="case-when">{{ c.when }}</span>
+                      <span class="case-then" [class.is-refuse]="c.refuse">{{ c.then }}</span>
+                    </li>
+                  }
+                </ol>
+              </section>
+            }
+            <section class="card">
+              <h2 class="card-title" i18n="@@bank_programs.section.eligibility">
+                Who the bank will lend to
+              </h2>
+              <dl class="kv">
                 <div class="row">
-                  <dt i18n="@@bpd.field.min_income_self_employed">
-                    Min income — self-employed (EGP)
-                  </dt>
-                  <dd class="numeric">{{ money(se) }}</dd>
-                </div>
-              }
-              <div class="row">
-                <dt i18n="@@bpd.field.min_months_in_job">Time in the job</dt>
-                <dd class="numeric">
-                  {{ p.eligibility.minMonthsInJob }}
-                  <span class="unit" i18n="@@bpd.unit.months_min">months minimum</span>
-                </dd>
-              </div>
-              @if (p.eligibility.acceptedTransferTypes.length > 0) {
-                <div class="row">
-                  <dt i18n="@@bpd.field.transfer_types">Salary transfer</dt>
+                  <dt i18n="@@bank_programs.field.accepted_employment_types">Employment</dt>
                   <dd class="chips">
                     @for (
-                      t of enumLabels('transfer_type', p.eligibility.acceptedTransferTypes);
+                      t of enumLabels('employment_type', p.eligibility.acceptedEmploymentTypes);
                       track t
                     ) {
                       <span class="enum-chip">{{ t }}</span>
+                    } @empty {
+                      <span class="empty-dash">—</span>
                     }
                   </dd>
                 </div>
-              }
-              @if (dbrBandRows(p).length > 0) {
                 <div class="row">
-                  <dt i18n="@@bpd.field.dbr_bands">Cap by income</dt>
-                  <dd class="chips">
-                    @for (r of dbrBandRows(p); track r) {
-                      <span class="enum-chip">{{ r }}</span>
-                    }
-                  </dd>
-                </div>
-              }
-              @if (dbrByEmploymentRows(p).length > 0) {
-                <div class="row">
-                  <dt i18n="@@bpd.field.dbr_by_employment">Cap by employment</dt>
-                  <dd class="chips">
-                    @for (r of dbrByEmploymentRows(p); track r) {
-                      <span class="enum-chip">{{ r }}</span>
-                    }
-                  </dd>
-                </div>
-              }
-              <!-- EVERY program, payslip or not: the tiers are program-level policy since
-                   v30.3.0, so leaving the row out on some would read as "cannot state one".
-                   Blank is said in words, because blank is a real answer (every score counts
-                   at 100%), and a table read off the product says whose it is. -->
-              <div class="row">
-                <dt i18n="@@bpd.field.iscore">I-Score tiers</dt>
-                @if (iScoreTierRows(p); as tiers) {
-                  <dd class="chips">
-                    @for (r of tiers.rows; track r) {
-                      <span class="enum-chip">{{ r }}</span>
-                    }
-                    @if (tiers.source === 'product') {
-                      <span class="quiet" i18n="@@bpd.iscore.from_product"
-                        >· the product's tiers</span
-                      >
-                    } @else if (tiers.source === 'platform') {
-                      <span class="quiet" i18n="@@bpd.iscore.from_platform"
-                        >· the standard I-Score classes</span
-                      >
-                    }
-                  </dd>
-                } @else {
-                  <dd class="quiet" i18n="@@bpd.iscore.none">
-                    None stated — every score counts at 100%
-                  </dd>
-                }
-              </div>
-              @if (p.eligibility.skipDbrCheck) {
-                <div class="row">
-                  <dt i18n="@@bank_programs.field.skip_dbr">Skip DBR check (secured loans only)</dt>
-                  <dd>{{ yesLabel }}</dd>
-                </div>
-              }
-              @for (g of wealthGateRows(p); track g.label) {
-                <div class="row">
-                  <dt>{{ g.label }}</dt>
-                  <dd class="numeric">{{ g.value }}</dd>
-                </div>
-              }
-              <!-- Only the requirements the bank turned ON. A grid of eleven "No"s is a
-                 list of everything this program is not, which nobody reads. -->
-              <div class="row">
-                <dt i18n="@@bpd.field.requirements">Also requires</dt>
-                <dd class="chips">
-                  @for (r of requirementLabels(p); track r) {
-                    <span class="enum-chip">{{ r }}</span>
-                  } @empty {
-                    <span class="quiet" i18n="@@bpd.value.no_requirements"
-                      >Nothing beyond the above</span
-                    >
-                  }
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          <section class="card">
-            <h2 class="card-title" i18n="@@bank_programs.section.pricing">Pricing</h2>
-            <dl class="kv">
-              <!-- WHAT IT IS QUOTED AT, which is not always what it states. A programme that
-                   states no rate is priced by its product (the wizard stopped asking for one),
-                   and a card reading the stored column alone would print a bare "%" for it. -->
-              @if (quotedPricing(p); as q) {
-                @if (!q.isVariableRate) {
-                  <div class="row">
-                    <dt i18n="@@bank_programs.field.base_rate">Base rate</dt>
-                    <dd class="numeric">
-                      {{ q.baseRatePercent }}%
-                      @if (q.fromProduct) {
-                        <span class="quiet" i18n="@@bpd.rate.from_product">· the product's</span>
-                      }
-                    </dd>
-                  </div>
-                } @else {
-                  <div class="row">
-                    <dt i18n="@@bank_programs.field.current_effective_rate">
-                      Current effective rate
-                    </dt>
-                    <dd class="numeric">
-                      {{ q.currentEffectiveRatePercent }}%
-                      @if (q.fromProduct) {
-                        <span class="quiet" i18n="@@bpd.rate.from_product">· the product's</span>
-                      }
-                    </dd>
-                  </div>
-                }
-              }
-              @if (p.pricing.isVariableRate) {
-                @if (spreadRange(p); as spread) {
-                  <div class="row">
-                    <dt i18n="@@bpd.field.spread">Spread over the index</dt>
-                    <dd class="numeric">{{ spread }}</dd>
-                  </div>
-                }
-              }
-              <!-- Always shown, including on a program that states nothing: absence reads as
-               the declining annuity on the server, so leaving the row out would let the
-               operator read a flat program as declining and never know a basis existed. -->
-              <div class="row">
-                <dt i18n="@@bank_programs.field.rate_basis">How the interest is charged</dt>
-                <dd>{{ rateBasisLabel(p) }}</dd>
-              </div>
-              @for (t of rateTables(p); track t.label) {
-                <div class="row">
-                  <dt>{{ t.label }}</dt>
-                  <dd class="chips">
-                    @for (r of t.rows; track r) {
-                      <span class="enum-chip">{{ r }}</span>
-                    }
-                  </dd>
-                </div>
-              }
-              @for (w of waiverRows(p); track w.label) {
-                <div class="row">
-                  <dt>{{ w.label }}</dt>
-                  <dd class="numeric">{{ w.value }}</dd>
-                </div>
-              }
-              @if (p.pricing.variableRateNote) {
-                <div class="row">
-                  <dt i18n="@@bank_programs.field.variable_rate_note">Disclosure note</dt>
-                  <dd>{{ p.pricing.variableRateNote }}</dd>
-                </div>
-              }
-            </dl>
-          </section>
-
-          <!-- Only when the bank states more than the range the rail already carries. A card
-             whose one row repeats the strip two inches above it is a card of nothing. -->
-          @if (hasLimitDetail(p)) {
-            <section class="card">
-              <h2 class="card-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h2>
-              <dl class="kv">
-                <div class="row">
-                  <dt i18n="@@bpd.field.amount_range">Amount</dt>
+                  <dt i18n="@@bank_programs.field.age_min">Age</dt>
                   <dd class="numeric">
-                    {{ money(p.loanLimits.minAmountEGP) }}–{{ money(p.loanLimits.maxAmountEGP) }}
-                    <span class="unit" i18n="@@bpd.unit.egp">EGP</span>
+                    <bdi dir="ltr">{{ p.eligibility.ageMin }}–{{ p.eligibility.ageMax }}</bdi>
                   </dd>
                 </div>
-                @for (l of limitRows(p); track l.label) {
+                @if (selfEmployedAge(p); as range) {
                   <div class="row">
-                    <dt>{{ l.label }}</dt>
-                    <dd class="numeric">{{ l.value }}</dd>
+                    <dt i18n="@@bpd.field.age_self_employed">Age — self-employed</dt>
+                    <dd class="numeric">
+                      <bdi dir="ltr">{{ range }}</bdi>
+                    </dd>
                   </div>
                 }
-                <!-- The second table nine bank sheets print under "Loan Amount — Maximum".
-                     Rendered here because this page is where an operator checks what a program
-                     holds, and a cap that only appears inside the wizard reads as absent. -->
-                @if (capRows(p).length > 0) {
+                <div class="row">
+                  <dt i18n="@@bank_programs.field.min_monthly_income_egp">Min income (EGP)</dt>
+                  <dd class="numeric">{{ money(p.eligibility.minMonthlyIncomeEGP) }}</dd>
+                </div>
+                @if (p.eligibility.minMonthlyIncomeSelfEmployedEGP; as se) {
                   <div class="row">
-                    <dt>
-                      <span i18n="@@bank_programs.detail.max_by_fact">Maximum by answer</span>
-                      <!-- The keys below are CLASS keys on a class-keyed table (city_tier_major,
-                           not cairo), and nothing else on the row would say so. The label is
-                           deliberately left as the raw key rather than resolved: this page loads
-                           no enumeration registry for governorate classes, and resolving one axis
-                           while the other stayed a slug reads worse than both being raw. -->
-                      @if (capIsClassKeyed(p)) {
-                        <span class="hint" i18n="@@bank_programs.detail.max_by_class"
-                          >keyed by the answer’s class</span
-                        >
-                      }
+                    <dt i18n="@@bpd.field.min_income_self_employed">
+                      Min income — self-employed (EGP)
                     </dt>
+                    <dd class="numeric">{{ money(se) }}</dd>
+                  </div>
+                }
+                <div class="row">
+                  <dt i18n="@@bpd.field.min_months_in_job">Time in the job</dt>
+                  <dd class="numeric">
+                    {{ p.eligibility.minMonthsInJob }}
+                    <span class="unit" i18n="@@bpd.unit.months_min">months minimum</span>
+                  </dd>
+                </div>
+                @if (p.eligibility.acceptedTransferTypes.length > 0) {
+                  <div class="row">
+                    <dt i18n="@@bpd.field.transfer_types">Salary transfer</dt>
                     <dd class="chips">
-                      @for (r of capRows(p); track r.label) {
-                        <span class="enum-chip">{{ r.label }} → {{ money(r.amount) }}</span>
+                      @for (
+                        t of enumLabels('transfer_type', p.eligibility.acceptedTransferTypes);
+                        track t
+                      ) {
+                        <span class="enum-chip">{{ t }}</span>
                       }
                     </dd>
                   </div>
-                  <div class="row">
-                    <dt i18n="@@bank_programs.detail.max_no_match">An answer with no row</dt>
-                    @if (p.loanLimits.maxLoanByFact?.onNoMatch === 'reject') {
-                      <dd i18n="@@max_loan_by_fact.reject">
-                        Gets no figures, with a stated reason
-                      </dd>
-                    } @else {
-                      <dd i18n="@@max_loan_by_fact.use_program_max">
-                        Falls back to this program’s maximum
-                      </dd>
-                    }
-                  </div>
                 }
-                @if (capAdjustmentRows(p).length > 0) {
+                @if (dbrBandRows(p).length > 0) {
                   <div class="row">
-                    <dt i18n="@@bank_programs.detail.max_adjustments">
-                      Adjustments to that maximum
-                    </dt>
+                    <dt i18n="@@bpd.field.dbr_bands">Cap by income</dt>
                     <dd class="chips">
-                      @for (r of capAdjustmentRows(p); track r) {
+                      @for (r of dbrBandRows(p); track r) {
                         <span class="enum-chip">{{ r }}</span>
                       }
                     </dd>
                   </div>
                 }
-                @for (t of capAxisTables(p); track t.label) {
+                @if (dbrByEmploymentRows(p).length > 0) {
+                  <div class="row">
+                    <dt i18n="@@bpd.field.dbr_by_employment">Cap by employment</dt>
+                    <dd class="chips">
+                      @for (r of dbrByEmploymentRows(p); track r) {
+                        <span class="enum-chip">{{ r }}</span>
+                      }
+                    </dd>
+                  </div>
+                }
+                <!-- EVERY program, payslip or not: the tiers are program-level policy since
+                   v30.3.0, so leaving the row out on some would read as "cannot state one".
+                   Blank is said in words, because blank is a real answer (every score counts
+                   at 100%), and a table read off the product says whose it is. -->
+                <div class="row">
+                  <dt i18n="@@bpd.field.iscore">I-Score tiers</dt>
+                  @if (iScoreTierRows(p); as tiers) {
+                    <dd class="chips">
+                      @for (r of tiers.rows; track r) {
+                        <span class="enum-chip">{{ r }}</span>
+                      }
+                      @if (tiers.source === 'product') {
+                        <span class="quiet" i18n="@@bpd.iscore.from_product"
+                          >· the product's tiers</span
+                        >
+                      } @else if (tiers.source === 'platform') {
+                        <span class="quiet" i18n="@@bpd.iscore.from_platform"
+                          >· the standard I-Score classes</span
+                        >
+                      }
+                    </dd>
+                  } @else {
+                    <dd class="quiet" i18n="@@bpd.iscore.none">
+                      None stated — every score counts at 100%
+                    </dd>
+                  }
+                </div>
+                @if (p.eligibility.skipDbrCheck) {
+                  <div class="row">
+                    <dt i18n="@@bank_programs.field.skip_dbr">
+                      Skip DBR check (secured loans only)
+                    </dt>
+                    <dd>{{ yesLabel }}</dd>
+                  </div>
+                }
+                @for (g of wealthGateRows(p); track g.label) {
+                  <div class="row">
+                    <dt>{{ g.label }}</dt>
+                    <dd class="numeric">{{ g.value }}</dd>
+                  </div>
+                }
+                <!-- Only the requirements the bank turned ON. A grid of eleven "No"s is a
+                 list of everything this program is not, which nobody reads. -->
+                <div class="row">
+                  <dt i18n="@@bpd.field.requirements">Also requires</dt>
+                  <dd class="chips">
+                    @for (r of requirementLabels(p); track r) {
+                      <span class="enum-chip">{{ r }}</span>
+                    } @empty {
+                      <span class="quiet" i18n="@@bpd.value.no_requirements"
+                        >Nothing beyond the above</span
+                      >
+                    }
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            <section class="card">
+              <h2 class="card-title" i18n="@@bank_programs.section.pricing">Pricing</h2>
+              <dl class="kv">
+                <!-- WHAT IT IS QUOTED AT, which is not always what it states. A programme that
+                   states no rate is priced by its product (the wizard stopped asking for one),
+                   and a card reading the stored column alone would print a bare "%" for it. -->
+                @if (quotedPricing(p); as q) {
+                  @if (!q.isVariableRate) {
+                    <div class="row">
+                      <dt i18n="@@bank_programs.field.base_rate">Base rate</dt>
+                      <dd class="numeric">
+                        {{ n(q.baseRatePercent) }}%
+                        @if (q.fromProduct) {
+                          <span class="quiet" i18n="@@bpd.rate.from_product">· the product's</span>
+                        }
+                      </dd>
+                    </div>
+                  } @else {
+                    <div class="row">
+                      <dt i18n="@@bank_programs.field.current_effective_rate">
+                        Current effective rate
+                      </dt>
+                      <dd class="numeric">
+                        {{ n(q.currentEffectiveRatePercent) }}%
+                        @if (q.fromProduct) {
+                          <span class="quiet" i18n="@@bpd.rate.from_product">· the product's</span>
+                        }
+                      </dd>
+                    </div>
+                  }
+                }
+                @if (p.pricing.isVariableRate) {
+                  @if (spreadRange(p); as spread) {
+                    <div class="row">
+                      <dt i18n="@@bpd.field.spread">Spread over the index</dt>
+                      <dd class="numeric">{{ spread }}</dd>
+                    </div>
+                  }
+                }
+                <!-- Always shown, including on a program that states nothing: absence reads as
+               the declining annuity on the server, so leaving the row out would let the
+               operator read a flat program as declining and never know a basis existed. -->
+                <div class="row">
+                  <dt i18n="@@bank_programs.field.rate_basis">How the interest is charged</dt>
+                  <dd>{{ rateBasisLabel(p) }}</dd>
+                </div>
+                @for (t of rateTables(p); track t.label) {
                   <div class="row">
                     <dt>{{ t.label }}</dt>
                     <dd class="chips">
@@ -558,157 +459,242 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
                     </dd>
                   </div>
                 }
-                @if (tenorByEmploymentRows(p).length > 0) {
+                @for (w of waiverRows(p); track w.label) {
                   <div class="row">
-                    <dt i18n="@@bpd.field.tenor_by_employment">Longest term by employment</dt>
-                    <dd class="chips">
-                      @for (r of tenorByEmploymentRows(p); track r) {
-                        <span class="enum-chip">{{ r }}</span>
-                      }
-                    </dd>
+                    <dt>{{ w.label }}</dt>
+                    <dd class="numeric">{{ w.value }}</dd>
+                  </div>
+                }
+                @if (p.pricing.variableRateNote) {
+                  <div class="row">
+                    <dt i18n="@@bank_programs.field.variable_rate_note">Disclosure note</dt>
+                    <dd>{{ p.pricing.variableRateNote }}</dd>
                   </div>
                 }
               </dl>
             </section>
-          }
 
-          <!-- This page rendered NOTHING about the income rule until v16.0.0 — not the
+            <!-- Only when the bank states more than the range the rail already carries. A card
+             whose one row repeats the strip two inches above it is a card of nothing. -->
+            @if (hasLimitDetail(p)) {
+              <section class="card">
+                <h2 class="card-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h2>
+                <dl class="kv">
+                  <div class="row">
+                    <dt i18n="@@bpd.field.amount_range">Amount</dt>
+                    <dd class="numeric">
+                      {{ money(p.loanLimits.minAmountEGP) }}–{{ money(p.loanLimits.maxAmountEGP) }}
+                      <span class="unit" i18n="@@bpd.unit.egp">EGP</span>
+                    </dd>
+                  </div>
+                  @for (l of limitRows(p); track l.label) {
+                    <div class="row">
+                      <dt>{{ l.label }}</dt>
+                      <dd class="numeric">{{ l.value }}</dd>
+                    </div>
+                  }
+                  <!-- The second table nine bank sheets print under "Loan Amount — Maximum".
+                     Rendered here because this page is where an operator checks what a program
+                     holds, and a cap that only appears inside the wizard reads as absent. -->
+                  @if (capRows(p).length > 0) {
+                    <div class="row">
+                      <dt>
+                        <span i18n="@@bank_programs.detail.max_by_fact">Maximum by answer</span>
+                        <!-- The keys below are CLASS keys on a class-keyed table (city_tier_major,
+                           not cairo), and nothing else on the row would say so. The label is
+                           deliberately left as the raw key rather than resolved: this page loads
+                           no enumeration registry for governorate classes, and resolving one axis
+                           while the other stayed a slug reads worse than both being raw. -->
+                        @if (capIsClassKeyed(p)) {
+                          <span class="hint" i18n="@@bank_programs.detail.max_by_class"
+                            >keyed by the answer’s class</span
+                          >
+                        }
+                      </dt>
+                      <dd class="chips">
+                        @for (r of capRows(p); track r.label) {
+                          <span class="enum-chip">{{ r.label }} → {{ money(r.amount) }}</span>
+                        }
+                      </dd>
+                    </div>
+                    <div class="row">
+                      <dt i18n="@@bank_programs.detail.max_no_match">An answer with no row</dt>
+                      @if (p.loanLimits.maxLoanByFact?.onNoMatch === 'reject') {
+                        <dd i18n="@@max_loan_by_fact.reject">
+                          Gets no figures, with a stated reason
+                        </dd>
+                      } @else {
+                        <dd i18n="@@max_loan_by_fact.use_program_max">
+                          Falls back to this program’s maximum
+                        </dd>
+                      }
+                    </div>
+                  }
+                  @if (capAdjustmentRows(p).length > 0) {
+                    <div class="row">
+                      <dt i18n="@@bank_programs.detail.max_adjustments">
+                        Adjustments to that maximum
+                      </dt>
+                      <dd class="chips">
+                        @for (r of capAdjustmentRows(p); track r) {
+                          <span class="enum-chip">{{ r }}</span>
+                        }
+                      </dd>
+                    </div>
+                  }
+                  @for (t of capAxisTables(p); track t.label) {
+                    <div class="row">
+                      <dt>{{ t.label }}</dt>
+                      <dd class="chips">
+                        @for (r of t.rows; track r) {
+                          <span class="enum-chip">{{ r }}</span>
+                        }
+                      </dd>
+                    </div>
+                  }
+                  @if (tenorByEmploymentRows(p).length > 0) {
+                    <div class="row">
+                      <dt i18n="@@bpd.field.tenor_by_employment">Longest term by employment</dt>
+                      <dd class="chips">
+                        @for (r of tenorByEmploymentRows(p); track r) {
+                          <span class="enum-chip">{{ r }}</span>
+                        }
+                      </dd>
+                    </div>
+                  }
+                </dl>
+              </section>
+            }
+
+            <!-- This page rendered NOTHING about the income rule until v16.0.0 — not the
              method, not the warnings the API was already returning. On a no-payslip
              program that rule decides what income exists at all, so the one read-only
              view of the program was silent about its single most consequential setting.
              The bank's own step figures are NOT rendered here: the wizard owns them, and a
              flattened dump of every step's table read as noise on this card. -->
-          @if (p.programType === 'income_surrogate') {
+            @if (p.programType === 'income_surrogate') {
+              <section class="card">
+                <h2 class="card-title" i18n="@@bank_programs.section.income">
+                  How the income is worked out
+                </h2>
+                <dl class="kv">
+                  <div class="row">
+                    <dt i18n="@@bank_programs.field.strategy">Method</dt>
+                    <dd>{{ methodLabel(p) }}</dd>
+                  </div>
+                  <div class="row">
+                    <dt i18n="@@bpd.field.figures_owner">Whose figures</dt>
+                    <dd>{{ figuresOwnerLabel(p) }}</dd>
+                  </div>
+                  @if (p.incomeAssumption['dbrCapPercentOverride']; as override) {
+                    <div class="row">
+                      <dt i18n="@@bank_programs.income.dbr_override">DBR cap for this rule</dt>
+                      <dd class="numeric">{{ n(override) }}%</dd>
+                    </div>
+                  }
+                  @if (additionalIncomeRows(p).length > 0) {
+                    <div class="row">
+                      <dt>
+                        <span i18n="@@bpd.field.additional_income">Other income counted</span>
+                        <span class="hint" i18n="@@bpd.field.additional_income_hint"
+                          >share of each source the bank recognises</span
+                        >
+                      </dt>
+                      <dd class="chips">
+                        @for (r of additionalIncomeRows(p); track r.label) {
+                          <span class="enum-chip" [class.estimated]="r.estimated">
+                            {{ r.label }} → {{ n(r.percent) }}%
+                            @if (r.estimated) {
+                              <span
+                                class="est-mark"
+                                i18n="@@bank_programs.value_source.estimated_short"
+                                >Estimate</span
+                              >
+                            }
+                          </span>
+                        }
+                      </dd>
+                    </div>
+                    @if (additionalIncomeCap(p); as cap) {
+                      <div class="row">
+                        <dt i18n="@@bpd.field.additional_income_cap">Counted up to</dt>
+                        <dd class="numeric">
+                          {{ n(cap) }}%
+                          <span class="unit" i18n="@@bpd.unit.of_basic">of the basic figure</span>
+                        </dd>
+                      </div>
+                    }
+                  }
+                </dl>
+              </section>
+            }
+          </div>
+          <aside class="col-side">
             <section class="card">
-              <h2 class="card-title" i18n="@@bank_programs.section.income">
-                How the income is worked out
+              <h2 class="card-title" i18n="@@bank_programs.section.fees">Fees</h2>
+              <dl class="kv">
+                @for (f of feeRows(p); track f.label) {
+                  <div class="row">
+                    <dt>{{ f.label }}</dt>
+                    <dd class="numeric">{{ f.value }}</dd>
+                  </div>
+                }
+              </dl>
+            </section>
+
+            <section class="card">
+              <h2 class="card-title" i18n="@@bpd.section.documents">
+                What the customer must bring
               </h2>
               <dl class="kv">
                 <div class="row">
-                  <dt i18n="@@bank_programs.field.strategy">Method</dt>
-                  <dd>{{ methodLabel(p) }}</dd>
-                </div>
-                <div class="row">
-                  <dt i18n="@@bpd.field.figures_owner">Whose figures</dt>
-                  <dd>{{ figuresOwnerLabel(p) }}</dd>
-                </div>
-                @if (p.incomeAssumption['dbrCapPercentOverride']; as override) {
-                  <div class="row">
-                    <dt i18n="@@bank_programs.income.dbr_override">DBR cap for this rule</dt>
-                    <dd class="numeric">{{ override }}%</dd>
-                  </div>
-                }
-                @if (additionalIncomeRows(p).length > 0) {
-                  <div class="row">
-                    <dt>
-                      <span i18n="@@bpd.field.additional_income">Other income counted</span>
-                      <span class="hint" i18n="@@bpd.field.additional_income_hint"
-                        >share of each source the bank recognises</span
+                  <dt i18n="@@bpd.field.required_documents">Documents</dt>
+                  <dd class="chips">
+                    @for (d of enumLabels('required_document', p.requiredDocuments); track d) {
+                      <span class="enum-chip">{{ d }}</span>
+                    } @empty {
+                      <span class="quiet" i18n="@@bpd.value.no_documents"
+                        >None recorded for this program</span
                       >
-                    </dt>
-                    <dd class="chips">
-                      @for (r of additionalIncomeRows(p); track r.label) {
-                        <span class="enum-chip" [class.estimated]="r.estimated">
-                          {{ r.label }} → {{ r.percent }}%
-                          @if (r.estimated) {
-                            <span
-                              class="est-mark"
-                              i18n="@@bank_programs.value_source.estimated_short"
-                              >Estimate</span
-                            >
-                          }
-                        </span>
-                      }
-                    </dd>
-                  </div>
-                  @if (additionalIncomeCap(p); as cap) {
+                    }
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            @if (performanceRows(p).length > 0) {
+              <section class="card">
+                <h2 class="card-title" i18n="@@bpd.section.performance">Credit history</h2>
+                <dl class="kv">
+                  @for (r of performanceRows(p); track r.label) {
                     <div class="row">
-                      <dt i18n="@@bpd.field.additional_income_cap">Counted up to</dt>
-                      <dd class="numeric">
-                        {{ cap }}%
-                        <span class="unit" i18n="@@bpd.unit.of_basic">of the basic figure</span>
-                      </dd>
+                      <dt>{{ r.label }}</dt>
+                      <dd class="numeric">{{ r.value }}</dd>
                     </div>
                   }
-                }
-              </dl>
-            </section>
-          }
+                </dl>
+              </section>
+            }
 
-          <section class="card">
-            <h2 class="card-title" i18n="@@bank_programs.section.fees">Fees</h2>
-            <dl class="kv">
-              @for (f of feeRows(p); track f.label) {
-                <div class="row">
-                  <dt>{{ f.label }}</dt>
-                  <dd class="numeric">{{ f.value }}</dd>
-                </div>
-              }
-            </dl>
-          </section>
-
-          <section class="card">
-            <h2 class="card-title" i18n="@@bpd.section.documents">What the customer must bring</h2>
-            <dl class="kv">
-              <div class="row">
-                <dt i18n="@@bpd.field.required_documents">Documents</dt>
-                <dd class="chips">
-                  @for (d of enumLabels('required_document', p.requiredDocuments); track d) {
-                    <span class="enum-chip">{{ d }}</span>
-                  } @empty {
-                    <span class="quiet" i18n="@@bpd.value.no_documents"
-                      >None recorded for this program</span
-                    >
-                  }
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          @if (performanceRows(p).length > 0) {
-            <section class="card">
-              <h2 class="card-title" i18n="@@bpd.section.performance">Credit history</h2>
-              <dl class="kv">
-                @for (r of performanceRows(p); track r.label) {
-                  <div class="row">
-                    <dt>{{ r.label }}</dt>
-                    <dd class="numeric">{{ r.value }}</dd>
-                  </div>
-                }
-              </dl>
-            </section>
-          }
-
-          <!-- Typed codes the API has always returned and no screen has ever shown. -->
-          @if (p.warnings && p.warnings.length > 0) {
-            <section class="card warnings">
-              <h2 class="card-title" i18n="@@bank_programs.section.warnings">Needs attention</h2>
-              <ul class="warn-list">
-                @for (w of p.warnings; track w.code + (w.meta ? '' : '')) {
-                  <li>{{ warningText(w) }}</li>
-                }
-              </ul>
-            </section>
-          }
-
-          <!-- The conditions the sheet states and no field on this platform can hold —
+            <!-- The conditions the sheet states and no field on this platform can hold —
              "private hospitals only", "confirm the percentages with the bank". They are the
              reason a program can look complete and still be wrong, so they get the width. -->
-          @if (noteLines(p).length > 0 || p.operatorTips.length > 0) {
-            <section class="card wide">
-              <h2 class="card-title" i18n="@@bpd.section.notes">Notes for the desk</h2>
-              @for (line of noteLines(p); track line) {
-                <p class="prose">{{ line }}</p>
-              }
-              @if (p.operatorTips.length > 0) {
-                <ul class="tips">
-                  @for (t of p.operatorTips; track t) {
-                    <li>{{ t }}</li>
-                  }
-                </ul>
-              }
-            </section>
-          }
+            @if (noteLines(p).length > 0 || p.operatorTips.length > 0) {
+              <section class="card wide">
+                <h2 class="card-title" i18n="@@bpd.section.notes">Notes for the desk</h2>
+                @for (line of noteLines(p); track line) {
+                  <p class="prose">{{ line }}</p>
+                }
+                @if (p.operatorTips.length > 0) {
+                  <ul class="tips">
+                    @for (t of p.operatorTips; track t) {
+                      <li>{{ t }}</li>
+                    }
+                  </ul>
+                }
+              </section>
+            }
+          </aside>
         </div>
       </section>
     } @else {
@@ -744,127 +730,92 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
         padding: var(--space-10);
       }
 
-      /* ── Hero ─────────────────────────────────────────── */
+      /* ── Header ─────────────────────────────────────────
+         A plain surface: the program's name is the loudest thing on it, and the actions sit
+         where a desk expects them. The meta line carries what the Identity card repeated. */
       .hero {
-        position: relative;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: var(--space-4);
-        padding: var(--space-6);
+        padding: var(--space-5) var(--space-6);
+        border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg);
-        background: var(--gradient-hero);
-        box-shadow: var(--shadow-md);
-        overflow: hidden;
-        isolation: isolate;
-      }
-      /* Soft diagonal sheen — pure white tint, no brand hex literals. */
-      .hero::after {
-        content: '';
-        position: absolute;
-        inset-block-start: -40%;
-        inset-inline-end: -10%;
-        inline-size: 320px;
-        block-size: 320px;
-        background: radial-gradient(
-          circle,
-          color-mix(in srgb, #fff 14%, transparent) 0%,
-          transparent 70%
-        );
-        z-index: -1;
-        pointer-events: none;
+        background: var(--color-surface-default);
       }
       .cat-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        inline-size: 60px;
-        block-size: 60px;
+        inline-size: 48px;
+        block-size: 48px;
         flex: none;
-        border-radius: var(--radius-lg);
-        background: color-mix(in srgb, #fff 18%, transparent);
-        color: #fff;
-        font-size: var(--text-2xl);
-        backdrop-filter: blur(6px);
+        border-radius: var(--radius-md);
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent-ink);
+        font-size: var(--text-xl);
       }
       .hero-text {
         flex: 1 1 auto;
         min-inline-size: 0;
-      }
-      .eyebrow {
-        display: block;
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: color-mix(in srgb, #fff 80%, transparent);
       }
       .title {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
         gap: var(--space-3);
-        margin: var(--space-1) 0 0;
-        font-family: var(--font-display);
+        margin: 0;
         font-size: var(--text-2xl);
         font-weight: var(--font-weight-bold);
         letter-spacing: var(--tracking-tight);
-        color: #fff;
+        color: var(--color-text-primary);
+      }
+      .title-ar {
+        margin: var(--space-1) 0 0;
+        font-size: var(--text-base);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-secondary);
       }
       .sub {
         margin: var(--space-1) 0 0;
-        color: color-mix(in srgb, #fff 78%, transparent);
+        color: var(--color-text-secondary);
         font-size: var(--text-sm);
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-1) var(--space-3);
+        margin: var(--space-2) 0 0;
+        color: var(--color-text-tertiary);
+        font-size: var(--text-xs);
       }
       .status-chip {
         display: inline-flex;
         align-items: center;
         gap: var(--space-1);
-        padding: 3px 11px;
+        padding: 2px 10px;
         border-radius: var(--radius-pill);
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
-        background: color-mix(in srgb, #fff 16%, transparent);
-        color: color-mix(in srgb, #fff 78%, transparent);
-        backdrop-filter: blur(6px);
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
       }
       .status-chip.active {
-        background: color-mix(in srgb, #fff 24%, transparent);
-        color: #fff;
+        background: var(--color-success-bg);
+        color: var(--color-success);
       }
       .status-chip .dot {
         inline-size: 6px;
         block-size: 6px;
         border-radius: 50%;
-        background: color-mix(in srgb, #fff 60%, transparent);
-      }
-      .status-chip.active .dot {
-        background: #fff;
+        background: currentColor;
       }
       .hero-actions {
         display: inline-flex;
         align-items: center;
         gap: var(--space-2);
         flex: none;
-      }
-      /* Glass treatment so controls read on the gradient (no gray-on-color). */
-      .hero-actions ::ng-deep .ant-btn:not(.ant-btn-dangerous) {
-        background: color-mix(in srgb, #fff 16%, transparent);
-        border-color: color-mix(in srgb, #fff 32%, transparent);
-        color: #fff;
-        backdrop-filter: blur(6px);
-      }
-      .hero-actions ::ng-deep .ant-btn:not(.ant-btn-dangerous):hover {
-        background: color-mix(in srgb, #fff 26%, transparent);
-        border-color: color-mix(in srgb, #fff 48%, transparent);
-        color: #fff;
-      }
-      .hero-actions ::ng-deep .ant-btn-dangerous {
-        color: color-mix(in srgb, #fff 90%, transparent);
-      }
-      .hero-actions ::ng-deep .ant-btn-dangerous:hover {
-        background: color-mix(in srgb, #fff 18%, transparent);
-        color: #fff;
       }
       @media (max-width: 640px) {
         .hero-actions {
@@ -886,19 +837,25 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
         font-size: var(--text-sm);
       }
 
-      /* ── Info grid ────────────────────────────────────── */
-      .grid {
+      /* ── Two columns: what decides the offer, then what a desk looks up ── */
+      .layout {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        /* Each card is as tall as what it holds. Stretching a four-row card to match a
-           twelve-row neighbour puts a third of a card's height under its last value. */
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
         align-items: start;
         gap: var(--space-4);
         margin-block-start: var(--space-5);
       }
-      /* Prose, not pairs: the desk notes are sentences and read badly in a 280px column. */
-      .card.wide {
-        grid-column: 1 / -1;
+      .col-main,
+      .col-side {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        min-inline-size: 0;
+      }
+      @media (max-width: 1080px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
       }
       .card {
         background: var(--color-surface-default);
@@ -910,10 +867,7 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
           transform var(--motion-duration-base) var(--motion-easing-standard);
         animation: card-rise var(--motion-duration-base) var(--motion-easing-standard) both;
       }
-      .card:hover {
-        box-shadow: var(--shadow-sm);
-        transform: translateY(-2px);
-      }
+
       /* Two steps of entrance, by position. A delay per card stopped at the sixth, which
          was arbitrary the moment the page grew a seventh. */
       .card:nth-child(n + 2) {
@@ -943,12 +897,64 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
       /* Secondary, not tertiary: tertiary measures 3.83:1 on a card in light mode and this
          is a heading somebody reads to find the card they want (DESIGN_SYSTEM.md, colour). */
       .card-title {
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-base);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .card-head {
+        margin-block-end: var(--space-3);
+      }
+      .card-head .card-title {
+        margin: 0;
+      }
+      .card-sub {
+        margin: var(--space-1) 0 0;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+      .case-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .case-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: baseline;
+        gap: var(--space-3);
+        padding-block: var(--space-2);
+        border-block-start: 1px solid var(--color-border-default);
+        font-size: var(--text-sm);
+      }
+      .case-row:first-child {
+        border-block-start: 0;
+      }
+      .case-n {
+        display: inline-grid;
+        place-items: center;
+        inline-size: 1.375rem;
+        block-size: 1.375rem;
+        border-radius: 50%;
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--color-text-secondary);
-        margin: 0 0 var(--space-4);
+        font-variant-numeric: tabular-nums;
+      }
+      .case-when {
+        color: var(--color-text-primary);
+        overflow-wrap: anywhere;
+      }
+      .case-then {
+        color: var(--color-text-primary);
+        font-weight: var(--font-weight-semibold);
+        text-align: end;
+      }
+      .case-then.is-refuse {
+        color: var(--color-error);
       }
       .kv {
         margin: 0;
@@ -1053,10 +1059,8 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
         border-inline-start: 1px solid var(--color-border-default);
       }
       .term dt {
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
         color: var(--color-text-secondary);
       }
       .term dd {
@@ -1109,12 +1113,6 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
         padding: 2px 8px;
         border-radius: var(--radius-sm);
         background: var(--bg-muted);
-      }
-      .title-ar {
-        margin: var(--space-1) 0 0;
-        font-size: var(--text-lg);
-        font-weight: var(--font-weight-semibold);
-        color: color-mix(in srgb, #fff 88%, transparent);
       }
       .quiet {
         color: var(--color-text-secondary);
@@ -1196,6 +1194,63 @@ export class BankProgramDetailPage {
     { initialValue: '' },
   );
   readonly program = signal<BankProgramResponse | null>(null);
+
+  /** "25.0000" → "25", "2.5000" → "2.5": a figure as a desk says it. */
+  protected n(v: unknown): string {
+    if (v === null || v === undefined || v === '') return '—';
+    const t = String(v);
+    return /^-?\d+\.\d+$/.test(t) ? t.replace(/0+$/, '').replace(/\.$/, '') : t;
+  }
+
+  /**
+   * The bank's cases as sentences: "Brand: Mercedes-Benz + Model: C 200" → "Rate 11%".
+   * Read off the same fact registry every picker uses, so an answer reads as its label.
+   */
+  protected caseLines(
+    p: BankProgramResponse,
+  ): Array<{ id: string; when: string; then: string; refuse: boolean }> {
+    const facts = registryFacts(this.enums.membersFor('surrogate_fact')(), this.localeIsAr);
+    const optionLabel = (factKey: string, code: string): string => {
+      const o = facts
+        .find((f) => f.key === factKey)
+        ?.question?.options.find((x) => x.code === code);
+      return o ? (this.localeIsAr ? o.labelAr : o.labelEn) || o.labelEn : code;
+    };
+    const factLabel = (factKey: string): string => {
+      const f = facts.find((x) => x.key === factKey);
+      // The fact's own short name ("Car brand"), not the question ("What brand is the car?").
+      return f?.label ?? f?.question?.label ?? factKey;
+    };
+    return (p.cases ?? []).map((c) => {
+      const when = c.allOf
+        .map(
+          (cr) =>
+            `${factLabel(cr.factKey)}: ${criterionText(cr.criterion, (code) => optionLabel(cr.factKey, code))}`,
+        )
+        .join(' + ');
+      if (c.refuse === true) {
+        return { id: c.id, when, then: $localize`:@@bpd.cases.refused:Refused`, refuse: true };
+      }
+      const e = c.effects;
+      const parts: string[] = [];
+      if (e.ratePercent !== undefined)
+        parts.push($localize`:@@bpd.cases.rate:Rate ${this.n(e.ratePercent)}:N:%`);
+      if (e.ltvCeilingPercent !== undefined) {
+        parts.push($localize`:@@bpd.cases.share:Finance ${this.n(e.ltvCeilingPercent)}:N:%`);
+      }
+      if (e.minAmountEGP !== undefined) {
+        parts.push($localize`:@@bpd.cases.min_amount:From ${this.money(e.minAmountEGP)}:N: EGP`);
+      }
+      if (e.maxAmountEGP !== undefined) {
+        parts.push($localize`:@@bpd.cases.max_amount:Up to ${this.money(e.maxAmountEGP)}:N: EGP`);
+      }
+      if (e.minMonths !== undefined)
+        parts.push($localize`:@@bpd.cases.min_months:At least ${e.minMonths}:N: months`);
+      if (e.maxMonths !== undefined)
+        parts.push($localize`:@@bpd.cases.max_months:At most ${e.maxMonths}:N: months`);
+      return { id: c.id, when, then: parts.join(' · '), refuse: false };
+    });
+  }
 
   protected basisLabel(p: BankProgramResponse): string {
     return incomeBasisLabel(basisOf(p.programType));
@@ -1290,8 +1345,8 @@ export class BankProgramDetailPage {
   protected dbrBandRows(p: BankProgramResponse): string[] {
     return (p.eligibility.dbrBands ?? []).map((band) =>
       band.upToIncomeEGP === null
-        ? $localize`:@@bpd.dbr.band_open:above the last band → ${band.capPercent}:cap:%`
-        : `${this.money(band.upToIncomeEGP)} → ${band.capPercent}%`,
+        ? $localize`:@@bpd.dbr.band_open:above the last band → ${this.n(band.capPercent)}:cap:%`
+        : `${this.money(band.upToIncomeEGP)} → ${this.n(band.capPercent)}%`,
     );
   }
 
@@ -1302,7 +1357,7 @@ export class BankProgramDetailPage {
    */
   protected dbrByEmploymentRows(p: BankProgramResponse): string[] {
     return Object.entries(p.eligibility.dbrCapPercentByEmploymentType ?? {}).map(
-      ([bucket, cap]) => `${this.humanKey(bucket)} → ${cap}%`,
+      ([bucket, cap]) => `${this.humanKey(bucket)} → ${this.n(cap)}%`,
     );
   }
 
@@ -1328,7 +1383,7 @@ export class BankProgramDetailPage {
       rows: bands.map((band) =>
         band.toExclusive === null
           ? $localize`:@@bpd.iscore.tier_open:from ${band.fromInclusive}:from: → ${band.incomeEGP}:pct:%`
-          : `${band.fromInclusive}–${band.toExclusive} → ${band.incomeEGP}%`,
+          : `${band.fromInclusive}–${band.toExclusive} → ${this.n(band.incomeEGP)}%`,
       ),
     };
   }
@@ -1346,7 +1401,7 @@ export class BankProgramDetailPage {
     const min = p.pricing.spreadMinPercent;
     const max = p.pricing.spreadMaxPercent;
     if (!min && !max) return null;
-    return min && max ? `${min}–${max}%` : `${min ?? max}%`;
+    return min && max ? `${min}–${this.n(max)}%` : `${this.n(min ?? max)}%`;
   }
 
   /**
@@ -1486,7 +1541,7 @@ export class BankProgramDetailPage {
             label,
             rows: entries.map(
               ([key, band]) =>
-                `${registry ? this.enumLabel(registry, key) : this.humanKey(key)} → ${band.value}%`,
+                `${registry ? this.enumLabel(registry, key) : this.humanKey(key)} → ${this.n(band.value)}%`,
             ),
           },
         ];
@@ -1501,7 +1556,7 @@ export class BankProgramDetailPage {
     if (pr.feeWaiverEnabledAtRatePercent) {
       rows.push({
         label: $localize`:@@bpd.waiver.enabled_at:Fee waived at`,
-        value: `${pr.feeWaiverEnabledAtRatePercent}%`,
+        value: `${this.n(pr.feeWaiverEnabledAtRatePercent)}%`,
       });
     }
     if (pr.feeWaiverMinTenorMonths !== undefined) {
@@ -1513,7 +1568,7 @@ export class BankProgramDetailPage {
     if (pr.feeWaiverPenaltyRatePercent) {
       rows.push({
         label: $localize`:@@bpd.waiver.penalty:Rate without the waiver`,
-        value: `${pr.feeWaiverPenaltyRatePercent}%`,
+        value: `${this.n(pr.feeWaiverPenaltyRatePercent)}%`,
       });
     }
     if (pr.feeWaiverPenaltyMinTenorMonths !== undefined) {
@@ -1525,7 +1580,7 @@ export class BankProgramDetailPage {
     if (pr.insuranceWaiverPenaltyRatePercent) {
       rows.push({
         label: $localize`:@@bpd.waiver.insurance_penalty:Rate without life cover`,
-        value: `${pr.insuranceWaiverPenaltyRatePercent}%`,
+        value: `${this.n(pr.insuranceWaiverPenaltyRatePercent)}%`,
       });
     }
     return rows;
@@ -1572,13 +1627,13 @@ export class BankProgramDetailPage {
     if (l.ltvCeilingPercent) {
       rows.push({
         label: $localize`:@@bank_programs.field.max_ltv:Maximum LTV`,
-        value: `${l.ltvCeilingPercent}%`,
+        value: `${this.n(l.ltvCeilingPercent)}%`,
       });
     }
     if (l.minDownPaymentPercent) {
       rows.push({
         label: $localize`:@@bank_programs.field.min_down_payment:Minimum down payment`,
-        value: `${l.minDownPaymentPercent}%`,
+        value: `${this.n(l.minDownPaymentPercent)}%`,
       });
     }
     return rows;
@@ -1678,25 +1733,25 @@ export class BankProgramDetailPage {
       },
       {
         label: $localize`:@@bank_programs.field.stamp_duty:Stamp duty`,
-        value: `${f.stampDutyPercent}%`,
+        value: `${this.n(f.stampDutyPercent)}%`,
       },
       {
         label: f.lifeInsuranceMandatory
           ? $localize`:@@bpd.fee.life_mandatory:Life insurance (mandatory)`
           : $localize`:@@bank_programs.field.life_insurance_pct:Life insurance`,
-        value: `${f.lifeInsurancePercent}%`,
+        value: `${this.n(f.lifeInsurancePercent)}%`,
       },
       {
         label: $localize`:@@bpd.fee.late_payment:Late payment`,
-        value: `${f.latePaymentFeePercent}%`,
+        value: `${this.n(f.latePaymentFeePercent)}%`,
       },
       {
         label: $localize`:@@bpd.fee.payoff_cash:Early settlement — cash`,
-        value: `${f.payoffCashPercent}%`,
+        value: `${this.n(f.payoffCashPercent)}%`,
       },
       {
         label: $localize`:@@bpd.fee.payoff_buyout:Early settlement — buyout`,
-        value: `${f.payoffBuyoutPercent}%`,
+        value: `${this.n(f.payoffBuyoutPercent)}%`,
       },
     ];
     if (f.lifeInsuranceMinLoanEGP) {
@@ -1805,8 +1860,8 @@ export class BankProgramDetailPage {
 
   /** `2.5%`, or `1–3%` when the bank states a range around it. */
   private percentRange(base: string, min?: string, max?: string): string {
-    if (min && max) return `${min}–${max}%`;
-    return `${base}%`;
+    if (min && max) return `${min}–${this.n(max)}%`;
+    return `${this.n(base)}%`;
   }
 
   protected readonly yesLabel = $localize`:@@bpd.value.yes:Yes`;
@@ -1851,7 +1906,7 @@ export class BankProgramDetailPage {
   protected capAdjustmentRows(p: BankProgramResponse): string[] {
     return (p.loanLimits.maxLoanAdjustments ?? []).map(
       (adjustment) =>
-        `${adjustment.kind === 'upliftPercent' ? '+' : ''}${adjustment.percent}% · ` +
+        `${adjustment.kind === 'upliftPercent' ? '+' : ''}${this.n(adjustment.percent)}% · ` +
         `${this.humanKey(adjustment.whenFactKey)}: ${this.humanKey(adjustment.whenOptionCode)}`,
     );
   }

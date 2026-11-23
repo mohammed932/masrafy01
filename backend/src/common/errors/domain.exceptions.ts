@@ -516,6 +516,52 @@ export class SurrogateFactKeyTakenException extends DomainException {
   }
 }
 
+/** Feature 012 — the question already answers a calculation figure. */
+export class QuestionFactAlreadyLinkedException extends DomainException {
+  constructor(meta: { questionCode: string; factKey: string }) {
+    super(ERROR_CODES.QUESTION_FACT_ALREADY_LINKED, meta);
+  }
+}
+
+/** Feature 013 — a Loan Engine rule cannot be written as stated (see the error code). */
+export type LoanEngineRuleProblem =
+  | 'both_edges'
+  | 'empty_band'
+  | 'unknown_option'
+  | 'engine_input'
+  | 'shape'
+  | 'read_only_surface'
+  | 'not_linked';
+
+export class LoanEngineRuleInvalidException extends DomainException {
+  constructor(meta: {
+    programCode: string;
+    effect: string;
+    problem: LoanEngineRuleProblem;
+    row?: number;
+    questionCode?: string;
+  }) {
+    super(ERROR_CODES.LOAN_ENGINE_RULE_INVALID, meta);
+  }
+}
+
+/**
+ * Feature 012 — the figure is read in a shape this question's answer cannot give: a number
+ * read and a non-NUMERIC question, an option read and a question with no options, a figure
+ * read both ways (`expected: 'unknown'`), or table keys no option matches (`unknownKeys`).
+ */
+export class SurrogateFactShapeMismatchException extends DomainException {
+  constructor(meta: {
+    factKey: string;
+    questionCode: string;
+    expected: 'number' | 'choice' | 'unknown';
+    questionType: string;
+    unknownKeys: string[];
+  }) {
+    super(ERROR_CODES.SURROGATE_FACT_SHAPE_MISMATCH, meta);
+  }
+}
+
 /**
  * The key a tick would mint belongs to a fact the platform computes for itself — a derived
  * per-bank axis, or `i_score`. A row under one would read as configured and carry nothing.

@@ -57,6 +57,8 @@ import {
 import type { EstimatedPaths } from './sheet-figures';
 import { stableJson } from '../../common/stable-json.util';
 import { CAR_QUESTION_CODES } from '@/questionnaire/car-questions';
+import { LoanEngineRepository } from '../loan-engine/loan-engine.repository';
+import { asProgramConditions } from '@/matching/pipeline/program-conditions';
 
 const TAG = '[seed-sheet-figures]';
 const PROGRAM_NAME_TYPE = 'program_name';
@@ -70,6 +72,7 @@ interface Tally {
   programsCreated: string[];
   programsUpdated: string[];
   programsUnchanged: string[];
+  conditionsWritten: string[];
   refused: string[];
   compoundsFiled: number;
   blanks: string[];
@@ -113,6 +116,7 @@ async function main(): Promise<void> {
     const programRepo = app.get(BankProgramRepository);
     const enums = app.get(PlatformEnumerationsRepository);
     const enumsAdmin = app.get(PlatformEnumerationsAdminService);
+    const loanEngineRepo = app.get(LoanEngineRepository, { strict: false });
 
     const staff = await prisma.staffAccount.findFirst({
       where: { role: 'super_admin', isActive: true },
@@ -144,6 +148,7 @@ async function main(): Promise<void> {
       programsCreated: [],
       programsUpdated: [],
       programsUnchanged: [],
+      conditionsWritten: [],
       refused: [],
       compoundsFiled: 0,
       blanks: [],
@@ -522,6 +527,35 @@ async function main(): Promise<void> {
       }
     }
 
+    // 4b. The bank's eligibility conditions (Loan Engine, feature 013). Not on the save DTO —
+    //     the program form never writes them — so they are compared and written on their own,
+    //     after the program exists, and only where a spec states them.
+    for (const spec of SHEET_PROGRAMS) {
+      if (spec.conditions === undefined) continue;
+      const row = await loanEngineRepo.programByCode(spec.programCode);
+      if (row === null) continue; // a dry run's "create": nothing to compare against yet
+      const stored = JSON.stringify(asProgramConditions(row.conditions));
+      const wanted = JSON.stringify(asProgramConditions(spec.conditions));
+      if (stored === wanted) continue;
+      tally.conditionsWritten.push(spec.programCode);
+      if (dry) {
+        console.log(`${TAG} conds   ${pad(spec.programCode)} ${spec.conditions.length} would be written`);
+        continue;
+      }
+      const written = await loanEngineRepo.writeConditions({
+        programCode: spec.programCode,
+        expectedVersion: row.version,
+        conditions: [...spec.conditions],
+        updatedBy: programActor.id,
+      });
+      if (written === null) {
+        tally.refused.push(`${spec.programCode}:conditions`);
+        console.error(`${TAG} ✗ ${pad(spec.programCode)} conditions: the program changed meanwhile`);
+      } else {
+        console.log(`${TAG} conds   ${pad(spec.programCode)} ${spec.conditions.length} written`);
+      }
+    }
+
     // 5. The compounds the source material names, filed under the class it names them in.
     //    Only those: a class decides a price, so the other sixty stay in the catch-all and
     //    are reported rather than guessed.
@@ -595,6 +629,7 @@ async function main(): Promise<void> {
         `${tally.namesCreated.length} names created · ${tally.namesReused.length} reused · ` +
         `${tally.programsCreated.length} programs created · ${tally.programsUpdated.length} updated · ` +
         `${tally.programsUnchanged.length} unchanged · ` +
+        `${tally.conditionsWritten.length} condition sets written · ` +
         `${tally.compoundsFiled} compounds filed · ${tally.refused.length} REFUSED`,
     );
     if (tally.refused.length > 0) process.exitCode = 1;

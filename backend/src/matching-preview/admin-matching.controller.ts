@@ -6,6 +6,7 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { MatchingPreviewService, SIMULATOR_DEFAULT_AGE } from './matching-preview.service';
 import { SimulateMatchesDto } from './dto/simulate-matches.dto';
+import { LoanEngineService } from '@/bank-programs/loan-engine/loan-engine.service';
 
 /**
  * Admin matching simulator. Runs the SAME quoting and ordering as the customer preview
@@ -19,7 +20,10 @@ import { SimulateMatchesDto } from './dto/simulate-matches.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('super_admin', 'sales_manager', 'analyst')
 export class AdminMatchingController {
-  constructor(private readonly service: MatchingPreviewService) {}
+  constructor(
+    private readonly service: MatchingPreviewService,
+    private readonly loanEngine: LoanEngineService,
+  ) {}
 
   @Post('simulate')
   @HttpCode(HttpStatus.OK)
@@ -38,6 +42,10 @@ export class AdminMatchingController {
       programType: dto.programType,
       // The simulator shows what the customer would NOT see too, with the reason.
       includeHidden: true,
+      // Feature 013 — the Loan Engine's unsaved drafts, checked as their saves would be.
+      ...(dto.programOverrides !== undefined && dto.programOverrides.length > 0
+        ? { programRowTransform: await this.loanEngine.overridesTransform(dto.programOverrides) }
+        : {}),
     });
     return ok(result);
   }

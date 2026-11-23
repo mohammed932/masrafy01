@@ -26,8 +26,10 @@ import { PRODUCT_RULE_STRATEGY } from '@/matching/types';
 import type { CreateBankProgramDto } from '../dto/create-bank-program.dto';
 import type { FactGridDto } from '../dto/sub-configs/fact-grid.dto';
 import type { EstimatedPaths } from './sheet-figures';
+import type { ProgramCondition } from '@/matching/pipeline/program-conditions';
 import { ABK_PRACTICE_EDGES, DOWN_PAYMENT_EDGES, dpBand } from './sheet-figures';
 import { CAR_BUYERS_PROGRAMS } from './car-buyers-programs';
+import { ADIB_PROGRAMS } from './adib-programs';
 
 export interface ProgramSpec {
   /**
@@ -43,6 +45,12 @@ export interface ProgramSpec {
   sheet: string;
   dto: CreateBankProgramDto;
   estimated: EstimatedPaths;
+  /**
+   * The bank's eligibility conditions (Loan Engine, feature 013), in the stored shape. Not part
+   * of the save DTO — the program form never writes them — so the command writes them on their
+   * own after the program, and only when they differ. Absent = the seed leaves them alone.
+   */
+  conditions?: readonly ProgramCondition[];
 }
 
 const ABK = 'ABK Egypt';
@@ -215,6 +223,8 @@ interface Input {
     capPercentOfBasic?: string;
   };
   estimated?: EstimatedPaths;
+  /** Loan Engine conditions, stored shape — see `ProgramSpec.conditions`. */
+  conditions?: readonly ProgramCondition[];
 }
 
 /**
@@ -360,6 +370,7 @@ function program(input: Input): ProgramSpec {
     sheet: input.sheet,
     dto,
     estimated: input.estimated ?? [],
+    ...(input.conditions !== undefined ? { conditions: input.conditions } : {}),
   };
 }
 
@@ -1381,7 +1392,7 @@ const SPECS: readonly ProgramSpec[] = [
         'centre) and the vendor-coding criteria are eligibility steps the branch runs. ' +
         'Neither has a registry key — recorded here.',
       'The mileage ceiling — 40,000 km a year for an economy car, 100,000 for a luxury one ' +
-        '— is a stated rejection reason in the guide and no fact expresses it.',
+        '— is enforced by two conditions on the kilometres-a-year and car-class answers.',
       'The rate is a placeholder: the guide prints none. Marked as an estimate.',
     ],
     bankName: CAE,
@@ -1467,6 +1478,28 @@ const SPECS: readonly ProgramSpec[] = [
       onNoMatch: 'useFallback',
     },
     maxLoanByFact: CAE_MAX_LOAN_BY_ORIGIN,
+    /**
+     * The guide's mileage ceiling (p24), as two Loan Engine conditions: an economy car is
+     * refused above 40,000 km a year, a luxury one above 100,000. "Economy, or a luxury car"
+     * is the OR that lets a luxury car past the first; the second binds everyone.
+     */
+    conditions: [
+      {
+        id: 'economy_km',
+        anyOf: [
+          { factKey: 'how_many_kilometres_does_the_car_drive_a_year', key: { toInclusive: '40000' } },
+          { factKey: 'what_kind_of_car_is_it', key: { key: 'luxury' } },
+        ],
+        reasonCode: 'GATE_NOT_MET',
+      },
+      {
+        id: 'luxury_km',
+        anyOf: [
+          { factKey: 'how_many_kilometres_does_the_car_drive_a_year', key: { toInclusive: '100000' } },
+        ],
+        reasonCode: 'GATE_NOT_MET',
+      },
+    ],
     ratePercent: CAE_RATE,
     adminFeePercent: CAE_ADMIN_FEE,
     // The used-car pages raise the floor to 25. The new-car ones say 21.
@@ -1576,6 +1609,9 @@ const SPECS: readonly ProgramSpec[] = [
   // Car Buyers — the programmes selling `down_payment_income` (car_buyers_program)
   // -------------------------------------------------------------------------
   ...CAR_BUYERS_PROGRAMS,
+
+  // ADIB Egypt — used car, its own rate table by deposit, term and insurance
+  ...ADIB_PROGRAMS,
 ];
 
 // No programme states an I-Score table of its own: every one reads the shared table — the

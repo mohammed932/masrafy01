@@ -45,6 +45,8 @@ export interface BankProgramCreate {
   isShariaCompliant?: boolean;
   /** `'product'` or `'own'`; `null`/absent both mean `'own'` (`plansSourceOf`). */
   plansSource?: string | null;
+  /** v36.4.0 — stored cases, or `null` for none. */
+  cases?: JsonBlob | null;
   operatorNotes?: string | null;
   operatorTips?: readonly string[];
   requiredDocuments?: readonly string[];
@@ -75,6 +77,7 @@ export interface BankProgramUpdate {
   /** `null` writes "this bank's own", which is what an absent field on a full-replacement
    * PUT has to mean — otherwise a program could take the product's plans and never go back. */
   plansSource?: string | null;
+  cases?: JsonBlob | null;
   operatorNotes?: string | null;
   operatorTips?: readonly string[];
   requiredDocuments?: readonly string[];
@@ -290,6 +293,7 @@ export class BankProgramRepository {
         active: input.active ?? true,
         isShariaCompliant: input.isShariaCompliant ?? false,
         plansSource: input.plansSource ?? null,
+        ...(input.cases != null ? { cases: input.cases as Prisma.InputJsonValue } : {}),
         operatorNotes: input.operatorNotes ?? null,
         operatorTips: [
           ...(input.operatorTips ?? []),
@@ -342,6 +346,9 @@ export class BankProgramRepository {
     if (data.active !== undefined) prismaData.active = data.active;
     if (data.isShariaCompliant !== undefined) prismaData.isShariaCompliant = data.isShariaCompliant;
     if (data.plansSource !== undefined) prismaData.plansSource = data.plansSource;
+    if (data.cases !== undefined) {
+      prismaData.cases = data.cases === null ? Prisma.DbNull : (data.cases as Prisma.InputJsonValue);
+    }
     if (data.operatorNotes !== undefined) prismaData.operatorNotes = data.operatorNotes;
     if (data.operatorTips !== undefined) {
       prismaData.operatorTips = [

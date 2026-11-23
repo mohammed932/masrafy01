@@ -1,4 +1,5 @@
 import type { FactGridConfig } from '@shared/ui/fact-grid.rules';
+import type { ProgramCase } from './form/program-cases.rules';
 /**
  * TypeScript types mirroring the backend bank-program contract.
  * Decimals transported as canonical strings (research.md R1).
@@ -105,6 +106,9 @@ export interface LoanLimitsConfig {
       rowKey?: string;
       fromInclusive?: string;
       toExclusive?: string | null;
+      /** Feature 013 (Loan Engine): "more than" / "at most" edges. */
+      fromExclusive?: string;
+      toInclusive?: string;
       columnKey?: string;
       maxAmountEGP: string;
     }>;
@@ -1147,6 +1151,8 @@ export interface SurrogateProductSummary {
   labelAr: string;
   labelEn: string;
   active: boolean;
+  /** v36.5.0 — the loan type it is for; `null` = not said yet. */
+  loanCategory?: LoanCategory | null;
   /** ISO timestamps — on the list only (the catalog card shows them). */
   createdAt?: string;
   updatedAt?: string;
@@ -1207,6 +1213,8 @@ export interface CreateSurrogateProductRequest {
   labelEn: string;
   labelAr: string;
   startFrom: ProductStartFrom;
+  /** v36.5.0 — the loan type it is for. A label, never a restriction. */
+  loanCategory?: LoanCategory;
   blueprintKey?: string;
   sourceKey?: string;
 }
@@ -1871,6 +1879,8 @@ export interface BankProgramCreatePayload {
   isShariaCompliant?: boolean;
   /** Whose plan tables this program reads. Omit for this bank's own. */
   plansSource?: PlansSource;
+  /** v36.4.0 — the bank's cases; `[]` clears them (full replacement). */
+  cases?: ProgramCase[];
   operatorNotes?: string;
   operatorTips?: string[];
   requiredDocuments?: string[];
@@ -1915,6 +1925,8 @@ export interface BankProgramResponse {
   isShariaCompliant: boolean;
   /** Whose plan tables this program reads. Absent reads as `'own'`. */
   plansSource?: PlansSource | null;
+  /** v36.4.0 — the bank's cases, first match wins. Absent on an older server. */
+  cases?: ProgramCase[];
   version: number;
   operatorNotes?: string | null;
   operatorTips: string[];

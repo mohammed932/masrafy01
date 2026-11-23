@@ -10,6 +10,7 @@ import {
   FileTextOutline,
   FundOutline,
   ControlOutline,
+  CarOutline,
   ReadOutline,
   FormOutline,
   AuditOutline,
@@ -17,6 +18,7 @@ import {
   AppstoreOutline,
   FunctionOutline,
   ClockCircleOutline,
+  CalculatorOutline,
 } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { CanDirective } from '../../shared/can.directive';
@@ -39,6 +41,7 @@ import { CanDirective } from '../../shared/can.directive';
       FileTextOutline,
       FundOutline,
       ControlOutline,
+  CarOutline,
       ReadOutline,
       FormOutline,
       AuditOutline,
@@ -46,6 +49,7 @@ import { CanDirective } from '../../shared/can.directive';
       AppstoreOutline,
       FunctionOutline,
       ClockCircleOutline,
+      CalculatorOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -108,6 +112,22 @@ import { CanDirective } from '../../shared/can.directive';
         </a>
 
         <a
+          *can="['super_admin', 'sales_manager']"
+          routerLink="/loan-engine"
+          routerLinkActive="active"
+          class="item"
+        >
+          <span
+            nz-icon
+            nzType="calculator"
+            nzTheme="outline"
+            class="item-icon"
+            aria-hidden="true"
+          ></span>
+          <span class="item-label" i18n="@@sidebar.loan_engine">Loan Engine</span>
+        </a>
+
+        <a
           *can="['super_admin', 'sales_manager', 'analyst']"
           routerLink="/matching-simulator"
           routerLinkActive="active"
@@ -146,6 +166,16 @@ import { CanDirective } from '../../shared/can.directive';
               aria-hidden="true"
             ></span>
             <span class="item-label" i18n="@@sidebar.program_catalog">Program catalog</span>
+          </a>
+          <a routerLink="/car-list" routerLinkActive="active" class="item">
+            <span
+              nz-icon
+              nzType="car"
+              nzTheme="outline"
+              class="item-icon"
+              aria-hidden="true"
+            ></span>
+            <span class="item-label" i18n="@@sidebar.car_list">Car list</span>
           </a>
           <a routerLink="/surrogate-methods" routerLinkActive="active" class="item">
             <span

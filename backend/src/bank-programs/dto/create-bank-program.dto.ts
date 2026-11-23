@@ -22,6 +22,7 @@ import { PerformanceCriteriaConfigDto } from './sub-configs/performance-criteria
 import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
 import { FeesConfigDto } from './sub-configs/fees-config.dto';
 import { PLANS_SOURCES, type PlansSource } from '../../matching/pipeline/plan-inherit';
+import { ProgramCaseDto } from './program-case.dto';
 
 const PROGRAM_TYPES = ['income_proof', 'income_surrogate'] as const;
 export type ProgramType = (typeof PROGRAM_TYPES)[number];
@@ -70,6 +71,18 @@ export class CreateBankProgramDto {
    * the save is a full replacement and absent already IS `'own'`.
    */
   @IsOptional() @IsIn(PLANS_SOURCES) plansSource?: PlansSource;
+
+  /**
+   * v36.4.0 — the bank's CASES: combinations of answers that replace a figure or refuse,
+   * first match wins. Absent or `[]` = none (a full-replacement save clears them).
+   */
+  @ApiPropertyOptional({ type: [ProgramCaseDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => ProgramCaseDto)
+  cases?: ProgramCaseDto[];
 
   @IsOptional() @IsString() @MaxLength(4000) operatorNotes?: string;
 

@@ -145,6 +145,8 @@ function makeScopedService(
       })),
   };
   const enums = {
+    // v36.4.0 — no list here is filed under another, so no answer follows another.
+    typeDefinitions: async () => new Map(),
     narrowingScopeFor: async (key: string) => {
       calls.push(key);
       return scope;

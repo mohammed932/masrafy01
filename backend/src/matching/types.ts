@@ -4,6 +4,8 @@
  * Decimal is imported from the runtime library type only (not Prisma namespace).
  */
 
+import type { ProgramCondition } from './pipeline/program-conditions';
+import type { ProgramCase } from './pipeline/program-cases';
 import type { Decimal } from '@prisma/client/runtime/library';
 import type {
   RateBandValue,
@@ -883,6 +885,18 @@ export interface BankProgramSnapshot {
   iScoreTiers?: { readonly tiers: IScoreTiers; readonly source: IScoreTiersSource };
 
   /**
+   * Feature 013 — the bank's eligibility conditions on the applicant's answers. Absent or
+   * empty = none. A failure is a stated refusal in `quoteProgram`, never a filter.
+   */
+  conditions?: readonly ProgramCondition[];
+
+  /**
+   * v36.4.0 — the bank's CASES: combinations of answers that replace a figure (or refuse).
+   * First match wins; absent or empty = none (`program-cases.ts`).
+   */
+  cases?: readonly ProgramCase[];
+
+  /**
    * Set when the platform is withholding the calculation rather than the bank having
    * misconfigured one — today, only because the surrogate product the program's catalog
    * name links to is switched off.
@@ -910,6 +924,10 @@ export interface CascadeTrace {
    * none applied — every offer written before the feature reads exactly as it did.
    */
   answerEffects?: AnswerEffect[];
+  /** The bank's case this quote was priced under (`program-cases.ts`). Absent = none. */
+  appliedCaseId?: string;
+  /** Its position in the bank's list, from 1, as the operator reads it. */
+  appliedCaseNumber?: number;
 }
 
 export interface FeesBreakdown {

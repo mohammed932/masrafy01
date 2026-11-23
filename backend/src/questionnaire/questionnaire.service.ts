@@ -162,7 +162,37 @@ export class QuestionnaireService {
       programNameKey === undefined || category === undefined
         ? null
         : await this.enums.narrowingScopeFor(programNameKey, category);
-    return toCustomerSnapshot(version.snapshot, category, scope);
+    return toCustomerSnapshot(version.snapshot, category, scope, await this.optionDependencies());
+  }
+
+  /**
+   * Which questions' answers follow an earlier answer (v36.4.0): a list filed under another
+   * list (the car list's brand under country, model under brand), both mirrored onto
+   * questions. Served so the app shows only the brands of the country picked; read LIVE off
+   * the lists, never frozen, like the program-name projection — the operator edits the list
+   * on its own page and the next read follows. A parent with no children shows every answer.
+   */
+  private async optionDependencies(): Promise<OptionDependencies> {
+    const defs = await this.enums.typeDefinitions();
+    const codeOf = new Map<string, string>();
+    for (const def of defs.values()) {
+      if (def.mirrorQuestionId == null) continue;
+      const q = await this.repo.findQuestion(def.mirrorQuestionId);
+      if (q !== null) codeOf.set(def.key, q.code);
+    }
+    const out: OptionDependencies = new Map();
+    for (const def of defs.values()) {
+      if (def.parentTypeKey == null) continue;
+      const child = codeOf.get(def.key);
+      const parent = codeOf.get(def.parentTypeKey);
+      if (child === undefined || parent === undefined) continue;
+      const parentOf = new Map<string, string>();
+      for (const m of await this.enums.getActiveMembers(def.key)) {
+        if (m.parentKey !== null) parentOf.set(m.key, m.parentKey);
+      }
+      out.set(child, { dependsOn: parent, parentOf });
+    }
+    return out;
   }
 
   /**
@@ -196,6 +226,7 @@ export class QuestionnaireService {
     const version = await this.repo.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     const out = [];
+    const deps = await this.optionDependencies();
     for (const category of sortCategories(member.categories)) {
       const scope = await this.enums.narrowingScopeFor(programNameKey, category);
       // The fixed questions THIS path asks as fixed: a mark as this loan type reads it (an old
@@ -210,7 +241,7 @@ export class QuestionnaireService {
           )
           .map((q) => q.code),
       );
-      const served = toCustomerSnapshot(version.snapshot, category, scope);
+      const served = toCustomerSnapshot(version.snapshot, category, scope, deps);
       const counted = countServed(served);
       out.push({
         category,
@@ -587,7 +618,8 @@ export class QuestionnaireService {
     const question = await this.repo.findQuestion(questionId);
     // A dangling link is not this write's problem: the FK is `ON DELETE SET NULL`, so a
     // deleted question clears it, and a link pointing at nothing blocks nothing.
-    if (!question || !isChoiceType(question.type)) return;
+    // Nor does a soft-deleted one: nothing asks it, so its list may shrink or go (v36.6.0).
+    if (!question || question.isActive === false || !isChoiceType(question.type)) return;
 
     const rows = await this.mirroredOptionRows(typeKey);
     const remaining = rows.filter((row) => row.code !== removingKey).length;
@@ -2020,10 +2052,14 @@ function formatDecimalString(value: string): string {
  * neither a category nor a program (the whole-pool read) every question is served, in the pool's
  * order — what every client got before any narrowing existed.
  */
+/** Question code → the question its answers follow, and each answer's parent answer. */
+type OptionDependencies = Map<string, { dependsOn: string; parentOf: Map<string, string> }>;
+
 function toCustomerSnapshot(
   raw: unknown,
   category?: LoanCategory,
   scope: NarrowingScope | null = null,
+  deps: OptionDependencies = new Map(),
 ): unknown {
   const snap = raw as StoredSnapshot;
   const num = (value: unknown): number => (typeof value === 'number' ? value : 0);
@@ -2095,12 +2131,19 @@ function toCustomerSnapshot(
         // for immediate feedback. The server remains the authority.
         ...(q['numeric'] ? { numeric: q['numeric'] } : {}),
         ...(q['text'] ? { text: q['text'] } : {}),
-        options: (q.options ?? []).map((o) => ({
-          code: o.code,
-          labelAr: o.labelAr,
-          labelEn: o.labelEn,
-          displayOrder: o.displayOrder,
-        })),
+        // v36.4.0 — the answers follow an earlier answer: show those whose `parentCode` is
+        // what was picked there (all of them while it is unanswered or has none filed under).
+        ...(deps.has(q.code) ? { optionsDependOn: deps.get(q.code)!.dependsOn } : {}),
+        options: (q.options ?? []).map((o) => {
+          const parentCode = deps.get(q.code)?.parentOf.get(o.code);
+          return {
+            code: o.code,
+            labelAr: o.labelAr,
+            labelEn: o.labelEn,
+            displayOrder: o.displayOrder,
+            ...(parentCode !== undefined ? { parentCode } : {}),
+          };
+        }),
       })),
     })),
   };

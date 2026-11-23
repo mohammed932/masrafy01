@@ -1,4 +1,5 @@
 import type { ProgramType } from './create-bank-program.dto';
+import type { ProgramCaseWire } from '../validation/program-cases.validator';
 import type { PlansSource } from '../../matching/pipeline/plan-inherit';
 import type { RateDefaults } from '../../matching/pipeline/rate-inherit';
 import type { IScoreTiers } from '../../matching/pipeline/iscore';
@@ -37,6 +38,8 @@ export class BankProgramResponseDto {
    * and floor tables — on a form the operator had only opened.
    */
   plansSource!: PlansSource;
+  /** v36.4.0 — the bank's cases, in the operator's vocabulary. `[]` = none. */
+  cases!: ProgramCaseWire[];
   operatorNotes?: string | null;
   operatorTips!: string[];
   requiredDocuments!: string[];

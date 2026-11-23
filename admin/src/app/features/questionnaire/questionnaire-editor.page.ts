@@ -767,6 +767,16 @@ type BranchOperator = 'equals' | 'not_equals' | 'in';
               <span i18n="@@qedit.menu_follow_up">Add a follow-up</span>
             </li>
           }
+          <li
+            *can="['super_admin', 'sales_manager']"
+            nz-menu-item
+            tabindex="0"
+            (click)="openInLoanEngine(q)"
+            (keydown.enter)="openInLoanEngine(q)"
+          >
+            <span nz-icon nzType="calculator" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@qedit.menu_loan_engine">Open in Loan Engine</span>
+          </li>
           <li nz-menu-divider></li>
           <li
             nz-menu-item
@@ -3474,6 +3484,11 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly api = inject(QuestionnaireApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  /** What each bank program does with this question's answers — its Loan Engine view. */
+  protected openInLoanEngine(q: { code: string }): void {
+    void this.router.navigate(['/loan-engine'], { queryParams: { question: q.code } });
+  }
   private readonly message = inject(NzMessageService);
   private readonly modal = inject(NzModalService);
   private readonly drawer = inject(NzDrawerService);

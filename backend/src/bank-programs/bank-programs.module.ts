@@ -17,12 +17,16 @@ import { SeedAbkController } from './seeds/seed-abk.controller';
 import { SeedCompetitorController } from './seeds/seed-competitor.controller';
 import { BlueprintService } from './blueprints/blueprint.service';
 import { ProductAsksService } from './asks/product-asks.service';
+import { QuestionFactLinkService } from './asks/question-fact-link.service';
 import { ProductAsksRepository } from './asks/product-asks.repository';
 import { SurrogateProductLifecycleService } from './products/surrogate-product-lifecycle.service';
 
 import { MethodTemplatesController } from './methods/method-templates.controller';
 import { MethodTemplatesService } from './methods/method-templates.service';
 import { MethodTemplatesRepository } from './methods/method-templates.repository';
+import { LoanEngineController } from './loan-engine/loan-engine.controller';
+import { LoanEngineService } from './loan-engine/loan-engine.service';
+import { LoanEngineRepository } from './loan-engine/loan-engine.repository';
 
 @Module({
   // `QuestionnaireModule` because building a predefined product creates the questions it
@@ -47,6 +51,8 @@ import { MethodTemplatesRepository } from './methods/method-templates.repository
     ProgramOptionsController,
     SeedAbkController,
     SeedCompetitorController,
+    // Feature 013 — one question's effects across programs; writes through the program save.
+    LoanEngineController,
   ],
   providers: [
     RolesGuard,
@@ -63,9 +69,12 @@ import { MethodTemplatesRepository } from './methods/method-templates.repository
     // publishes the questionnaire, and that service's positional constructor is pinned by
     // tests.
     ProductAsksService,
+    QuestionFactLinkService,
     ProductAsksRepository,
     SurrogateProductLifecycleService,
+    LoanEngineService,
+    LoanEngineRepository,
   ],
-  exports: [BankProgramsService, BankProgramRepository],
+  exports: [BankProgramsService, BankProgramRepository, LoanEngineService],
 })
 export class BankProgramsModule {}

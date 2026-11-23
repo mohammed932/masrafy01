@@ -44,11 +44,14 @@ import { PRODUCT_FLOW_STYLES } from './product-flow.styles';
 import { WizardStepsComponent, type WizardStepItem } from '@shared/ui';
 
 type Start = 'blank' | 'copy';
+import { LoanTypePickerComponent } from './loan-type-picker.component';
+import type { LoanCategory } from '@core/loan-category';
 
 @Component({
   selector: 'app-new-product-page',
   standalone: true,
   imports: [
+    LoanTypePickerComponent,
     ReactiveFormsModule,
     RouterLink,
     NzSelectModule,
@@ -131,6 +134,23 @@ type Start = 'blank' | 'copy';
               </nz-form-control>
             </nz-form-item>
           </div>
+        </section>
+
+        <section class="blk" aria-labelledby="np-loan-type">
+          <h2 id="np-loan-type" i18n="@@np.loan_type_title">What loan is it for?</h2>
+          <app-loan-type-picker
+            name="np-loan-type"
+            labelledBy="np-loan-type"
+            [value]="loanType() ?? picked()?.loanCategory ?? null"
+            (valueChange)="pickLoanType($event)"
+          />
+          @if (loanTypeMissing()) {
+            <p class="lt-err" role="alert" i18n="@@np.loan_type_required">Choose the loan type.</p>
+          } @else {
+            <p class="lt-hint" i18n="@@np.loan_type_hint">
+              Where the catalog lists it. Auto products also set the money most banks lend on.
+            </p>
+          }
         </section>
 
         <section class="blk" aria-labelledby="np-start">
@@ -382,6 +402,16 @@ type Start = 'blank' | 'copy';
         box-shadow: inset 0 0 0 4px var(--color-brand-primary);
       }
 
+      .lt-hint,
+      .lt-err {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
+      .lt-err {
+        color: var(--color-error);
+      }
+
       /* --- The product to copy ------------------------------------------------ */
       .copy {
         display: flex;
@@ -490,6 +520,15 @@ export class NewProductPageComponent {
     initialValue: this.form.getRawValue(),
   });
 
+  /** The loan type it is for (v36.5.0) — required; a copy starts from its source's. */
+  protected readonly loanType = signal<LoanCategory | null>(null);
+  protected readonly loanTypeMissing = signal(false);
+
+  protected pickLoanType(c: LoanCategory): void {
+    this.loanType.set(c);
+    this.loanTypeMissing.set(false);
+  }
+
   /** Blank, or a copy of the product picked below ("Duplicate" opens it on that product). */
   protected readonly start = signal<Start>(this.copyOf ? 'copy' : 'blank');
 
@@ -572,6 +611,12 @@ export class NewProductPageComponent {
 
   protected async submit(): Promise<void> {
     if (this.saving()) return;
+    const loanType = this.loanType() ?? this.picked()?.loanCategory ?? null;
+    if (loanType === null) {
+      this.loanTypeMissing.set(true);
+      document.querySelector<HTMLInputElement>('input[name="np-loan-type"]')?.focus();
+      return;
+    }
     // The button stays pressable: a press on an incomplete form names what is missing,
     // where a silently disabled button left the operator guessing.
     if (this.form.invalid) {
@@ -599,6 +644,7 @@ export class NewProductPageComponent {
       const res = await this.api.createSurrogateProduct({
         labelEn,
         labelAr,
+        loanCategory: loanType,
         ...(this.start() === 'copy'
           ? { startFrom: 'copy' as const, sourceKey: v.copyKey }
           : { startFrom: 'blank' as const }),

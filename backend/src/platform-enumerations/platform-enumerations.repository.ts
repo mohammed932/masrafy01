@@ -1077,6 +1077,8 @@ export interface ProgramNameIncomeRuleRow {
   surrogateProductKey: string | null;
   /** `surrogate_product` only — stored cap-only marker (v33.1.0); `false` on a name. */
   capOnly: boolean;
+  /** `surrogate_product` only (v36.5.0) — the loan type it is for; `null` = not said. */
+  productLoanCategory: LoanCategory | null;
 }
 
 /** One member whose parent actually changed — what a bulk re-file audits. */
@@ -1114,6 +1116,8 @@ export interface SurrogateProductListRow {
   usedBy: string[];
   /** Stored cap-only marker (v33.1.0). Read through `isCapOnlyProduct`, never alone. */
   capOnly: boolean;
+  /** The loan type it is for (v36.5.0); `null` = not said. */
+  productLoanCategory: LoanCategory | null;
   /** When the product was created and last changed — shown on its catalog card. */
   createdAt?: Date;
   updatedAt?: Date;

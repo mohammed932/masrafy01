@@ -170,6 +170,14 @@ export class SurrogateProductLifecycleService {
       throw error;
     }
 
+    // The loan type it is for (v36.5.0): the one picked, or a copy's own.
+    const category =
+      dto.loanCategory ??
+      (dto.startFrom === 'copy' && dto.sourceKey !== undefined
+        ? ((await this.repo.findSurrogateProduct(dto.sourceKey))?.productLoanCategory ?? null)
+        : null);
+    if (category !== null) await this.repo.setSurrogateProductLoanCategory(key, category);
+
     await this.switchOff(key, adminActor);
     return { key, startFrom: dto.startFrom };
   }
@@ -350,6 +358,9 @@ export class SurrogateProductLifecycleService {
       { labelEn: dto.labelEn.trim(), labelAr: dto.labelAr.trim() },
       { staffId: actor.id, sourceIp: actor.sourceIp },
     );
+    if (dto.loanCategory !== undefined && dto.loanCategory !== row.productLoanCategory) {
+      await this.repo.setSurrogateProductLoanCategory(key, dto.loanCategory);
+    }
   }
 
   // ---- Groups (v36.1.0) -------------------------------------------------------

@@ -4402,7 +4402,7 @@
       <trans-unit id="spd.plan_table.col_min_months" datatype="html"><source>Shortest term</source><target>أقصر مدة</target></trans-unit>
       <trans-unit id="spd.plan_table.col_ltv" datatype="html"><source>We finance</source><target>نموّل</target></trans-unit>
       <trans-unit id="spd.plan_table.col_floor" datatype="html"><source>Smallest loan</source><target>أصغر قرض</target></trans-unit>
-      <trans-unit id="spd.plan_table.col_car_age_end" datatype="html"><source>Oldest car at the end</source><target>أقصى عمر للسيارة عند نهاية القرض</target></trans-unit>
+      <trans-unit id="spd.plan_table.col_car_age_end" datatype="html"><source>Max car age when the loan ends</source><target>أقصى عمر للسيارة عند نهاية القرض</target></trans-unit>
       <trans-unit id="spd.plan_table.unit_years" datatype="html"><source>yr</source><target>سنة</target></trans-unit>
       <trans-unit id="spd.plan_table.term_from" datatype="html"><source>From year</source><target>من سنة</target></trans-unit>
       <trans-unit id="spd.plan_table.term_to" datatype="html"><source>To year</source><target>إلى سنة</target></trans-unit>
@@ -4411,6 +4411,184 @@
       <trans-unit id="spd.plan_table.term_case" datatype="html"><source>Loan term</source><target>مدة القرض</target></trans-unit>
       <trans-unit id="spd.plan_table.term_from_years" datatype="html"><source><x id="from" equiv-text="fromYear"/> years and longer</source><target><x id="from" equiv-text="fromYear"/> سنوات فأكثر</target></trans-unit>
       <trans-unit id="spd.plan_table.term_years" datatype="html"><source><x id="from" equiv-text="fromYear"/>–<x id="to" equiv-text="toYear"/> years</source><target><x id="from" equiv-text="fromYear"/>–<x id="to" equiv-text="toYear"/> سنوات</target></trans-unit>
+      <trans-unit id="spd.plan_table.fill_in_figures" datatype="html"><source>
+                                A column in the table — type its figures on Figures
+                              </source><target>عمود في الجدول — اكتب أرقامه في تبويب الأرقام</target></trans-unit>
+      <trans-unit id="spd.plan_table.fill_first" datatype="html"><source>A figure in the table is empty, so no case can be added yet.</source><target>يوجد رقم فارغ في الجدول، لذا لا يمكن إضافة حالة بعد.</target></trans-unit>
+      <trans-unit id="spd.plan_table.fill_first_go" datatype="html"><source>
+                            Fill it in on Figures
+                          </source><target>املأه في تبويب الأرقام</target></trans-unit>
+      <trans-unit id="bank_programs.plans.start_needs_rate" datatype="html"><source>
+                          Type the base rate above first: every row of the table starts at it.
+                        </source><target>اكتب العائد الأساسي أعلاه أولًا: كل صف في الجدول يبدأ به.</target></trans-unit>
+      <trans-unit id="bank_programs.field.min_amount" datatype="html"><source>Minimum amount</source><target>الحد الأدنى للمبلغ</target></trans-unit>
+      <trans-unit id="bank_programs.field.max_amount" datatype="html"><source>Maximum amount</source><target>الحد الأقصى للمبلغ</target></trans-unit>
+      <trans-unit id="bank_programs.field.min_months" datatype="html"><source>Minimum months</source><target>أقل عدد أشهر</target></trans-unit>
+      <trans-unit id="bank_programs.field.max_months" datatype="html"><source>Maximum months</source><target>أقصى عدد أشهر</target></trans-unit>
+      <trans-unit id="bank_programs.field.base_rate" datatype="html"><source>Base rate</source><target>العائد الأساسي</target></trans-unit>
+      <trans-unit id="ps.step_defaults" datatype="html"><source>Bank defaults</source><target>إعدادات البنوك الافتراضية</target></trans-unit>
+      <trans-unit id="ps.def.title" datatype="html"><source>Bank defaults</source><target>إعدادات البنوك الافتراضية</target></trans-unit>
+      <trans-unit id="ps.def.sub" datatype="html"><source>
+                    Most banks lend this product on the same terms. Set them once: each new bank
+                    program starts from a copy, and the bank can change it.
+                  </source><target>معظم البنوك تقدّم هذا المنتج بالشروط نفسها. اضبطها مرة واحدة: كل برنامج بنك جديد يبدأ بنسخة منها، ويمكن للبنك تعديلها.</target></trans-unit>
+      <trans-unit id="ps.def.loan" datatype="html"><source>The loan</source><target>القرض</target></trans-unit>
+      <trans-unit id="ps.def.plans" datatype="html"><source>Plans by down payment</source><target>الخطط حسب المقدّم</target></trans-unit>
+      <trans-unit id="ps.def.plans_hint" datatype="html"><source>
+                    A row per down payment, with its rate, term and share financed. Leave it empty
+                    and each bank starts without one.
+                  </source><target>صف لكل مقدّم، بعائده ومدته ونسبة التمويل. اتركه فارغًا ليبدأ كل بنك بدونه.</target></trans-unit>
+      <trans-unit id="ps.def.start_needs_rate" datatype="html"><source>
+                        Type the base rate above first: every row starts at it.
+                      </source><target>اكتب العائد الأساسي أعلاه أولًا: كل صف يبدأ به.</target></trans-unit>
+      <trans-unit id="ps.def.plans_not_drawn" datatype="html"><source>
+                      These plans cannot be shown as one table here. They are kept as they are.
+                    </source><target>لا يمكن عرض هذه الخطط كجدول واحد هنا. تبقى كما هي.</target></trans-unit>
+      <trans-unit id="ps.def.months_unit" datatype="html"><source>months</source><target>شهر</target></trans-unit>
+      <trans-unit id="ps.def.err_amounts" datatype="html"><source>Type both amounts, the minimum no bigger than the maximum.</source><target>اكتب المبلغين، على ألا يزيد الحد الأدنى عن الحد الأقصى.</target></trans-unit>
+      <trans-unit id="ps.def.err_months" datatype="html"><source>Type both months as whole numbers, the minimum no bigger than the maximum.</source><target>اكتب عدد الأشهر في الخانتين بأرقام صحيحة، على ألا يزيد الحد الأدنى عن الحد الأقصى.</target></trans-unit>
+      <trans-unit id="ps.def.err_rate" datatype="html"><source>The base rate is a percentage from 0 to 100.</source><target>العائد الأساسي نسبة من 0 إلى 100.</target></trans-unit>
+      <trans-unit id="ps.def.err_plans" datatype="html"><source>A figure in the plans table is empty. Type it, or clear its column or row.</source><target>هناك خانة فارغة في جدول الخطط. اكتبها، أو امسح عمودها أو صفها.</target></trans-unit>
+      <trans-unit id="bank_programs.form.rate.blank_product" datatype="html"><source>
+                                Blank: the product's <x id="INTERPOLATION" equiv-text="{{ productRateFigure() }}"/> applies.
+                              </source><target>فارغ: يُطبَّق عائد المنتج <x id="INTERPOLATION" equiv-text="{{ productRateFigure() }}"/>.</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_cases" datatype="html"><source>A case is not finished — see the message on it.</source><target>هناك حالة غير مكتملة — راجع الرسالة عليها.</target></trans-unit>
+      <trans-unit id="cases.title" datatype="html"><source>Cases</source><target>الحالات</target></trans-unit>
+      <trans-unit id="cases.sub" datatype="html"><source> Answers that together change this bank&apos;s offer, e.g. China + used + made before 2020 → finance 50%. Checked from the top: the first case that matches is used, and a figure left blank stays as the program states it. </source><target>إجابات تغيّر معًا عرض هذا البنك، مثل: صيني + مستعمل + صُنع قبل 2020 ← تمويل 50%. تُراجع من الأعلى: أول حالة تنطبق هي المستخدمة، والرقم المتروك فارغًا يبقى كما يحدده البرنامج.</target></trans-unit>
+      <trans-unit id="cases.when" datatype="html"><source>When</source><target>عندما</target></trans-unit>
+      <trans-unit id="cases.add_answer" datatype="html"><source>Add an answer</source><target>أضف إجابة</target></trans-unit>
+      <trans-unit id="cases.add" datatype="html"><source> Add </source><target>أضف</target></trans-unit>
+      <trans-unit id="cases.cancel" datatype="html"><source> Cancel </source><target>إلغاء</target></trans-unit>
+      <trans-unit id="cases.then" datatype="html"><source>Then</source><target>عندها</target></trans-unit>
+      <trans-unit id="cases.change" datatype="html"><source> Change the figures </source><target>غيّر الأرقام</target></trans-unit>
+      <trans-unit id="cases.refuse" datatype="html"><source> Refuse </source><target>ارفض</target></trans-unit>
+      <trans-unit id="cases.refuse_note" datatype="html"><source> The bank does not lend in this case. The customer is not shown this program. </source><target>لا يقرض البنك في هذه الحالة. لا يُعرض هذا البرنامج على العميل.</target></trans-unit>
+      <trans-unit id="cases.add_case" datatype="html"><source> + Add a case </source><target>+ أضف حالة</target></trans-unit>
+      <trans-unit id="cases.pick_question" datatype="html"><source>Which question</source><target>أي سؤال</target></trans-unit>
+      <trans-unit id="cases.pick_answer" datatype="html"><source>Which answer</source><target>أي إجابة</target></trans-unit>
+      <trans-unit id="cases.pick_op" datatype="html"><source>How it compares</source><target>طريقة المقارنة</target></trans-unit>
+      <trans-unit id="cases.number" datatype="html"><source>The number</source><target>الرقم</target></trans-unit>
+      <trans-unit id="cases.add_answer_aria" datatype="html"><source>Add an answer to this case</source><target>أضف إجابة لهذه الحالة</target></trans-unit>
+      <trans-unit id="cases.then_aria" datatype="html"><source>What this case does</source><target>ماذا تفعل هذه الحالة</target></trans-unit>
+      <trans-unit id="cases.fig_rate" datatype="html"><source>Rate</source><target>العائد</target></trans-unit>
+      <trans-unit id="cases.fig_share" datatype="html"><source>Share financed</source><target>نسبة التمويل</target></trans-unit>
+      <trans-unit id="cases.fig_min_amount" datatype="html"><source>Smallest loan</source><target>أصغر قرض</target></trans-unit>
+      <trans-unit id="cases.fig_max_amount" datatype="html"><source>Largest loan</source><target>أكبر قرض</target></trans-unit>
+      <trans-unit id="cases.fig_min_months" datatype="html"><source>Shortest term</source><target>أقصر مدة</target></trans-unit>
+      <trans-unit id="cases.fig_max_months" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="cases.months" datatype="html"><source>months</source><target>شهر</target></trans-unit>
+      <trans-unit id="cases.sum_no_answers" datatype="html"><source>No answers yet</source><target>لا توجد إجابات بعد</target></trans-unit>
+      <trans-unit id="cases.sum_refuse" datatype="html"><source>refused</source><target>مرفوض</target></trans-unit>
+      <trans-unit id="cases.err_no_answers" datatype="html"><source>Add at least one answer.</source><target>أضف إجابة واحدة على الأقل.</target></trans-unit>
+      <trans-unit id="cases.err_no_figures" datatype="html"><source>Type at least one figure, or choose Refuse.</source><target>اكتب رقمًا واحدًا على الأقل، أو اختر ارفض.</target></trans-unit>
+      <trans-unit id="cases.err_range" datatype="html"><source>A rate or a share is a percentage above 0 and up to 100.</source><target>العائد أو نسبة التمويل نسبة مئوية أكبر من 0 وحتى 100.</target></trans-unit>
+      <trans-unit id="cases.err_months" datatype="html"><source>The shortest term is longer than the longest.</source><target>أقصر مدة أطول من أطول مدة.</target></trans-unit>
+      <trans-unit id="cases.err_amounts" datatype="html"><source>The smallest loan is bigger than the largest.</source><target>أصغر قرض أكبر من أكبر قرض.</target></trans-unit>
+      <trans-unit id="cases.move_up" datatype="html"><source>Move case <x id="N" equiv-text="i + 1"/> up</source><target>انقل الحالة <x id="N" equiv-text="i + 1"/> لأعلى</target></trans-unit>
+      <trans-unit id="cases.move_down" datatype="html"><source>Move case <x id="N" equiv-text="i + 1"/> down</source><target>انقل الحالة <x id="N" equiv-text="i + 1"/> لأسفل</target></trans-unit>
+      <trans-unit id="cases.remove" datatype="html"><source>Remove case <x id="N" equiv-text="i + 1"/></source><target>احذف الحالة <x id="N" equiv-text="i + 1"/></target></trans-unit>
+      <trans-unit id="cases.remove_answer" datatype="html"><source>Remove <x id="WHAT" equiv-text="what"/></source><target>احذف <x id="WHAT" equiv-text="what"/></target></trans-unit>
+      <trans-unit id="cars.title" datatype="html"><source>Car list</source><target>قائمة السيارات</target></trans-unit>
+      <trans-unit id="cars.subtitle" datatype="html"><source>Countries, their brands and their models. The app shows only the brands of the country the customer picks, and only the models of the brand. A bank prices any of them on its program&apos;s Cases.</source><target>الدول وماركاتها وطرازاتها. يعرض التطبيق ماركات الدولة التي يختارها العميل فقط، وطرازات الماركة فقط. يسعّر البنك أيًا منها في «الحالات» على برنامجه.</target></trans-unit>
+      <trans-unit id="cars.paste" datatype="html"><source>Paste a list</source><target>الصق قائمة</target></trans-unit>
+      <trans-unit id="cars.rename" datatype="html"><source>Rename</source><target>إعادة تسمية</target></trans-unit>
+      <trans-unit id="cars.remove" datatype="html"><source>Remove</source><target>حذف</target></trans-unit>
+      <trans-unit id="cars.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
+      <trans-unit id="cars.add_submit" datatype="html"><source>Add</source><target>أضف</target></trans-unit>
+      <trans-unit id="cars.name_en" datatype="html"><source>Name in English</source><target>الاسم بالإنجليزية</target></trans-unit>
+      <trans-unit id="cars.name_ar" datatype="html"><source>Name in Arabic</source><target>الاسم بالعربية</target></trans-unit>
+      <trans-unit id="cars.name_ar_hint" datatype="html"><source>Leave it blank to use the English name.</source><target>اتركه فارغًا لاستخدام الاسم الإنجليزي.</target></trans-unit>
+      <trans-unit id="cars.optional" datatype="html"><source>Optional</source><target>اختياري</target></trans-unit>
+      <trans-unit id="cars.paste_label" datatype="html"><source>One per line</source><target>واحد في كل سطر</target></trans-unit>
+      <trans-unit id="cars.paste_hint" datatype="html"><source>Add the Arabic name after a bar if you have it. Names already in the list are skipped.</source><target>أضف الاسم العربي بعد علامة | إن وُجد. الأسماء الموجودة في القائمة تُتخطّى.</target></trans-unit>
+      <trans-unit id="cars.paste_placeholder" datatype="html"><source>Corolla | كورولا
+Yaris
+RAV4</source><target>Corolla | كورولا
+Yaris
+RAV4</target></trans-unit>
+      <trans-unit id="cars.col_countries" datatype="html"><source>Countries</source><target>الدول</target></trans-unit>
+      <trans-unit id="cars.empty_countries" datatype="html"><source>No countries yet. Add the first one.</source><target>لا توجد دول بعد. أضف أول دولة.</target></trans-unit>
+      <trans-unit id="cars.add_country" datatype="html"><source>+ Add country</source><target>+ أضف دولة</target></trans-unit>
+      <trans-unit id="cars.col_brands" datatype="html"><source>Brands</source><target>الماركات</target></trans-unit>
+      <trans-unit id="cars.col_brands_in" datatype="html"><source>Brands from <x id="COUNTRY" equiv-text="countryName"/></source><target>ماركات <x id="COUNTRY" equiv-text="countryName"/></target></trans-unit>
+      <trans-unit id="cars.pick_country" datatype="html"><source>Pick a country to see its brands.</source><target>اختر دولة لعرض ماركاتها.</target></trans-unit>
+      <trans-unit id="cars.empty_brands" datatype="html"><source>No brands here yet. Add the first one.</source><target>لا توجد ماركات هنا بعد. أضف أول ماركة.</target></trans-unit>
+      <trans-unit id="cars.add_brand" datatype="html"><source>+ Add brand</source><target>+ أضف ماركة</target></trans-unit>
+      <trans-unit id="cars.col_models" datatype="html"><source>Models</source><target>الطرازات</target></trans-unit>
+      <trans-unit id="cars.col_models_of" datatype="html"><source>Models of <x id="BRAND" equiv-text="brandName"/></source><target>طرازات <x id="BRAND" equiv-text="brandName"/></target></trans-unit>
+      <trans-unit id="cars.pick_brand" datatype="html"><source>Pick a brand to see its models.</source><target>اختر ماركة لعرض طرازاتها.</target></trans-unit>
+      <trans-unit id="cars.empty_models" datatype="html"><source>No models here yet. Add the first one.</source><target>لا توجد طرازات هنا بعد. أضف أول طراز.</target></trans-unit>
+      <trans-unit id="cars.add_model" datatype="html"><source>+ Add model</source><target>+ أضف طرازًا</target></trans-unit>
+      <trans-unit id="cars.rename_aria" datatype="html"><source>Rename <x id="NAME" equiv-text="this.primary(row)"/></source><target>إعادة تسمية <x id="NAME" equiv-text="this.primary(row)"/></target></trans-unit>
+      <trans-unit id="cars.remove_aria" datatype="html"><source>Remove <x id="NAME" equiv-text="this.primary(row)"/></source><target>حذف <x id="NAME" equiv-text="this.primary(row)"/></target></trans-unit>
+      <trans-unit id="cars.level_country" datatype="html"><source>country</source><target>دولة</target></trans-unit>
+      <trans-unit id="cars.level_brand" datatype="html"><source>brand</source><target>ماركة</target></trans-unit>
+      <trans-unit id="cars.level_model" datatype="html"><source>model</source><target>طراز</target></trans-unit>
+      <trans-unit id="cars.sheet_rename" datatype="html"><source>Rename the <x id="WHAT" equiv-text="what"/></source><target>إعادة تسمية: <x id="WHAT" equiv-text="what"/></target></trans-unit>
+      <trans-unit id="cars.sheet_paste" datatype="html"><source>Paste <x id="WHAT" equiv-text="what"/> names</source><target>الصق أسماء (<x id="WHAT" equiv-text="what"/>)</target></trans-unit>
+      <trans-unit id="cars.sheet_add" datatype="html"><source>Add a <x id="WHAT" equiv-text="what"/></source><target>أضف: <x id="WHAT" equiv-text="what"/></target></trans-unit>
+      <trans-unit id="cars.sheet_under_country" datatype="html"><source>Filed under <x id="COUNTRY" equiv-text="c"/></source><target>تحت <x id="COUNTRY" equiv-text="c"/></target></trans-unit>
+      <trans-unit id="cars.sheet_under_brand" datatype="html"><source>Filed under <x id="BRAND" equiv-text="b"/></source><target>تحت <x id="BRAND" equiv-text="b"/></target></trans-unit>
+      <trans-unit id="cars.paste_count" datatype="html"><source><x id="N" equiv-text="n"/> to add</source><target><x id="N" equiv-text="n"/> للإضافة</target></trans-unit>
+      <trans-unit id="cars.pasted" datatype="html"><source><x id="N" equiv-text="res.created"/> added, <x id="M" equiv-text="res.skipped"/> already there.</source><target>أُضيف <x id="N" equiv-text="res.created"/>، و<x id="M" equiv-text="res.skipped"/> موجود من قبل.</target></trans-unit>
+      <trans-unit id="cars.saved" datatype="html"><source>Saved.</source><target>تم الحفظ.</target></trans-unit>
+      <trans-unit id="cars.remove_title" datatype="html"><source>Remove <x id="NAME" equiv-text="name"/>?</source><target>حذف <x id="NAME" equiv-text="name"/>؟</target></trans-unit>
+      <trans-unit id="cars.remove_has_kids" datatype="html"><source>Move or remove the <x id="N" equiv-text="kids"/> under it first.</source><target>انقل أو احذف العناصر (<x id="N" equiv-text="kids"/>) التي تحتها أولًا.</target></trans-unit>
+      <trans-unit id="cars.remove_body" datatype="html"><source>Customers can no longer pick it. A bank case that names it stops matching.</source><target>لن يستطيع العملاء اختياره. والحالة التي تذكره في أي بنك لن تنطبق بعد ذلك.</target></trans-unit>
+      <trans-unit id="cars.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="sim.detail.case" datatype="html"><source>Priced by</source><target>التسعير من</target></trans-unit>
+      <trans-unit id="sim.detail.case_n" datatype="html"><source>This bank&apos;s case <x id="INTERPOLATION" equiv-text="{{ f.appliedCaseNumber }}"/></source><target>الحالة <x id="INTERPOLATION" equiv-text="{{ f.appliedCaseNumber }}"/> لهذا البنك</target></trans-unit>
+      <trans-unit id="sidebar.car_list" datatype="html"><source>Car list</source><target>قائمة السيارات</target></trans-unit>
+      <trans-unit id="ps.def.to" datatype="html"><source>to</source><target>إلى</target></trans-unit>
+      <trans-unit id="ps.def.duration" datatype="html"><source>Loan duration</source><target>مدة القرض</target></trans-unit>
+      <trans-unit id="ps.def.min" datatype="html"><source>Minimum</source><target>الحد الأدنى</target></trans-unit>
+      <trans-unit id="ps.def.max" datatype="html"><source>Maximum</source><target>الحد الأقصى</target></trans-unit>
+      <trans-unit id="bank_programs.form.amount.title" datatype="html"><source>Loan amount</source><target>مبلغ القرض</target></trans-unit>
+      <trans-unit id="ps.def.need_min" datatype="html"><source>Type the minimum too.</source><target>اكتب الحد الأدنى أيضًا.</target></trans-unit>
+      <trans-unit id="ps.def.need_max" datatype="html"><source>Type the maximum too.</source><target>اكتب الحد الأقصى أيضًا.</target></trans-unit>
+      <trans-unit id="ps.def.min_over_max" datatype="html"><source>The minimum is bigger than the maximum.</source><target>الحد الأدنى أكبر من الحد الأقصى.</target></trans-unit>
+      <trans-unit id="ps.def.bad_amount" datatype="html"><source>An amount is a number above 0.</source><target>المبلغ رقم أكبر من 0.</target></trans-unit>
+      <trans-unit id="ps.def.bad_months" datatype="html"><source>Months are whole numbers from 1.</source><target>الأشهر أرقام صحيحة من 1.</target></trans-unit>
+      <trans-unit id="ps.def.fix_step" datatype="html"><source>Finish the figures on the Bank defaults step.</source><target>أكمل الأرقام في خطوة إعدادات البنوك الافتراضية.</target></trans-unit>
+      <trans-unit id="np.loan_type_title" datatype="html"><source>What loan is it for?</source><target>ما نوع القرض؟</target></trans-unit>
+      <trans-unit id="np.loan_type_required" datatype="html"><source>Choose the loan type.</source><target>اختر نوع القرض.</target></trans-unit>
+      <trans-unit id="np.loan_type_hint" datatype="html"><source>
+              Where the catalog lists it. Auto products also set the money most banks lend on.
+            </source><target>مكان ظهوره في الكتالوج. منتجات السيارات تحدد أيضًا الأرقام التي تُقرض بها معظم البنوك.</target></trans-unit>
+      <trans-unit id="cars.subtitle_levels" datatype="html"><source>The car&apos;s details, each level filed under the one before it: country, brand, model and any level you add. The app shows only what is filed under the customer&apos;s pick, and a bank prices any of them on its program&apos;s Cases.</source><target>تفاصيل السيارة، كل مستوى تحت الذي قبله: البلد والماركة والطراز وأي مستوى تضيفه. يعرض التطبيق ما يقع تحت اختيار العميل فقط، ويسعّر البنك أيًا منها في «الحالات» على برنامجه.</target></trans-unit>
+      <trans-unit id="cars.add" datatype="html"><source>Add</source><target>أضف</target></trans-unit>
+      <trans-unit id="cars.add_level" datatype="html"><source>Add a level</source><target>أضف مستوى</target></trans-unit>
+      <trans-unit id="cars.level_hint" datatype="html"><source>What the level holds, e.g. Trim. Customers are asked it once it holds two values.</source><target>ما يحمله المستوى، مثل الفئة. يُسأل العميل عنه عندما يحمل قيمتين.</target></trans-unit>
+      <trans-unit id="cars.paste_placeholder_generic" datatype="html"><source>Corolla
+Yaris
+RAV4</source><target>Corolla
+Yaris
+RAV4</target></trans-unit>
+      <trans-unit id="cars.pick_first" datatype="html"><source>Pick one on the left to see what is filed under it.</source><target>اختر عنصرًا على اليسار لترى ما تحته.</target></trans-unit>
+      <trans-unit id="cars.empty" datatype="html"><source>Nothing here yet. Add the first one.</source><target>لا شيء هنا بعد. أضف أول عنصر.</target></trans-unit>
+      <trans-unit id="cars.no_match" datatype="html"><source>Nothing matches that search.</source><target>لا شيء يطابق هذا البحث.</target></trans-unit>
+      <trans-unit id="cars.unasked" datatype="html"><source>Customers are asked this once it holds two values.</source><target>يُسأل العملاء عن هذا عندما يحمل قيمتين.</target></trans-unit>
+      <trans-unit id="cars.under" datatype="html"><source>Under <x id="NAME" equiv-text="parentName"/></source><target>تحت <x id="NAME" equiv-text="parentName"/></target></trans-unit>
+      <trans-unit id="cars.search" datatype="html"><source>Search</source><target>بحث</target></trans-unit>
+      <trans-unit id="cars.add_level_note" datatype="html"><source>Filed under <x id="NAME" equiv-text="name"/>, e.g. a trim under each model.</source><target>تحت <x id="NAME" equiv-text="name"/>، مثل فئة تحت كل طراز.</target></trans-unit>
+      <trans-unit id="cars.sheet_under" datatype="html"><source>Filed under <x id="NAME" equiv-text="name"/></source><target>تحت <x id="NAME" equiv-text="name"/></target></trans-unit>
+      <trans-unit id="cars.level_added" datatype="html"><source>Level added. Add its values; customers are asked it once it holds two.</source><target>أُضيف المستوى. أضف قيمه؛ يُسأل العملاء عنه عندما يحمل قيمتين.</target></trans-unit>
+      <trans-unit id="cars.level_asked" datatype="html"><source>Customers are now asked it. Reword the question on the Questions screen.</source><target>يُسأل العملاء عنه الآن. أعد صياغة السؤال في شاشة الأسئلة.</target></trans-unit>
+      <trans-unit id="cars.path_aria" datatype="html"><source>Where you are in the list</source><target>موقعك في القائمة</target></trans-unit>
+      <trans-unit id="cars.parent_hint" datatype="html"><source>Customers see it only after picking this one.</source><target>لا يراه العملاء إلا بعد اختيار هذا.</target></trans-unit>
+      <trans-unit id="cars.parent_pick" datatype="html"><source>Pick one</source><target>اختر واحدًا</target></trans-unit>
+      <trans-unit id="cars.parent_label" datatype="html"><source>Filed under (<x id="LEVEL" equiv-text="name"/>)</source><target>تحت (<x id="LEVEL" equiv-text="name"/>)</target></trans-unit>
+      <trans-unit id="bpd.meta.sharia" datatype="html"><source>Sharia compliant</source><target>متوافق مع الشريعة</target></trans-unit>
+      <trans-unit id="bpd.meta.changed" datatype="html"><source>Changed</source><target>عُدّل</target></trans-unit>
+      <trans-unit id="bpd.section.cases" datatype="html"><source>Cases</source><target>الحالات</target></trans-unit>
+      <trans-unit id="bpd.cases.sub" datatype="html"><source> Checked from the top. The first that matches sets the figures it names. </source><target>تُراجع من الأعلى. أول حالة تنطبق تحدد الأرقام التي تذكرها.</target></trans-unit>
+      <trans-unit id="bpd.cases.refused" datatype="html"><source>Refused</source><target>مرفوض</target></trans-unit>
+      <trans-unit id="bpd.cases.rate" datatype="html"><source>Rate <x id="N" equiv-text="this.n(e.ratePercent)"/>%</source><target>العائد <x id="N" equiv-text="this.n(e.ratePercent)"/>%</target></trans-unit>
+      <trans-unit id="bpd.cases.share" datatype="html"><source>Finance <x id="N" equiv-text="this.n(e.ltvCeilingPercent)"/>%</source><target>تمويل <x id="N" equiv-text="this.n(e.ltvCeilingPercent)"/>%</target></trans-unit>
+      <trans-unit id="bpd.cases.min_amount" datatype="html"><source>From <x id="N" equiv-text="this.money(e.minAmountEGP)"/> EGP</source><target>من <x id="N" equiv-text="this.money(e.minAmountEGP)"/> جنيه</target></trans-unit>
+      <trans-unit id="bpd.cases.max_amount" datatype="html"><source>Up to <x id="N" equiv-text="this.money(e.maxAmountEGP)"/> EGP</source><target>حتى <x id="N" equiv-text="this.money(e.maxAmountEGP)"/> جنيه</target></trans-unit>
+      <trans-unit id="bpd.cases.min_months" datatype="html"><source>At least <x id="N" equiv-text="e.minMonths"/> months</source><target><x id="N" equiv-text="e.minMonths"/> شهر على الأقل</target></trans-unit>
+      <trans-unit id="bpd.cases.max_months" datatype="html"><source>At most <x id="N" equiv-text="e.maxMonths"/> months</source><target><x id="N" equiv-text="e.maxMonths"/> شهر على الأكثر</target></trans-unit>
       <trans-unit id="spd.plan_table.row_by_row" datatype="html"><source> Type a figure per row </source><target> اكتب قيمة لكل صف </target></trans-unit>
       <trans-unit id="spd.plan_table.col_car_insurance" datatype="html"><source>Insurance</source><target>التأمين</target></trans-unit>
       <trans-unit id="spd.plan_table.and_above" datatype="html"><source>and above</source><target>فأكثر</target></trans-unit>
@@ -4537,6 +4715,7 @@
   <trans-unit id="spd.plan_table.uncovered" datatype="html"><source>Nothing is stated below <x id="from" equiv-text="first.fromInclusive"/>%.</source><target>لا شيء محدد أقل من <x id="from" equiv-text="first.fromInclusive"/>%.</target></trans-unit>
   <trans-unit id="spd.plan_table.uncovered_reject" datatype="html"><source>A customer putting less down is turned away.</source><target>ومن يدفع أقل من ذلك يُرفض طلبه.</target></trans-unit>
   <trans-unit id="spd.plan_table.sec_cases" datatype="html"><source>Some answers get their own figure</source><target>بعض الإجابات لها قيمة خاصة بها</target></trans-unit>
+  <trans-unit id="spd.plan_table.everyone_else" datatype="html"><source>Everyone else</source><target>باقي العملاء</target></trans-unit>
   <trans-unit id="spd.plan_table.per_band" datatype="html"><source>band by band</source><target>لكل شريحة على حدة</target></trans-unit>
   <trans-unit id="spd.plan_table.change" datatype="html"><source>Change</source><target>تعديل</target></trans-unit>
   <trans-unit id="spd.plan_table.delta_hint" datatype="html"><source>A minus takes the figure down for that answer and a plus puts it up. It moves every band at once.</source><target>الإشارة السالبة تخفض القيمة لتلك الإجابة والموجبة ترفعها، والتغيير يسري على كل الشرائح دفعة واحدة.</target></trans-unit>
@@ -4738,7 +4917,6 @@
       <trans-unit id="spd.iscore.shared_note" datatype="html"><source> Leave it empty and the standard I-Score classes on Manage values apply to every bank selling this product. </source><target>سيبه فاضي وهتتطبق تصنيفات I-Score القياسية من إدارة القيم على كل البنوك اللي بتبيع المنتج ده.</target></trans-unit>
       <trans-unit id="lookups.value.no_score_range" datatype="html"><source>No score given</source><target>لم يتم إدخال تقييم</target></trans-unit>
       <trans-unit id="srvp.empty" datatype="html"><source>The app asks nothing on this loan type.</source><target>لا يطرح التطبيق أي سؤال في نوع التمويل هذا.</target></trans-unit>
-      <trans-unit id="srvp.tag_optional" datatype="html"><source>Optional</source><target>اختياري</target></trans-unit>
       <trans-unit id="srvp.count_one" datatype="html"><source>1 question</source><target>سؤال واحد</target></trans-unit>
       <trans-unit id="srvp.count_many" datatype="html"><source><x id="N" equiv-text="n"/> questions</source><target><x id="N" equiv-text="n"/> أسئلة</target></trans-unit>
       <trans-unit id="srvp.gate_not" datatype="html"><source>Asked unless “<x id="SOURCE" equiv-text="asked"/>” is <x id="ANSWERS" equiv-text="answers"/></source><target>يُطرح إلا إذا كانت إجابة «<x id="SOURCE" equiv-text="asked"/>» هي <x id="ANSWERS" equiv-text="answers"/></target></trans-unit>
@@ -5075,6 +5253,16 @@
       <trans-unit id="sim.detail.fee_admin" datatype="html"><source>Admin fee</source><target>رسوم إدارية</target></trans-unit>
       <trans-unit id="sim.detail.fee_stamp" datatype="html"><source>Stamp duty</source><target>دمغة</target></trans-unit>
       <trans-unit id="sim.detail.fee_life" datatype="html"><source>Life insurance</source><target>تأمين على الحياة</target></trans-unit>
+      <trans-unit id="sim.detail.by_deposit" datatype="html"><source>By down payment</source><target>حسب المقدم</target></trans-unit>
+      <trans-unit id="sim.detail.by_deposit_note" datatype="html"><source>
+            The same applicant at the start of each down-payment row this program states.
+          </source><target>نفس المتقدم عند بداية كل شريحة مقدم يحددها هذا البرنامج.</target></trans-unit>
+      <trans-unit id="sim.detail.dep_from" datatype="html"><source>Down payment</source><target>المقدم</target></trans-unit>
+      <trans-unit id="sim.detail.dep_rate" datatype="html"><source>Rate</source><target>العائد</target></trans-unit>
+      <trans-unit id="sim.detail.dep_max" datatype="html"><source>Max loan (EGP)</source><target>أقصى قرض (جنيه)</target></trans-unit>
+      <trans-unit id="sim.detail.dep_monthly" datatype="html"><source>Monthly (EGP)</source><target>القسط الشهري (جنيه)</target></trans-unit>
+      <trans-unit id="sim.detail.dep_from_value" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ pct(row.fromPercent) }}"/>%+</source><target><x id="INTERPOLATION" equiv-text="{{ pct(row.fromPercent) }}"/>%+</target></trans-unit>
+      <trans-unit id="sim.detail.dep_yours" datatype="html"><source>Yours</source><target>مقدمك</target></trans-unit>
       <trans-unit id="sim.detail.terms" datatype="html"><source>Program terms</source><target>شروط البرنامج</target></trans-unit>
       <trans-unit id="sim.detail.terms_loading" datatype="html"><source>Loading program terms</source><target>جارٍ تحميل شروط البرنامج</target></trans-unit>
       <trans-unit id="sim.detail.list_rate" datatype="html"><source>Listed rate</source><target>العائد المعلن</target></trans-unit>
@@ -5127,6 +5315,7 @@
       <trans-unit id="qedit.tabs_aria" datatype="html"><source>Parts of the question</source><target>أجزاء السؤال</target></trans-unit>
       <trans-unit id="qedit.actions_aria" datatype="html"><source>Question actions</source><target>إجراءات السؤال</target></trans-unit>
       <trans-unit id="qedit.menu_edit" datatype="html"><source>Edit</source><target>تعديل</target></trans-unit>
+      <trans-unit id="qedit.menu_loan_engine" datatype="html"><source>Open in Loan Engine</source><target>افتحه في محرك القروض</target></trans-unit>
       <trans-unit id="qedit.menu_follow_up" datatype="html"><source>Add a follow-up</source><target>إضافة سؤال تابع</target></trans-unit>
       <trans-unit id="qedit.delete_blocked_fixed" datatype="html"><source>Only a super admin can delete a fixed question.</source><target>لا يحذف السؤال الثابت إلا المشرف الأعلى.</target></trans-unit>
       <trans-unit id="qedit.delete_blocked_priced" datatype="html"><source>Used in pricing, so it can&apos;t be deleted.</source><target>يُستخدم في التسعير، لذا لا يمكن حذفه.</target></trans-unit>
@@ -5560,6 +5749,246 @@
       <trans-unit id="rm.step_name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
       <trans-unit id="rm.steps_aria" datatype="html"><source>Setting up this method</source><target>إعداد هذه الطريقة</target></trans-unit>
       <trans-unit id="rm.go_q" datatype="html"><source> Go to Question </source><target> انتقل إلى السؤال </target></trans-unit>
+      <trans-unit id="qcalc.done" datatype="html"><source>Done</source><target>تم</target></trans-unit>
+      <trans-unit id="qcalc.created_link_failed" datatype="html"><source>The question was created, but linking it to a figure failed. Retry below, or press Done to leave it unlinked.</source><target>تم إنشاء السؤال، لكن ربطه برقم في الحساب لم ينجح. أعد المحاولة بالأسفل، أو اضغط «تم» لتركه دون ربط.</target></trans-unit>
+      <trans-unit id="qcalc.title" datatype="html"><source>Use in calculation</source><target>الاستخدام في الحساب</target></trans-unit>
+      <trans-unit id="qcalc.retry" datatype="html"><source> Retry </source><target>إعادة المحاولة</target></trans-unit>
+      <trans-unit id="qcalc.link_h" datatype="html"><source>Does its answer feed a figure?</source><target>هل تدخل إجابته في رقم من أرقام الحساب؟</target></trans-unit>
+      <trans-unit id="qcalc.text_no_link" datatype="html"><source> A typed-in answer cannot feed a figure. It can still show or hide other questions. </source><target>الإجابة النصية الحرة لا يمكن أن تدخل في رقم. لكنها تستطيع إظهار أسئلة أخرى أو إخفاءها.</target></trans-unit>
+      <trans-unit id="qcalc.pending_none" datatype="html"><source>Not now</source><target>ليس الآن</target></trans-unit>
+      <trans-unit id="qcalc.create" datatype="html"><source>Create a calculation figure from this question</source><target>إنشاء رقم للحساب من هذا السؤال</target></trans-unit>
+      <trans-unit id="qcalc.existing" datatype="html"><source>This answers an existing figure</source><target>هذا السؤال يجيب عن رقم موجود</target></trans-unit>
+      <trans-unit id="qcalc.pending_note" datatype="html"><source> Nothing is linked until the question is created. </source><target>لا يُربط شيء قبل إنشاء السؤال.</target></trans-unit>
+      <trans-unit id="qcalc.loading" datatype="html"><source>Loading…</source><target>جارٍ التحميل…</target></trans-unit>
+      <trans-unit id="qcalc.linked_to" datatype="html"><source>Answers the figure</source><target>يجيب عن الرقم</target></trans-unit>
+      <trans-unit id="qcalc.platform_owned" datatype="html"><source>platform</source><target>المنصة</target></trans-unit>
+      <trans-unit id="qcalc.unlink" datatype="html"><source> Unlink </source><target>فك الربط</target></trans-unit>
+      <trans-unit id="qcalc.not_linked_ro" datatype="html"><source>Not linked to any figure.</source><target>غير مربوط بأي رقم.</target></trans-unit>
+      <trans-unit id="qcalc.engine_note" datatype="html"><source> The engine already reads this answer directly; a figure is only needed for a bank table. </source><target>المحرك يقرأ هذه الإجابة مباشرةً؛ الرقم مطلوب فقط لجدول بنك.</target></trans-unit>
+      <trans-unit id="qcalc.create_btn" datatype="html"><source> Create figure </source><target>إنشاء الرقم</target></trans-unit>
+      <trans-unit id="qcalc.link_btn" datatype="html"><source> Link </source><target>ربط</target></trans-unit>
+      <trans-unit id="qcalc.affect_h" datatype="html"><source>What should it affect?</source><target>على ماذا يجب أن يؤثر؟</target></trans-unit>
+      <trans-unit id="qcalc.affect_locked" datatype="html"><source>Link it to a figure first.</source><target>اربطه برقم أولاً.</target></trans-unit>
+      <trans-unit id="qcalc.target_label" datatype="html"><source>Where are its figures typed?</source><target>أين تُكتب أرقامه؟</target></trans-unit>
+      <trans-unit id="qcalc.target_ph" datatype="html"><source>Pick a programme or product</source><target>اختر برنامجاً أو منتجاً</target></trans-unit>
+      <trans-unit id="qcalc.open_btn" datatype="html"><source> Open the table </source><target>فتح الجدول</target></trans-unit>
+      <trans-unit id="qusage.title" datatype="html"><source>Used by</source><target>يستخدمه</target></trans-unit>
+      <trans-unit id="qusage.inherited" datatype="html"><source>from its product</source><target>من منتجه</target></trans-unit>
+      <trans-unit id="qusage.refuses_blank" datatype="html"><source>blank refuses</source><target>الترك فارغاً يرفض</target></trans-unit>
+      <trans-unit id="qusage.asked_by" datatype="html"><source>Asked by products</source><target>تسأله المنتجات</target></trans-unit>
+      <trans-unit id="qusage.gates" datatype="html"><source>Shows or hides</source><target>يُظهر أو يُخفي</target></trans-unit>
+      <trans-unit id="qcalc.existing_ph" datatype="html"><source>Pick a figure</source><target>اختر رقماً</target></trans-unit>
+      <trans-unit id="qcalc.no_candidates" datatype="html"><source>No unlinked figure is waiting for a question.</source><target>لا يوجد رقم غير مربوط ينتظر سؤالاً.</target></trans-unit>
+      <trans-unit id="qcalc.key_label" datatype="html"><source>Figure key:</source><target>مفتاح الرقم:</target></trans-unit>
+      <trans-unit id="qcalc.group_products" datatype="html"><source>No-payslip products</source><target>منتجات بدون إثبات دخل</target></trans-unit>
+      <trans-unit id="qcalc.group_programs" datatype="html"><source>Bank programmes</source><target>برامج البنوك</target></trans-unit>
+      <trans-unit id="qcalc.eff_rate" datatype="html"><source>Rate table</source><target>جدول العائد</target></trans-unit>
+      <trans-unit id="qcalc.eff_rate_hint" datatype="html"><source>A rate per answer</source><target>عائد لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_cap" datatype="html"><source>Loan cap</source><target>الحد الأقصى للقرض</target></trans-unit>
+      <trans-unit id="qcalc.eff_cap_hint" datatype="html"><source>The most it lends per answer</source><target>أقصى ما يقرضه لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_ltv" datatype="html"><source>Financed share</source><target>نسبة التمويل</target></trans-unit>
+      <trans-unit id="qcalc.eff_ltv_hint" datatype="html"><source>Share of the price financed</source><target>نسبة السعر الممولة</target></trans-unit>
+      <trans-unit id="qcalc.eff_floor" datatype="html"><source>Smallest loan</source><target>أصغر قرض</target></trans-unit>
+      <trans-unit id="qcalc.eff_floor_hint" datatype="html"><source>The least it lends per answer</source><target>أقل ما يقرضه لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_min_term" datatype="html"><source>Shortest term</source><target>أقصر مدة</target></trans-unit>
+      <trans-unit id="qcalc.eff_min_term_hint" datatype="html"><source>Fewest months per answer</source><target>أقل عدد شهور لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_max_term" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="qcalc.eff_max_term_hint" datatype="html"><source>Most months per answer</source><target>أكبر عدد شهور لكل إجابة</target></trans-unit>
+      <trans-unit id="qcalc.eff_extra" datatype="html"><source>Extra income</source><target>دخل إضافي</target></trans-unit>
+      <trans-unit id="qcalc.eff_extra_hint" datatype="html"><source>Money added to the income</source><target>مبلغ يُضاف إلى الدخل</target></trans-unit>
+      <trans-unit id="qcalc.eff_rule" datatype="html"><source>Condition / income rule</source><target>شرط / قاعدة الدخل</target></trans-unit>
+      <trans-unit id="qcalc.eff_rule_hint" datatype="html"><source>How a product works the income out</source><target>كيف يحسب المنتج الدخل</target></trans-unit>
+      <trans-unit id="qcalc.unlink_locked" datatype="html"><source>The platform owns this figure, so it cannot be unlinked here.</source><target>هذا الرقم تملكه المنصة، لذلك لا يمكن فك ربطه من هنا.</target></trans-unit>
+      <trans-unit id="qcalc.unlink_read" datatype="html"><source>Still read in <x id="count" equiv-text="n"/> place(s). Remove those tables or asks first.</source><target>ما زال يُقرأ في <x id="count" equiv-text="n"/> موضع. احذف تلك الجداول أو الأسئلة أولاً.</target></trans-unit>
+      <trans-unit id="qcalc.unlink_title" datatype="html"><source>Unlink this question from “<x id="key" equiv-text="key"/>”?</source><target>فك ربط هذا السؤال من «<x id="key" equiv-text="key"/>»؟</target></trans-unit>
+      <trans-unit id="qcalc.unlink_body" datatype="html"><source>A figure this question created is deleted with the link. Bank tables can no longer be keyed by its answer until it is linked again.</source><target>الرقم الذي أنشأه هذا السؤال يُحذف مع فك الربط. لن تستطيع جداول البنوك الاعتماد على إجابته حتى يُربط من جديد.</target></trans-unit>
+      <trans-unit id="qcalc.unlink_ok" datatype="html"><source>Unlink</source><target>فك الربط</target></trans-unit>
+      <trans-unit id="qcalc.unlink_cancel" datatype="html"><source>Keep it</source><target>إبقاؤه</target></trans-unit>
+      <trans-unit id="qcalc.cand_mismatch" datatype="html"><source><x id="figure" equiv-text="base"/> — read by a different kind of answer</source><target><x id="figure" equiv-text="base"/> — يقرؤه نوع إجابة مختلف</target></trans-unit>
+      <trans-unit id="fgd.edge_from_excluded" datatype="html"><source>more than</source><target>أكثر من</target></trans-unit>
+      <trans-unit id="fgd.edge_to_included" datatype="html"><source>up to and including</source><target>حتى ويشمل</target></trans-unit>
+      <trans-unit id="lengine.cond.reason" datatype="html"><source>Reason, seen in the simulator</source><target>السبب، ويظهر في المحاكي</target></trans-unit>
+      <trans-unit id="lengine.cond.or" datatype="html"><source>or</source><target>أو</target></trans-unit>
+      <trans-unit id="lengine.cond.add_or" datatype="html"><source> Add an &quot;or&quot; </source><target> أضف «أو» </target></trans-unit>
+      <trans-unit id="lengine.cond.remove" datatype="html"><source> Remove condition </source><target> احذف الشرط </target></trans-unit>
+      <trans-unit id="lengine.cond.none" datatype="html"><source> No conditions — this bank quotes every applicant its tables can price. </source><target> لا شروط — هذا البنك يعرض عرضًا لكل مقدم طلب تستطيع جداوله تسعيره. </target></trans-unit>
+      <trans-unit id="lengine.cond.add" datatype="html"><source>Add a condition</source><target>أضف شرطًا</target></trans-unit>
+      <trans-unit id="lengine.cond.title" datatype="html"><source>Who this program quotes</source><target>من يقدم له هذا البرنامج</target></trans-unit>
+      <trans-unit id="lengine.cond.hint" datatype="html"><source>Every condition must hold. An applicant who fails one is not shown this program; the simulator lists it with the reason you pick.</source><target>يجب أن تتحقق كل الشروط. مقدم الطلب الذي لا يحقق أحدها لا يظهر له هذا البرنامج؛ ويعرضه المحاكي مع السبب الذي تختاره.</target></trans-unit>
+      <trans-unit id="lengine.cond.save" datatype="html"><source>Save conditions</source><target>احفظ الشروط</target></trans-unit>
+      <trans-unit id="lengine.cond.question_aria" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
+      <trans-unit id="lengine.cond.remove_line" datatype="html"><source>Remove this line</source><target>احذف هذا السطر</target></trans-unit>
+      <trans-unit id="lengine.cond.n" datatype="html"><source>Condition <x id="n" equiv-text="i + 1"/></source><target>الشرط <x id="n" equiv-text="i + 1"/></target></trans-unit>
+      <trans-unit id="lengine.sheet.stale" datatype="html"><source>Someone changed this program while you were editing. Close the sheet and open it again.</source><target>غيّر أحدهم هذا البرنامج أثناء تعديلك. أغلق اللوحة وافتحها من جديد.</target></trans-unit>
+      <trans-unit id="lengine.crit.answered_long" datatype="html"><source>Any answer given</source><target>أي إجابة مكتوبة</target></trans-unit>
+      <trans-unit id="lengine.crit.op_aria" datatype="html"><source>How the answer compares</source><target>كيف تُقارن الإجابة</target></trans-unit>
+      <trans-unit id="lengine.crit.a_aria" datatype="html"><source>Figure</source><target>الرقم</target></trans-unit>
+      <trans-unit id="lengine.crit.b_aria" datatype="html"><source>Second figure</source><target>الرقم الثاني</target></trans-unit>
+      <trans-unit id="lengine.crit.option_aria" datatype="html"><source>Answer</source><target>الإجابة</target></trans-unit>
+      <trans-unit id="lengine.sheet.extra_label" datatype="html"><source>Share of the stated amount this bank counts</source><target>نسبة المبلغ المذكور التي يحتسبها هذا البنك</target></trans-unit>
+      <trans-unit id="lengine.sheet.add_row" datatype="html"><source> Add a band </source><target> أضف نطاقًا </target></trans-unit>
+      <trans-unit id="lengine.sheet.overlap" datatype="html"><source> Two bands overlap. The first one in this list wins where they do. </source><target> نطاقان متداخلان. الأول في هذه القائمة هو الذي يُطبّق حيث يتداخلان. </target></trans-unit>
+      <trans-unit id="lengine.sheet.multi_note" datatype="html"><source> An applicant who picks several answers gets the figure of the first one in this list. </source><target> مقدم الطلب الذي يختار أكثر من إجابة يحصل على رقم أول إجابة منها في هذه القائمة. </target></trans-unit>
+      <trans-unit id="lengine.sheet.save" datatype="html"><source>Save rows</source><target>احفظ الصفوف</target></trans-unit>
+      <trans-unit id="lengine.sheet.rows" datatype="html"><source>This bank&apos;s figure for each answer</source><target>رقم هذا البنك لكل إجابة</target></trans-unit>
+      <trans-unit id="lengine.sheet.rows_hint_pick" datatype="html"><source>Leave an answer blank when this bank states nothing for it.</source><target>اترك الإجابة فارغة إذا لم يحدد البنك لها رقمًا.</target></trans-unit>
+      <trans-unit id="lengine.sheet.rows_hint" datatype="html"><source>Each row is one band of answers and the figure the bank gives it.</source><target>كل صف نطاق من الإجابات والرقم الذي يعطيه البنك له.</target></trans-unit>
+      <trans-unit id="lengine.sheet.nomatch" datatype="html"><source>When no row matches the answer</source><target>عندما لا يطابق أي صف الإجابة</target></trans-unit>
+      <trans-unit id="lengine.sheet.try" datatype="html"><source>Try an answer</source><target>جرّب إجابة</target></trans-unit>
+      <trans-unit id="lengine.sheet.try_hint" datatype="html"><source>Prices a sample applicant with these rows before you save. Nothing is written.</source><target>يسعّر مقدم طلب تجريبيًا بهذه الصفوف قبل الحفظ. لا يُحفظ شيء.</target></trans-unit>
+      <trans-unit id="lengine.sheet.blank" datatype="html"><source>no figure</source><target>بلا رقم</target></trans-unit>
+      <trans-unit id="lengine.nm.program_max" datatype="html"><source>Use the program&apos;s own cap</source><target>استخدم الحد الأقصى للبرنامج نفسه</target></trans-unit>
+      <trans-unit id="lengine.nm.reject" datatype="html"><source>Refuse the quote</source><target>ارفض العرض</target></trans-unit>
+      <trans-unit id="lengine.nm.fallback" datatype="html"><source>Use the program&apos;s own figure</source><target>استخدم رقم البرنامج نفسه</target></trans-unit>
+      <trans-unit id="lengine.sheet.readonly" datatype="html"><source>Read only — your role can view rules but not change them.</source><target>للقراءة فقط — دورك يتيح عرض القواعد لا تغييرها.</target></trans-unit>
+      <trans-unit id="lengine.sheet.value_aria" datatype="html"><source>Figure for row <x id="n" equiv-text="i + 1"/></source><target>الرقم للصف <x id="n" equiv-text="i + 1"/></target></trans-unit>
+      <trans-unit id="lengine.sheet.remove_aria" datatype="html"><source>Remove row <x id="n" equiv-text="i + 1"/></source><target>احذف الصف <x id="n" equiv-text="i + 1"/></target></trans-unit>
+      <trans-unit id="lengine.eff.rate" datatype="html"><source>Interest rate</source><target>سعر الفائدة</target></trans-unit>
+      <trans-unit id="lengine.eff.cap" datatype="html"><source>Maximum loan</source><target>الحد الأقصى للقرض</target></trans-unit>
+      <trans-unit id="lengine.eff.financed_share" datatype="html"><source>Share of price financed</source><target>نسبة التمويل من السعر</target></trans-unit>
+      <trans-unit id="lengine.eff.min_amount" datatype="html"><source>Smallest loan</source><target>أصغر قرض</target></trans-unit>
+      <trans-unit id="lengine.eff.min_term" datatype="html"><source>Shortest term</source><target>أقصر مدة</target></trans-unit>
+      <trans-unit id="lengine.eff.max_term" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="lengine.eff.extra_income" datatype="html"><source>Extra income counted</source><target>دخل إضافي محتسب</target></trans-unit>
+      <trans-unit id="lengine.unit.egp" datatype="html"><source>EGP</source><target>جنيه</target></trans-unit>
+      <trans-unit id="lengine.unit.months" datatype="html"><source>months</source><target>شهرًا</target></trans-unit>
+      <trans-unit id="lengine.ro.inherited_plan" datatype="html"><source>From the product&apos;s plans</source><target>من خطط المنتج</target></trans-unit>
+      <trans-unit id="lengine.ro.multi_axis" datatype="html"><source>Table on several answers</source><target>جدول على أكثر من إجابة</target></trans-unit>
+      <trans-unit id="lengine.ro.class_axis" datatype="html"><source>Keyed by class</source><target>مرتبط بالفئة</target></trans-unit>
+      <trans-unit id="lengine.ro.other_fact" datatype="html"><source>Keyed on another answer</source><target>مرتبط بإجابة أخرى</target></trans-unit>
+      <trans-unit id="lengine.ro.two_axis_cap" datatype="html"><source>Two-column cap</source><target>حد أقصى بعمودين</target></trans-unit>
+      <trans-unit id="lengine.ro.not_numeric" datatype="html"><source>Number answers only</source><target>للإجابات الرقمية فقط</target></trans-unit>
+      <trans-unit id="lengine.ro.none" datatype="html"><source>Not editable here</source><target>لا يُعدّل من هنا</target></trans-unit>
+      <trans-unit id="lengine.op.lt" datatype="html"><source>less than</source><target>أقل من</target></trans-unit>
+      <trans-unit id="lengine.op.lte" datatype="html"><source>at most</source><target>على الأكثر</target></trans-unit>
+      <trans-unit id="lengine.op.gte" datatype="html"><source>at least</source><target>على الأقل</target></trans-unit>
+      <trans-unit id="lengine.op.gt" datatype="html"><source>more than</source><target>أكثر من</target></trans-unit>
+      <trans-unit id="lengine.op.eq" datatype="html"><source>exactly</source><target>يساوي تمامًا</target></trans-unit>
+      <trans-unit id="lengine.op.between" datatype="html"><source>between (both included)</source><target>بين (شاملًا الطرفين)</target></trans-unit>
+      <trans-unit id="lengine.op.range" datatype="html"><source>from … up to, not including</source><target>من … حتى دون</target></trans-unit>
+      <trans-unit id="lengine.prob.both_edges" datatype="html"><source>A band states one of its edges twice.</source><target>نطاق يذكر أحد طرفيه مرتين.</target></trans-unit>
+      <trans-unit id="lengine.prob.empty_band" datatype="html"><source>No number can fall in this band — check the two edges.</source><target>لا يقع أي رقم في هذا النطاق — راجع الطرفين.</target></trans-unit>
+      <trans-unit id="lengine.prob.unknown_option" datatype="html"><source>That answer is not one of the question&apos;s options.</source><target>هذه الإجابة ليست من خيارات السؤال.</target></trans-unit>
+      <trans-unit id="lengine.prob.engine_input" datatype="html"><source>Amount, term, income, debts, employment, age and I-Score shape the amount; they can&apos;t be a condition.</source><target>المبلغ والمدة والدخل والالتزامات ونوع العمل والعمر وI-Score تحدد المبلغ، ولا يمكن أن تكون شرطًا.</target></trans-unit>
+      <trans-unit id="lengine.prob.shape" datatype="html"><source>That kind of rule doesn&apos;t fit this question&apos;s answer type.</source><target>هذا النوع من القواعد لا يناسب نوع إجابة السؤال.</target></trans-unit>
+      <trans-unit id="lengine.prob.read_only_surface" datatype="html"><source>This table is edited somewhere else.</source><target>هذا الجدول يُعدّل في مكان آخر.</target></trans-unit>
+      <trans-unit id="lengine.prob.not_linked" datatype="html"><source>The question doesn&apos;t answer a figure yet — link it first.</source><target>السؤال لا يجيب عن رقم بعد — اربطه أولًا.</target></trans-unit>
+      <trans-unit id="lengine.cat.all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
+      <trans-unit id="lengine.q.not_linked" datatype="html"><source>Not linked</source><target>غير مربوط</target></trans-unit>
+      <trans-unit id="lengine.q.read_by" datatype="html"><source>Read by <x id="INTERPOLATION" equiv-text="{{ q.readingProgramCount }}"/></source><target>يقرؤه <x id="INTERPOLATION" equiv-text="{{ q.readingProgramCount }}"/></target></trans-unit>
+      <trans-unit id="lengine.q.unread" datatype="html"><source>No figure yet</source><target>لا يقرؤه أي رقم بعد</target></trans-unit>
+      <trans-unit id="lengine.q.none" datatype="html"><source>No question matches.</source><target>لا سؤال مطابق.</target></trans-unit>
+      <trans-unit id="lengine.d.answers_figure" datatype="html"><source>answers the figure <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code&gt;"/><x id="INTERPOLATION" equiv-text="{{ d.factKey }}"/><x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/></source><target>يجيب عن الرقم <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code&gt;"/><x id="INTERPOLATION" equiv-text="{{ d.factKey }}"/><x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/></target></trans-unit>
+      <trans-unit id="lengine.d.link_first" datatype="html"><source> This question doesn&apos;t answer a figure yet, so no bank table can read it. Link it to create one. </source><target> هذا السؤال لا يجيب عن رقم بعد، فلا يستطيع أي جدول بنك قراءته. اربطه لإنشاء رقم. </target></trans-unit>
+      <trans-unit id="lengine.d.link" datatype="html"><source> Link it to a figure </source><target> اربطه برقم </target></trans-unit>
+      <trans-unit id="lengine.d.only_reading" datatype="html"><source>Only programs that already use it</source><target>البرامج التي تستخدمه فقط</target></trans-unit>
+      <trans-unit id="lengine.d.count" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ shownPrograms().length }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ d.programs.length }}"/> programs</source><target><x id="INTERPOLATION" equiv-text="{{ shownPrograms().length }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ d.programs.length }}"/> برنامجًا</target></trans-unit>
+      <trans-unit id="lengine.t.program" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
+      <trans-unit id="lengine.t.conditions" datatype="html"><source>Conditions</source><target>الشروط</target></trans-unit>
+      <trans-unit id="lengine.t.none" datatype="html"><source> No program uses this question yet. Clear the filter to start one. </source><target> لا يستخدم أي برنامج هذا السؤال بعد. ألغِ التصفية لتبدأ واحدًا. </target></trans-unit>
+      <trans-unit id="lengine.d.pick" datatype="html"><source>Pick a question to see what it changes for each bank.</source><target>اختر سؤالًا لترى ما يغيّره لدى كل بنك.</target></trans-unit>
+      <trans-unit id="lengine.title" datatype="html"><source>Loan Engine</source><target>محرك القروض</target></trans-unit>
+      <trans-unit id="lengine.list_aria" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
+      <trans-unit id="lengine.cats_aria" datatype="html"><source>Loan type</source><target>نوع القرض</target></trans-unit>
+      <trans-unit id="lengine.table_aria" datatype="html"><source>Effects by program</source><target>التأثيرات حسب البرنامج</target></trans-unit>
+      <trans-unit id="lengine.search" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
+      <trans-unit id="lengine.cell.rows" datatype="html"><source><x id="n" equiv-text="s.rows.length"/> rows</source><target><x id="n" equiv-text="s.rows.length"/> صفوف</target></trans-unit>
+      <trans-unit id="lengine.cell.add" datatype="html"><source>Add</source><target>أضف</target></trans-unit>
+      <trans-unit id="lengine.cell.cond_mine" datatype="html"><source><x id="n" equiv-text="p.conditions.length"/> (<x id="mine" equiv-text="mine"/> on this)</source><target><x id="n" equiv-text="p.conditions.length"/> (<x id="mine" equiv-text="mine"/> على هذا السؤال)</target></trans-unit>
+      <trans-unit id="lengine.cell.cond" datatype="html"><source><x id="n" equiv-text="p.conditions.length"/></source><target><x id="n" equiv-text="p.conditions.length"/></target></trans-unit>
+      <trans-unit id="lengine.try.sample" datatype="html"><source> Sample applicant: income <x id="INTERPOLATION" equiv-text="{{ grouped(sample.monthlyIncome) }}"/>, asks <x id="INTERPOLATION_1" equiv-text="{{ grouped(sample.requestedAmount) }}"/> over <x id="INTERPOLATION_2" equiv-text="{{ sample.tenorMonths }}"/> months, I-Score <x id="INTERPOLATION_3" equiv-text="{{ sample.iScore }}"/>, no existing debts. </source><target> مقدم طلب تجريبي: دخل <x id="INTERPOLATION" equiv-text="{{ grouped(sample.monthlyIncome) }}"/>، يطلب <x id="INTERPOLATION_1" equiv-text="{{ grouped(sample.requestedAmount) }}"/> على <x id="INTERPOLATION_2" equiv-text="{{ sample.tenorMonths }}"/> شهرًا، I-Score <x id="INTERPOLATION_3" equiv-text="{{ sample.iScore }}"/>، بلا ديون قائمة. </target></trans-unit>
+      <trans-unit id="lengine.try.run" datatype="html"><source> Try </source><target> جرّب </target></trans-unit>
+      <trans-unit id="lengine.try.saved" datatype="html"><source>As saved</source><target>كما هو محفوظ</target></trans-unit>
+      <trans-unit id="lengine.try.draft" datatype="html"><source>With these rows</source><target>بهذه الصفوف</target></trans-unit>
+      <trans-unit id="lengine.try.answer_aria" datatype="html"><source>Sample answer</source><target>إجابة تجريبية</target></trans-unit>
+      <trans-unit id="lengine.try.not_listed" datatype="html"><source>Not offered for this sample.</source><target>غير معروض لهذا المثال.</target></trans-unit>
+      <trans-unit id="lengine.try.figures" datatype="html"><source><x id="rate" equiv-text="Number(f.effectiveRatePercent)"/>% · <x id="amount" equiv-text="formatGroupedNumber(f.offeredAmountEGP)"/> EGP · <x id="months" equiv-text="f.effectiveTenorMonths"/> months</source><target><x id="rate" equiv-text="Number(f.effectiveRatePercent)"/>٪ · <x id="amount" equiv-text="formatGroupedNumber(f.offeredAmountEGP)"/> جنيه · <x id="months" equiv-text="f.effectiveTenorMonths"/> شهرًا</target></trans-unit>
+      <trans-unit id="qcalc.affect_hint2" datatype="html"><source> Opens the Loan Engine, or the product or program table, where the bank&apos;s figures are typed. Nothing is saved here. </source><target> يفتح محرك القروض، أو جدول المنتج أو البرنامج، حيث تُكتب أرقام البنك. لا يُحفظ شيء هنا. </target></trans-unit>
+      <trans-unit id="qcalc.open_engine" datatype="html"><source> Edit it in the Loan Engine </source><target> عدّله في محرك القروض </target></trans-unit>
+      <trans-unit id="qcalc.open_engine_hint" datatype="html"><source> Every bank&apos;s figures for this answer, side by side. </source><target> أرقام كل بنك لهذه الإجابة جنبًا إلى جنب. </target></trans-unit>
+      <trans-unit id="sidebar.loan_engine" datatype="html"><source>Loan Engine</source><target>محرك القروض</target></trans-unit>
+      <trans-unit id="lengine.cell.row_one" datatype="html"><source>1 row</source><target>صف واحد</target></trans-unit>
+      <trans-unit id="lengine.cond.question_ph" datatype="html"><source>Pick a question</source><target>اختر سؤالًا</target></trans-unit>
+      <trans-unit id="qcalc.unknown_keys" datatype="html"><source>No option of this question matches: <x id="keys" equiv-text="keys.join(', ')"/></source><target>لا يطابق أي خيار في هذا السؤال: <x id="keys" equiv-text="keys.join(', ')"/></target></trans-unit>
+      <trans-unit id="qcalc.cand_read" datatype="html"><source><x id="figure" equiv-text="base"/> — read by <x id="count" equiv-text="c.readerCount"/></source><target><x id="figure" equiv-text="base"/> — يقرؤه <x id="count" equiv-text="c.readerCount"/></target></trans-unit>
+      <trans-unit id="qcalc.eff_text_only" datatype="html"><source>A typed-in answer can only be a condition.</source><target>الإجابة النصية الحرة لا تصلح إلا شرطاً.</target></trans-unit>
+      <trans-unit id="qcalc.eff_numeric_only" datatype="html"><source>Only a number answer can be added to the income.</source><target>الإجابة الرقمية فقط يمكن إضافتها إلى الدخل.</target></trans-unit>
+      <trans-unit id="qusage.class_engine" datatype="html"><source>Engine input</source><target>مُدخل للمحرك</target></trans-unit>
+      <trans-unit id="qusage.class_calculation" datatype="html"><source>Used in calculation</source><target>مستخدم في الحساب</target></trans-unit>
+      <trans-unit id="qusage.class_linked_unread" datatype="html"><source>Linked, nothing reads it</source><target>مربوط، ولا شيء يقرؤه</target></trans-unit>
+      <trans-unit id="qusage.class_gate_only" datatype="html"><source>Only shows or hides questions</source><target>يُظهر أو يُخفي أسئلة فقط</target></trans-unit>
+      <trans-unit id="qusage.class_none" datatype="html"><source>Affects no figure</source><target>لا يؤثر في أي رقم</target></trans-unit>
+      <trans-unit id="qusage.hint_engine" datatype="html"><source>The engine reads this answer directly — the amount, debts, employment and the like.</source><target>المحرك يقرأ هذه الإجابة مباشرةً — المبلغ والديون ونوع العمل وما شابه.</target></trans-unit>
+      <trans-unit id="qusage.hint_calculation" datatype="html"><source>Its figure is read by the tables below.</source><target>رقمه تقرؤه الجداول التالية.</target></trans-unit>
+      <trans-unit id="qusage.hint_linked_unread" datatype="html"><source>It answers a figure, but no table reads that figure yet.</source><target>يجيب عن رقم، لكن لا يوجد جدول يقرأ ذلك الرقم بعد.</target></trans-unit>
+      <trans-unit id="qusage.hint_gate_only" datatype="html"><source>Its answer only decides whether other questions are asked.</source><target>إجابته تحدد فقط هل تُطرح أسئلة أخرى أم لا.</target></trans-unit>
+      <trans-unit id="qusage.hint_none" datatype="html"><source>Its answer changes no figure and hides no question.</source><target>إجابته لا تغيّر أي رقم ولا تُخفي أي سؤال.</target></trans-unit>
+      <trans-unit id="qusage.blank_refuses" datatype="html"><source>Leaving this blank refuses the quote on <x id="count" equiv-text="n"/> programme(s)</source><target>ترك هذا السؤال فارغاً يرفض العرض في <x id="count" equiv-text="n"/> برنامج</target></trans-unit>
+      <trans-unit id="qusage.kind_program" datatype="html"><source>Bank programmes</source><target>برامج البنوك</target></trans-unit>
+      <trans-unit id="qusage.kind_product" datatype="html"><source>No-payslip products</source><target>منتجات بدون إثبات دخل</target></trans-unit>
+      <trans-unit id="qusage.kind_name" datatype="html"><source>Program names</source><target>أسماء البرامج</target></trans-unit>
+      <trans-unit id="qusage.kind_iscore" datatype="html"><source>Platform I-Score table</source><target>جدول I-Score الخاص بالمنصة</target></trans-unit>
+      <trans-unit id="qusage.s_income_rule" datatype="html"><source>Income rule</source><target>قاعدة الدخل</target></trans-unit>
+      <trans-unit id="qusage.s_additional_income" datatype="html"><source>Extra income</source><target>دخل إضافي</target></trans-unit>
+      <trans-unit id="qusage.s_cap" datatype="html"><source>Loan cap</source><target>الحد الأقصى للقرض</target></trans-unit>
+      <trans-unit id="qusage.s_cap_adjustment" datatype="html"><source>Cap adjustment</source><target>تعديل الحد الأقصى</target></trans-unit>
+      <trans-unit id="qusage.s_financed_share" datatype="html"><source>Financed share</source><target>نسبة التمويل</target></trans-unit>
+      <trans-unit id="qusage.s_min_amount" datatype="html"><source>Smallest loan</source><target>أصغر قرض</target></trans-unit>
+      <trans-unit id="qusage.s_rate_grid" datatype="html"><source>Rate table</source><target>جدول العائد</target></trans-unit>
+      <trans-unit id="qusage.s_max_term" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="qusage.s_min_term" datatype="html"><source>Shortest term</source><target>أقصر مدة</target></trans-unit>
+      <trans-unit id="qusage.s_vehicle_age" datatype="html"><source>Car age limit</source><target>حد عمر السيارة</target></trans-unit>
+      <trans-unit id="qusage.s_car_cover" datatype="html"><source>Car insurance</source><target>تأمين السيارة</target></trans-unit>
+      <trans-unit id="qusage.chip_tip" datatype="html"><source>How this answer reaches the money — open the question for details</source><target>كيف تصل هذه الإجابة إلى الأرقام — افتح السؤال للتفاصيل</target></trans-unit>
+      <trans-unit id="lengine.rb.nomatch.fallback" datatype="html"><source>the program&apos;s usual figure</source><target>الرقم المعتاد للبرنامج</target></trans-unit>
+      <trans-unit id="lengine.rb.nomatch.max" datatype="html"><source>the program&apos;s usual maximum</source><target>الحد الأقصى المعتاد للبرنامج</target></trans-unit>
+      <trans-unit id="lengine.rb.nomatch.reject" datatype="html"><source>refused</source><target>مرفوض</target></trans-unit>
+      <trans-unit id="lengine.band.lt" datatype="html"><source>under <x id="a" equiv-text="n(criterion.a)"/></source><target>أقل من <x id="a" equiv-text="n(criterion.a)"/></target></trans-unit>
+      <trans-unit id="lengine.band.lte" datatype="html"><source><x id="a" equiv-text="n(criterion.a)"/> or less</source><target><x id="a" equiv-text="n(criterion.a)"/> أو أقل</target></trans-unit>
+      <trans-unit id="lengine.band.gte" datatype="html"><source><x id="a" equiv-text="n(criterion.a)"/> or more</source><target><x id="a" equiv-text="n(criterion.a)"/> أو أكثر</target></trans-unit>
+      <trans-unit id="lengine.band.gt" datatype="html"><source>over <x id="a" equiv-text="n(criterion.a)"/></source><target>أكثر من <x id="a" equiv-text="n(criterion.a)"/></target></trans-unit>
+      <trans-unit id="lengine.band.eq" datatype="html"><source>exactly <x id="a" equiv-text="n(criterion.a)"/></source><target><x id="a" equiv-text="n(criterion.a)"/> بالضبط</target></trans-unit>
+      <trans-unit id="lengine.band.between" datatype="html"><source><x id="a" equiv-text="n(criterion.a)"/> to <x id="b" equiv-text="n(criterion.b)"/></source><target>من <x id="a" equiv-text="n(criterion.a)"/> إلى <x id="b" equiv-text="n(criterion.b)"/></target></trans-unit>
+      <trans-unit id="lengine.band.range" datatype="html"><source><x id="a" equiv-text="n(criterion.a)"/> up to under <x id="b" equiv-text="n(criterion.b)"/></source><target>من <x id="a" equiv-text="n(criterion.a)"/> إلى أقل من <x id="b" equiv-text="n(criterion.b)"/></target></trans-unit>
+      <trans-unit id="lengine.subtitle.rules" datatype="html"><source>For each bank program: who gets an offer, how its income is worked out, and which answers change the offer.</source><target>لكل برنامج بنكي: من يحصل على عرض، وكيف يُحسب دخله، وأي الإجابات تغيّر العرض.</target></trans-unit>
+      <trans-unit id="lengine.views_aria" datatype="html"><source>How to read the rules</source><target>طريقة عرض القواعد</target></trans-unit>
+      <trans-unit id="lengine.view.rules" datatype="html"><source>Rules by program</source><target>القواعد حسب البرنامج</target></trans-unit>
+      <trans-unit id="lengine.view.questions" datatype="html"><source>By question</source><target>حسب السؤال</target></trans-unit>
+      <trans-unit id="lengine.rb.add_rule" datatype="html"><source>Add rule</source><target>إضافة قاعدة</target></trans-unit>
+      <trans-unit id="lengine.rb.edit_conditions" datatype="html"><source> Conditions </source><target> الشروط </target></trans-unit>
+      <trans-unit id="lengine.rb.show_all" datatype="html"><source>Show all programs</source><target>عرض كل البرامج</target></trans-unit>
+      <trans-unit id="lengine.rb.show_ruled" datatype="html"><source>Only programs with rules</source><target>البرامج التي لها قواعد فقط</target></trans-unit>
+      <trans-unit id="lengine.rb.basis_surrogate" datatype="html"><source>No payslip</source><target>بدون مفردات مرتب</target></trans-unit>
+      <trans-unit id="lengine.rb.basis_proof" datatype="html"><source>Payslip</source><target>بمفردات مرتب</target></trans-unit>
+      <trans-unit id="lengine.rb.income" datatype="html"><source>How income is worked out</source><target>كيف يُحسب الدخل</target></trans-unit>
+      <trans-unit id="lengine.rb.income_surrogate" datatype="html"><source>From the applicant&apos;s answers, not a payslip. The amount each answer counts as income is set on the program&apos;s Calculation step, not here.</source><target>من إجابات المتقدم، بدون مفردات مرتب. المبلغ الذي تُحتسب به كل إجابة كدخل يُحدَّد في خطوة الحساب في البرنامج، وليس هنا.</target></trans-unit>
+      <trans-unit id="lengine.rb.open_calc" datatype="html"><source>Open the calculation</source><target>فتح خطوة الحساب</target></trans-unit>
+      <trans-unit id="lengine.rb.income_proof" datatype="html"><source> The net monthly income the applicant states. </source><target> صافي الدخل الشهري الذي يذكره المتقدم. </target></trans-unit>
+      <trans-unit id="lengine.rb.who_quotes" datatype="html"><source>Who gets an offer</source><target>من يحصل على عرض</target></trans-unit>
+      <trans-unit id="lengine.rb.no_conditions" datatype="html"><source> Everyone applying for this loan type. No condition refuses an applicant. </source><target> كل من يتقدم لنوع القرض هذا. لا يوجد شرط يرفض أي متقدم. </target></trans-unit>
+      <trans-unit id="lengine.rb.only_if" datatype="html"><source>Only if</source><target>فقط إذا</target></trans-unit>
+      <trans-unit id="lengine.rb.or" datatype="html"><source>or</source><target>أو</target></trans-unit>
+      <trans-unit id="lengine.rb.otherwise_refused" datatype="html"><source>otherwise refused:</source><target>وإلا يُرفض:</target></trans-unit>
+      <trans-unit id="lengine.rb.what_changes" datatype="html"><source> Answers that change the offer </source><target> إجابات تغيّر العرض </target></trans-unit>
+      <trans-unit id="lengine.rb.no_rules" datatype="html"><source> None yet. The offer uses the program&apos;s standard figures. </source><target> لا شيء بعد. العرض يستخدم أرقام البرنامج الأساسية. </target></trans-unit>
+      <trans-unit id="lengine.rb.anything_else" datatype="html"><source>any other answer</source><target>أي إجابة أخرى</target></trans-unit>
+      <trans-unit id="lengine.try.pick" datatype="html"><source>Pick an answer</source><target>اختر إجابة</target></trans-unit>
+      <trans-unit id="lengine.rb.open_program" datatype="html"><source>Open the program</source><target>افتح البرنامج</target></trans-unit>
+      <trans-unit id="lengine.rb.elsewhere" datatype="html"><source>Other tables that change the offer, edited on the program screen:</source><target>جداول أخرى تغيّر العرض، تُعدَّل من شاشة البرنامج:</target></trans-unit>
+      <trans-unit id="lengine.rb.nothing_matches" datatype="html"><source>No program matches.</source><target>لا يوجد برنامج مطابق.</target></trans-unit>
+      <trans-unit id="lengine.rb.add_when" datatype="html"><source>When the answer to</source><target>عندما تكون إجابة</target></trans-unit>
+      <trans-unit id="lengine.rb.add_changes" datatype="html"><source>changes its</source><target>تغيّر</target></trans-unit>
+      <trans-unit id="lengine.rb.add_continue" datatype="html"><source> Write the rule </source><target> اكتب القاعدة </target></trans-unit>
+      <trans-unit id="lengine.rb.add_cancel" datatype="html"><source> Cancel </source><target> إلغاء </target></trans-unit>
+      <trans-unit id="lengine.rb.search" datatype="html"><source>Search a bank, program or question</source><target>ابحث عن بنك أو برنامج أو سؤال</target></trans-unit>
+      <trans-unit id="lengine.rb.loading" datatype="html"><source>Loading the rules</source><target>جارٍ تحميل القواعد</target></trans-unit>
+      <trans-unit id="lengine.rb.pick_question" datatype="html"><source>Pick a question</source><target>اختر سؤالًا</target></trans-unit>
+      <trans-unit id="lengine.rb.summary" datatype="html"><source><x id="programs" equiv-text="programs"/> of <x id="total" equiv-text="shown.length"/> programs have rules (<x id="rules" equiv-text="rules"/> answer rules, <x id="conditions" equiv-text="conditions"/> refusal conditions)</source><target><x id="programs" equiv-text="programs"/> من <x id="total" equiv-text="shown.length"/> برنامج لها قواعد (<x id="rules" equiv-text="rules"/> قاعدة إجابة، <x id="conditions" equiv-text="conditions"/> شرط رفض)</target></trans-unit>
+      <trans-unit id="lengine.rb.counts" datatype="html"><source>the bank counts</source><target>يحتسب البنك</target></trans-unit>
+      <trans-unit id="lengine.rb.counts_of" datatype="html"><source><x id="share" equiv-text="figureText(&apos;extra_income&apos;, value)"/> of it as income</source><target><x id="share" equiv-text="figureText(&apos;extra_income&apos;, value)"/> منها كدخل</target></trans-unit>
+      <trans-unit id="lengine.crit.any" datatype="html"><source>any answer</source><target>أي إجابة</target></trans-unit>
+      <trans-unit id="lengine.crit.answered" datatype="html"><source>answered</source><target>تمت الإجابة</target></trans-unit>
+      <trans-unit id="lengine.crit.custom" datatype="html"><source>a custom band</source><target>نطاق مخصص</target></trans-unit>
     </body>
   </file>
 </xliff>

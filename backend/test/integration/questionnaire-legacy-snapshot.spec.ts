@@ -88,7 +88,8 @@ function makeService(questions: FakeQuestion[], optionsByQuestionId: Record<stri
         isActive: true,
       })),
   };
-  return new QuestionnaireService(repo as never);
+  // v36.4.0 — the served snapshot asks the lists which answers follow another; none here.
+  return new QuestionnaireService(repo as never, { typeDefinitions: async () => new Map() } as never);
 }
 
 describe('a pre-feature-010 snapshot still serves the customer questionnaire', () => {

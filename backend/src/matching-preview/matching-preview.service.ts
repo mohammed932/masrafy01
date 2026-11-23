@@ -11,6 +11,7 @@ import { ProgramNameScopeService } from '@/platform-enumerations/program-name-sc
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { quoteProgram } from '@/matching/pipeline/quote';
 import { failedMatchRules, hidesProgram, resolveGateIncome } from '@/matching/pipeline/match-gate';
+import { depositRowsFor, type DepositRow } from './deposit-rows';
 import { carInsuranceDisclosureOf } from '@/matching/pipeline/fees';
 import {
   CAR_DOWN_PAYMENT_FACT_KEY,
@@ -62,6 +63,8 @@ export interface PreviewFigures {
   dbrBandIndex: number | null;
   maxAffordableAmountEGP: string;
   bindingConstraint: string;
+  /** v36.4.0 — the bank's case that set these figures, by its number in the list. */
+  appliedCaseNumber: number | null;
   /**
    * What this applicant's COLLATERAL supports at this program — the ceiling the product
    * rule derived, before obligations.
@@ -119,6 +122,11 @@ export interface PreviewMatch {
   missingFactKeys: string[] | null;
   rejectionReasons: string[];
   requiredDocuments: string[];
+  /**
+   * Admin simulator only: the same applicant quoted at the start of every deposit row a car
+   * program states (`deposit-rows.ts`), the applicant's own row marked.
+   */
+  depositRows?: DepositRow[];
 }
 
 /** The four bound money figures, once resolved. */
@@ -195,6 +203,11 @@ export class MatchingPreviewService {
     programType?: BankProgramType;
     /** The admin simulator also wants what the customer was NOT shown, and why. */
     includeHidden?: boolean;
+    /**
+     * Admin simulator only (feature 013): the Loan Engine's unsaved drafts, applied to the
+     * in-memory rows of this one preview. Never set on the customer path.
+     */
+    programRowTransform?: <T extends { programCode: string }>(row: T) => T;
   }) {
     if (args.programNameKey) {
       await this.programNames.assertOfferedUnder(args.programNameKey, args.category);
@@ -217,6 +230,7 @@ export class MatchingPreviewService {
         args.answers.find((a) => a.questionCode === PRIORITY_QUESTION_CODE)?.optionCode,
       ),
       args.includeHidden === true,
+      args.programRowTransform,
     );
   }
 
@@ -378,10 +392,11 @@ export class MatchingPreviewService {
     answerEffects: AnswerEffect[],
     priority: ApplicationPriority,
     includeHidden: boolean,
+    programRowTransform?: <T extends { programCode: string }>(row: T) => T,
   ) {
-    const rows = (await this.programs.findAllActive()).filter((p) =>
-      matchesRequestedScope(p, category, programNameKey, programType),
-    );
+    const rows = (await this.programs.findAllActive())
+      .map((p) => (programRowTransform === undefined ? p : programRowTransform(p)))
+      .filter((p) => matchesRequestedScope(p, category, programNameKey, programType));
     const profile: ApplicantProfile | null = money
       ? {
           ...this.buildProfile(money, age, surrogateFacts, employment),
@@ -458,6 +473,24 @@ export class MatchingPreviewService {
             ? (priced.unavailable.maxAffordableAmountEGP?.toFixed(2) ?? null)
             : null),
         figures: quote ? toPreviewFigures(quote) : null,
+        ...(includeHidden && profile
+          ? (() => {
+              const depositRows = depositRowsFor({
+                profile,
+                program: snapshot,
+                quoteAt: (at) => {
+                  const atGate = resolveGateIncome({ profile: at, program: snapshot, parentKeyByValue });
+                  return quoteProgram({
+                    profile: at,
+                    program: snapshot,
+                    incomeResolution: atGate.incomeResolution,
+                    parentKeyByValue,
+                  });
+                },
+              });
+              return depositRows ? { depositRows } : {};
+            })()
+          : {}),
         figuresUnavailableReason: quote
           ? null
           : priced && !priced.ok
@@ -585,6 +618,7 @@ function toPreviewFigures(q: Quote): PreviewFigures {
     dbrBandIndex: q.dbrBandIndex,
     maxAffordableAmountEGP: q.maxAffordableAmountEGP.toFixed(2),
     bindingConstraint: q.bindingConstraint,
+    appliedCaseNumber: q.cascadeTrace.appliedCaseNumber ?? null,
     collateralCeilingEGP: q.collateralCeilingEGP?.toFixed(2) ?? null,
     ltvCeilingEGP: q.ltvCeilingEGP?.toFixed(2) ?? null,
     requiredDownPaymentEGP: q.requiredDownPaymentEGP?.toFixed(2) ?? null,

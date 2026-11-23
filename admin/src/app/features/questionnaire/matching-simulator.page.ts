@@ -1467,7 +1467,26 @@ export class MatchingSimulatorPage {
         : pool;
     const byCode = new Map(asked.map((q) => [q.code, q]));
     const answers = this.answers();
-    return asked.filter((q) => isVisible(q, answers, byCode));
+    // v36.4.0 — answers that follow an earlier answer (brand ← country, model ← brand): only
+    // those filed under what was picked there, as the app shows them. All of them while it is
+    // unanswered or has nothing filed under it.
+    const deps = new Map(
+      (served ?? [])
+        .flatMap((page) => page.questions)
+        .filter((sq) => sq.optionsDependOn !== undefined)
+        .map((sq) => [sq.code, sq] as const),
+    );
+    return asked
+      .filter((q) => isVisible(q, answers, byCode))
+      .map((q) => {
+        const dep = deps.get(q.code);
+        const picked = dep?.optionsDependOn ? answers[dep.optionsDependOn]?.optionCode : undefined;
+        if (dep === undefined || picked === undefined || picked === null) return q;
+        const under = new Set(
+          dep.options.filter((o) => o.parentCode === picked).map((o) => o.code),
+        );
+        return under.size === 0 ? q : { ...q, options: q.options.filter((o) => under.has(o.code)) };
+      });
   });
   readonly total = computed(() => this.questions().length);
   /** The visible questions cut into steps. `step()` indexes THIS, not questions. */

@@ -122,6 +122,12 @@ function percent(value: string): string {
               <dt i18n="@@sim.detail.binding">What capped it</dt>
               <dd>{{ bindingLabel(f.bindingConstraint) }}</dd>
             </div>
+            @if (f.appliedCaseNumber) {
+              <div>
+                <dt i18n="@@sim.detail.case">Priced by</dt>
+                <dd i18n="@@sim.detail.case_n">This bank's case {{ f.appliedCaseNumber }}</dd>
+              </div>
+            }
           </dl>
           <dl class="rows sub">
             <div>
@@ -149,6 +155,47 @@ function percent(value: string): string {
           }
         }
       </section>
+
+      <!-- ── 1b. Every deposit row the program states ─────────── -->
+      @if (match.depositRows?.length) {
+        <section class="block">
+          <h4 class="block-h" i18n="@@sim.detail.by_deposit">By down payment</h4>
+          <p class="note" i18n="@@sim.detail.by_deposit_note">
+            The same applicant at the start of each down-payment row this program states.
+          </p>
+          <div class="dep-wrap">
+            <table class="dep">
+              <thead>
+                <tr>
+                  <th scope="col" i18n="@@sim.detail.dep_from">Down payment</th>
+                  <th scope="col" i18n="@@sim.detail.dep_rate">Rate</th>
+                  <th scope="col" i18n="@@sim.detail.dep_max">Max loan (EGP)</th>
+                  <th scope="col" i18n="@@sim.detail.dep_monthly">Monthly (EGP)</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of match.depositRows!; track row.fromPercent) {
+                  <tr [class.is-current]="row.current">
+                    <th scope="row" class="numeric">
+                      <ng-container i18n="@@sim.detail.dep_from_value">{{ pct(row.fromPercent) }}%+</ng-container>
+                      @if (row.current) {
+                        <span class="yours" i18n="@@sim.detail.dep_yours">Yours</span>
+                      }
+                    </th>
+                    @if (row.effectiveRatePercent !== null) {
+                      <td class="numeric">{{ pct(row.effectiveRatePercent) }}%</td>
+                      <td class="numeric">{{ money(row.maxAffordableAmountEGP ?? '0') }}</td>
+                      <td class="numeric">{{ money(row.monthlyInstallmentEGP ?? '0') }}</td>
+                    } @else {
+                      <td colspan="3" class="dep-none">{{ reasonText(row.unavailableReason) }}</td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
 
       <!-- ── 2. Registry terms (fetched live) ─────────────────── -->
       <section class="block">
@@ -328,6 +375,57 @@ function percent(value: string): string {
       .numeric {
         font-variant-numeric: tabular-nums lining-nums;
       }
+
+      /* The deposit rows: a plain table, wrapped so a narrow drawer scrolls it, not the page. */
+      .dep-wrap {
+        overflow-x: auto;
+      }
+      .dep {
+        inline-size: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .dep th,
+      .dep td {
+        padding-block: 8px;
+        padding-inline: 0 var(--space-3, 12px);
+        text-align: start;
+        border-block-end: 1px solid var(--color-border-default, #eceff3);
+        white-space: nowrap;
+      }
+      .dep thead th {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-secondary, #6b7280);
+      }
+      .dep tbody th {
+        font-weight: 500;
+      }
+      .dep tr.is-current th,
+      .dep tr.is-current td {
+        font-weight: 700;
+      }
+      .yours {
+        margin-inline-start: var(--space-2, 8px);
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--color-brand-primary);
+      }
+      /* Money reads down a column: end-aligned, so the digits line up. */
+      .dep th:not(:first-child),
+      .dep td {
+        text-align: end;
+      }
+      .dep th:last-child,
+      .dep td:last-child {
+        padding-inline-end: 0;
+      }
+      /* The reason a row quotes nothing wraps inside the drawer, never past its edge. */
+      .dep td.dep-none {
+        color: var(--color-text-secondary, #6b7280);
+        text-align: start;
+        white-space: normal;
+      }
       .of {
         font-weight: 500;
         color: var(--color-text-secondary, #6b7280);
@@ -409,6 +507,11 @@ export class SimulatedOfferDrawerComponent {
   }
   protected pct(value: string): string {
     return percent(value);
+  }
+
+  /** A deposit row that quotes nothing: its reason, from the same catalog (A22). */
+  protected reasonText(reason: string | null): string {
+    return reason === null ? '' : this.errors.toLocalizedMessage(reason as ErrorCode);
   }
 
   /** The reason text comes from the SAME catalog the interceptor uses (A22). */
