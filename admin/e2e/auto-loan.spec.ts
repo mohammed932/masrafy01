@@ -5,19 +5,18 @@ import { API, apiToken, overflowX, signIn, watchErrors } from './support';
  * Auto loans, end to end through the screens — the steps in "Adding a surrogate car loan".
  *
  *  1. A no-payslip car loan built from nothing: a surrogate method, a product that uses it,
- *     the program name it is sold as, and a bank program under it with a plans-by-deposit
- *     table — then the simulator quotes each deposit row at the rate typed.
- *  2. The Loan Engine on a car program: a rule on one answer and a condition, written in the
- *     two side sheets, read back by the simulator.
- *  3. A wide card (ADIB used car: deposit x term x insurance x car class) draws as one table
- *     with short column names, and the simulator quotes every deposit row.
+ *     the program name it is sold as, and a bank program under it priced on the car pricing
+ *     card — then the simulator quotes each deposit band at the rate typed.
+ *  2. The Loan Engine on a car program: a rule on the brand and a condition on the category,
+ *     written in the two side sheets, read back by the simulator.
+ *  3. ADIB's used car reads back on the card (four bands, two category exceptions), and the
+ *     simulator quotes every deposit row.
  *  4. A question's row menu opens its Loan Engine view.
  *
  * Every row a test makes is named TESTING and deleted again, also when the test fails.
  */
 
 const HDB = 'cmvw9lebt000j6py9fc9zaxmo';
-const KM = 'how_many_kilometres_does_the_car_drive_a_year';
 
 async function auth(request: APIRequestContext): Promise<Record<string, string>> {
   return { authorization: `Bearer ${await apiToken(request)}` };
@@ -52,8 +51,8 @@ const carAnswers = (price: number, down: number, more: Record<string, string | n
   repayment_period_months: 60,
   current_loans: ['none'],
   car_model_year: new Date().getFullYear() - 2,
-  car_origin: 'germany',
-  car_dealer: 'other_authorized',
+  car_category: 'european',
+  what_brand_is_the_car: 'volkswagen',
   car_fuel_type: 'petrol_diesel',
   months_in_current_job: 36,
   ...more,
@@ -75,6 +74,20 @@ test('a no-payslip car loan, built from nothing through the screens', async ({ p
   const programName = `TESTING e2e car program ${run}`;
   const headers = await auth(request);
   const made: { method?: string; product?: string; nameId?: string; program?: string } = {};
+  // A run that died half-way leaves its rows behind; clear them so this one can be made.
+  const get = async (path: string) => ((await (await request.get(`${API}${path}`, { headers })).json()) as { data?: Record<string, unknown>[] }).data ?? [];
+  for (const p of (await get('/bank-programs?pageSize=100')).filter((x) => String(x['friendlyName']).startsWith(programName))) {
+    await request.delete(`${API}/bank-programs/${p['programCode']}`, { headers: { ...headers, 'x-confirm-program-code': String(p['programCode']) } });
+  }
+  for (const n of (await get('/enumerations?type=program_name')).filter((x) => x['labelEn'] === programName)) {
+    await request.delete(`${API}/enumerations/${n['id']}`, { headers });
+  }
+  for (const pr of (await get('/bank-programs/surrogate-products')).filter((x) => x['labelEn'] === productName)) {
+    await request.delete(`${API}/bank-programs/surrogate-products/${pr['key']}`, { headers });
+  }
+  for (const m of (await get('/bank-programs/method-templates')).filter((x) => x['labelEn'] === methodName)) {
+    await request.delete(`${API}/bank-programs/method-templates/${m['key']}`, { headers });
+  }
   try {
     await signIn(page);
 
@@ -107,6 +120,8 @@ test('a no-payslip car loan, built from nothing through the screens', async ({ p
     await page.locator('#np-name-en').fill(productName);
     await page.locator('#np-name-ar').fill(productName);
     await page.getByText('Blank', { exact: true }).first().click();
+    // A product says its loan type (v36.5.0).
+    await page.getByRole('radio', { name: 'Auto Loan' }).check({ force: true });
     await page.getByRole('button', { name: 'Create and continue' }).click();
     await page.waitForURL(/\/program-catalog\/products\/[a-z0-9_]+\?step=2/);
     made.product = new URL(page.url()).pathname.split('/').pop();
@@ -172,19 +187,15 @@ test('a no-payslip car loan, built from nothing through the screens', async ({ p
     await fill('maxAmountEGP', '5000000');
     await fill('minMonths', '12');
     await fill('maxMonths', '84');
-    await fill('baseRatePercent', '15');
-    await page.getByRole('button', { name: 'Start the table' }).click();
-    const table = page.locator('app-plan-rows-editor');
-    await table.getByRole('tab', { name: /Deposit steps/ }).click();
-    await page.locator('#plan-band-0').fill('20');
-    await page.locator('#plan-band-0').press('Tab');
-    await page.locator('#prt-new-band').fill('40');
-    await table.getByRole('button', { name: /^\+?\s*Add$/ }).click();
-    await table.getByRole('tab', { name: /Figures/ }).click();
-    const rates = table.locator('input[id^="plan-rateByFact-"]');
+    // The car pricing card: 20–40% at 15%, from 40% at 13%.
+    const card = page.locator('app-car-pricing-card');
+    await card.getByLabel('Down payment from').nth(0).fill('20');
+    await card.getByLabel('Down payment up to').nth(0).fill('40');
+    await card.locator('input[aria-label="Rate"]').nth(0).fill('15');
+    await card.getByRole('button', { name: 'Add a band' }).click();
+    const rates = card.locator('input[aria-label="Rate"]');
     await expect(rates).toHaveCount(2);
     await rates.nth(1).fill('13');
-    await rates.nth(1).press('Tab');
     expect(await overflowX(page)).toBe(0);
     await page.getByRole('button', { name: /Continue/ }).click();
     await page.getByRole('button', { name: /Continue/ }).click();
@@ -248,41 +259,39 @@ test('the Loan Engine: a rule and a condition on a car program, read by the simu
   const code = ((await created.json()) as { data: { programCode: string } }).data.programCode;
   try {
     await signIn(page);
-    await page.goto(`/loan-engine?question=${KM}`);
+    await page.goto('/loan-engine?question=what_brand_is_the_car');
     const row = page.locator('tr', { has: page.locator('.le__code', { hasText: code }) });
     await expect(row).toHaveCount(1);
 
-    // A rule: from 60,000 km a year, the longest term is 36 months.
+    // A rule: a BMW is financed over 36 months at most. A choice question lists one row per
+    // answer; the figure goes on BMW's.
     await row.locator('td').nth(5).getByRole('button').click();
     const rules = page.locator('.ant-drawer-content').last();
-    // The row starts as "at least"; its first box is the answer, the second the figure.
-    const inputs = rules.locator('ol li input:not([readonly])');
-    await inputs.nth(0).fill('60000');
-    await inputs.nth(1).fill('36');
+    const bmw = rules.locator('ol li').filter({ has: page.locator('.cf__fixed', { hasText: /^BMW$/ }) });
+    await bmw.locator('input').fill('36');
     expect(await overflowX(page)).toBe(0);
     await rules.getByRole('button', { name: 'Save rows' }).click();
     await expect(rules).toBeHidden();
 
-    // A condition: only cars driven at most 100,000 km a year.
+    // A condition: European cars only.
     await row.locator('td').last().getByRole('button').first().click();
     const conds = page.locator('.ant-drawer-content').last();
     await conds.getByRole('button', { name: 'Add a condition' }).click();
-    await pick(page, conds.locator('nz-select.cs__q').first(), 'How many kilometres');
+    await pick(page, conds.locator('nz-select.cs__q').first(), 'What kind of car');
     const criterion = conds.locator('app-criterion-field').first();
-    await pick(page, criterion.locator('nz-select').first(), 'at most');
-    await criterion.locator('input:not([readonly])').first().fill('100000');
+    await pick(page, criterion.locator('nz-select').first(), 'European');
     await conds.getByRole('button', { name: 'Save conditions' }).click();
     await expect(conds).toBeHidden();
     expect(errors).toEqual([]);
 
-    const ask = (km: number) =>
-      simulate(request, 'used_car', carAnswers(1000000, 450000, { monthly_income: 80000, repayment_period_months: 84, [KM]: km,
-        do_you_want_insurance_on_the_car: 'with_insurance', what_kind_of_car_is_it: 'economy' }));
-    const low = (await ask(30000)).matches.find((m) => m['programCode'] === code);
-    expect((low?.['figures'] as Record<string, unknown>)['effectiveTenorMonths']).toBe(84);
-    const high = (await ask(70000)).matches.find((m) => m['programCode'] === code);
-    expect((high?.['figures'] as Record<string, unknown>)['effectiveTenorMonths']).toBe(36);
-    const refused = await ask(150000);
+    const ask = (category: string, brand: string) =>
+      simulate(request, 'used_car', carAnswers(1000000, 450000, { monthly_income: 80000, repayment_period_months: 84,
+        car_category: category, what_brand_is_the_car: brand }));
+    const vw = (await ask('european', 'volkswagen')).matches.find((m) => m['programCode'] === code);
+    expect((vw?.['figures'] as Record<string, unknown>)['effectiveTenorMonths']).toBe(84);
+    const bmwCar = (await ask('european', 'bmw')).matches.find((m) => m['programCode'] === code);
+    expect((bmwCar?.['figures'] as Record<string, unknown>)['effectiveTenorMonths']).toBe(36);
+    const refused = await ask('japanese', 'toyota');
     expect(refused.matches.find((m) => m['programCode'] === code)).toBeUndefined();
     expect(refused.hidden.find((h) => h['programCode'] === code)?.['reason']).toBe('PRODUCT_RULE_GATE_FAILED');
   } finally {
@@ -290,37 +299,37 @@ test('the Loan Engine: a rule and a condition on a car program, read by the simu
   }
 });
 
-test('a wide car card draws as one table, and the simulator quotes every deposit row', async ({ page, request }) => {
+test("ADIB's used car reads back on the card, and the simulator quotes every deposit row", async ({ page, request }) => {
   const errors = watchErrors(page);
   await signIn(page);
   await page.goto('/banks/programs/ADIB-CAR-6681/edit');
   await page.locator('app-wizard-steps').getByText('Money', { exact: true }).click();
-  const table = page.locator('app-plan-rows-editor');
-  await expect(table.getByRole('tab', { name: /Figures/ })).toBeVisible();
-  const heads = (await table.locator('thead th').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim());
-  expect(heads).toContain('1–2 years · With insurance · Economy');
-  expect(heads).toContain('8–10 years · Without insurance · Luxury');
-  expect(heads.some((h) => h.includes('Do you want insurance'))).toBe(false);
+  const card = page.locator('app-car-pricing-card');
+  await expect(card).toBeVisible();
+  const rates = await card.locator('input[aria-label="Rate"]').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
+  expect(rates).toEqual(['14.96', '13.46', '12.97', '12.19']);
+  await expect(card.getByText('Category Japanese · all bands → Oldest car 11 years old')).toBeVisible();
+  await expect(card.getByText('Category American · all bands → Oldest car 11 years old')).toBeVisible();
   expect(await overflowX(page)).toBe(0);
   expect(errors).toEqual([]);
 
-  const run = await simulate(request, 'used_car', carAnswers(1000000, 450000, { monthly_income: 80000, [KM]: 20000,
-    do_you_want_insurance_on_the_car: 'with_insurance', what_kind_of_car_is_it: 'economy' }));
+  const run = await simulate(request, 'used_car', carAnswers(1000000, 450000, { monthly_income: 80000,
+    car_category: 'japanese', what_brand_is_the_car: 'toyota' }));
   const adib = run.matches.find((m) => m['programCode'] === 'ADIB-CAR-6681');
   const rows = (adib?.['depositRows'] as { fromPercent: string; current: boolean; effectiveRatePercent: string | null }[]) ?? [];
   expect(rows.map((r) => `${r.fromPercent}${r.current ? '*' : ''}:${r.effectiveRatePercent === null ? '-' : Number(r.effectiveRatePercent)}`))
-    .toEqual(['30:14.29', '40*:12.81', '50:12.32', '60:-']);
+    .toEqual(['30:14.96', '40*:13.46', '50:12.97', '60:12.19']);
 });
 
 test("a question's row menu opens its Loan Engine view", async ({ page }) => {
   const errors = watchErrors(page);
   await signIn(page);
   await page.goto('/questionnaire');
-  await page.locator('input[type=search], input[placeholder*="earch"]').first().fill('drive a year');
+  await page.locator('input[type=search], input[placeholder*="earch"]').first().fill('brand');
   await page.getByRole('button', { name: 'Question actions' }).first().click();
   await page.locator('.ant-dropdown:visible').getByText('Open in Loan Engine').click();
-  await page.waitForURL(/\/loan-engine\?question=how_many_kilometres/);
-  await expect(page.getByRole('heading', { name: 'How many kilometres does the car drive a year?' })).toBeVisible();
+  await page.waitForURL(/\/loan-engine\?question=what_brand_is_the_car/);
+  await expect(page.getByRole('heading', { name: 'What brand is the car?' })).toBeVisible();
   expect(await overflowX(page)).toBe(0);
   expect(errors).toEqual([]);
 });
@@ -390,8 +399,7 @@ test('an operator adds a new question, and a bank prices on its answer', async (
 
     // 3 — the simulator: a red car at 11%, any other colour at the program's own rate.
     const ask = (answer: string) =>
-      simulate(request, 'used_car', carAnswers(1000000, 450000, { monthly_income: 80000, [questionCode!]: answer,
-        [KM]: 20000, do_you_want_insurance_on_the_car: 'with_insurance', what_kind_of_car_is_it: 'economy' }));
+      simulate(request, 'used_car', carAnswers(1000000, 450000, { monthly_income: 80000, [questionCode!]: answer }));
     const red = (await ask('red')).matches.find((m) => m['programCode'] === code);
     expect(Number(red?.['effectiveRatePercent'])).toBe(11);
     const other = (await ask('another_colour')).matches.find((m) => m['programCode'] === code);
