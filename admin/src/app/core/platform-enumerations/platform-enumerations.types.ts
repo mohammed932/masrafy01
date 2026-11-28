@@ -16,7 +16,10 @@ export type EnumerationType =
    * names link to. The archetype owns the calculation; the name owns what it is called
    * and who sells it; the bank program owns the figures.
    */
-  | 'surrogate_product';
+  | 'surrogate_product'
+  /** The car list (v37.0.0): categories, and the brands filed under them. */
+  | 'car_category'
+  | 'car_brand';
 
 import type { LoanCategory } from '@core/loan-category';
 import type { IncomeBasis } from '@core/income-basis';

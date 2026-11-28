@@ -38,17 +38,22 @@ import {
   type WizardStepStatus,
 } from '@shared/ui';
 import { FigureFieldComponent } from '@shared/income-rule/figure-field.component';
-import { PlanRowsEditorComponent } from '@shared/ui/plan-rows-editor.component';
+import { CarPricingCardComponent } from '@shared/ui/car-pricing/car-pricing-card.component';
+import {
+  CAR_PRICING_SLOTS,
+  carPricingFromGrids,
+  carPricingProblem,
+  carPricingToGrids,
+  hasCarPricingGrids,
+  type CarPricing,
+} from '@shared/ui/car-pricing/car-pricing.rules';
 import { LoanTypePickerComponent } from './loan-type-picker.component';
 import type { LoanCategory } from '@core/loan-category';
-import { planRowsErrorFor, planRowsFrom } from '@shared/ui/plan-rows.rules';
-import type { PlanSlotKey } from '@shared/ui/plan-rows.rules';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import {
-  registryFacts,
   type MethodTemplate,
   type PlanDefaults,
   type ProductAsksBoard,
@@ -100,7 +105,7 @@ interface DefIssue {
     ServedPagesComponent,
     FormDrawerComponent,
     AddableQuestionsComponent,
-    PlanRowsEditorComponent,
+    CarPricingCardComponent,
     LoanTypePickerComponent,
   ],
   template: `
@@ -609,41 +614,19 @@ interface DefIssue {
                 </div>
 
                 <div class="dbr-part">
-                  <h3 class="def-h" i18n="@@ps.def.plans">Plans by down payment</h3>
-                  <p class="dbr-hint" i18n="@@ps.def.plans_hint">
-                    A row per down payment, with its rate, term and share financed. Leave it empty
-                    and each bank starts without one.
-                  </p>
-                  @if (defPlansDrawable()) {
-                    <app-plan-rows-editor
-                      [grids]="defPlans()"
-                      [facts]="incomeFacts()"
-                      [startFigures]="defStartFigures()"
-                      [moreQuestions]="planQuestions()"
-                      (bindQuestion)="bindPlanQuestion($event)"
-                      (gridsChange)="setDefPlans($event)"
-                      (removeRequest)="setDefPlans($event.next)"
-                    />
-                  } @else if (defPlans() === null) {
-                    <div>
-                      <button
-                        type="button"
-                        class="btn"
-                        [disabled]="defRate() === ''"
-                        (click)="startDefPlans()"
-                      >
-                        <span i18n="@@bank_programs.plans.start">Start the table</span>
-                      </button>
-                    </div>
-                    @if (defRate() === '') {
-                      <p class="dbr-hint" i18n="@@ps.def.start_needs_rate">
-                        Type the base rate above first: every row starts at it.
-                      </p>
-                    }
-                  } @else {
+                  <h3 class="def-h" i18n="@@bank_programs.car_pricing.title">Pricing by down payment</h3>
+                  <p class="dbr-hint" i18n="@@ps.def.car_pricing_hint">The rates each bank starts from, by down payment, with any brand, category or electric exceptions. Leave it empty and each bank starts from a blank card.</p>
+                  @if (defCarUnreadable()) {
                     <p class="dbr-hint" i18n="@@ps.def.plans_not_drawn">
                       These plans cannot be shown as one table here. They are kept as they are.
                     </p>
+                  } @else {
+                    <app-car-pricing-card
+                      [pricing]="defCarPricing()"
+                      [categories]="carCategoryOptions()"
+                      [brands]="carBrandOptions()"
+                      (pricingChange)="setDefCar($event)"
+                    />
                   }
                   @if (plansIssue(); as issue) {
                     <p class="def-issue is-hard" role="alert">{{ issue.text }}</p>
@@ -1659,57 +1642,39 @@ export class ProductStudioPage {
     this.markDef('plans');
   }
 
-  /** "Start the table": one row for every down payment, at the base rate above. */
-  protected startDefPlans(): void {
-    this.setDefPlans({
-      rateByFact: {
-        axes: [{ factKey: 'car_down_payment_percent' }],
-        cells: [{ keys: [{ fromInclusive: '0', toExclusive: null }], value: this.defRate() }],
-        onNoMatch: 'reject',
-      },
-    } as PlanDefaults);
-  }
-
-  protected readonly defPlansDrawable = computed(() => planRowsFrom(this.defPlans()) !== null);
-
-  /** The figures above, as each new column's starting value. */
-  protected readonly defStartFigures = computed<Partial<Record<PlanSlotKey, string>>>(() => ({
-    rateByFact: this.defRate(),
-    maxMonthsByFact: this.defMaxMonths(),
-    minMonthsByFact: this.defMinMonths(),
-    minAmountByFact: this.defMinAmount(),
-  }));
-
-  protected readonly incomeFacts = computed(() =>
-    registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
+  /**
+   * The car pricing card (v37.0.0) on the product's plans: held while the operator types (a
+   * half-typed band must not vanish on a round trip), written into `defPlans` on every edit.
+   * Plan slots the card does not own are kept as they were.
+   */
+  private readonly defCarEdited = signal<CarPricing | null>(null);
+  private readonly defCarStart = computed<{ pricing: CarPricing; unreadable: boolean }>(() => {
+    const plans = this.defPlans();
+    const empty: CarPricing = { bands: [], rows: [], exceptions: [] };
+    if (plans === null || !hasCarPricingGrids(plans)) return { pricing: empty, unreadable: false };
+    const read = carPricingFromGrids(plans);
+    return read === null ? { pricing: empty, unreadable: true } : { pricing: read, unreadable: false };
+  });
+  protected readonly defCarPricing = computed(() => this.defCarEdited() ?? this.defCarStart().pricing);
+  protected readonly defCarUnreadable = computed(
+    () => this.defCarEdited() === null && this.defCarStart().unreadable,
+  );
+  protected readonly carCategoryOptions = computed(() =>
+    this.enums.membersFor('car_category')().map((m) => ({ value: m.key, label: this.isAr ? m.labelAr : m.labelEn })),
+  );
+  protected readonly carBrandOptions = computed(() =>
+    this.enums.membersFor('car_brand')().map((m) => ({ value: m.key, label: this.isAr ? m.labelAr : m.labelEn })),
   );
 
-  /** Choice questions no fact reads yet, offered in the table's "which answer" list. */
-  protected readonly planQuestions = signal<ReadonlyArray<{ code: string; label: string }>>([]);
-
-  private async loadPlanQuestions(): Promise<void> {
-    try {
-      const rows = (await this.api.listMethodQuestions()).data;
-      this.planQuestions.set(
-        rows
-          .filter((q) => q.type === 'SINGLE_SELECT' && q.factKey === null)
-          .map((q) => ({ code: q.code, label: (this.isAr ? q.labelAr : q.labelEn) || q.labelEn })),
-      );
-    } catch {
-      this.planQuestions.set([]);
-    }
+  protected setDefCar(next: CarPricing): void {
+    this.defCarEdited.set(next);
+    const kept: Record<string, unknown> = { ...(this.defPlans() ?? {}) };
+    for (const slot of CAR_PRICING_SLOTS) delete kept[slot];
+    const merged = { ...kept, ...carPricingToGrids(next) } as PlanDefaults;
+    this.setDefPlans(Object.keys(merged).length === 0 ? null : merged);
   }
 
-  /** A question picked in the table: give it a fact, so the table can key on its answers. */
-  protected async bindPlanQuestion(code: string): Promise<void> {
-    try {
-      await this.api.ensureMethodFact(code);
-      await this.enums.refresh('surrogate_fact');
-      this.planQuestions.set(this.planQuestions().filter((q) => q.code !== code));
-    } catch (err) {
-      this.message.error(this.localizedError(err));
-    }
-  }
+
 
   protected readonly defAnything = computed(
     () =>
@@ -1773,9 +1738,9 @@ export class ProductStudioPage {
   });
 
   protected readonly plansIssue = computed<DefIssue | null>(() =>
-    planRowsErrorFor(this.defPlans()) !== null
+    !this.defCarUnreadable() && carPricingProblem(this.defCarPricing()) !== null
       ? {
-          text: $localize`:@@ps.def.err_plans:A figure in the plans table is empty. Type it, or clear its column or row.`,
+          text: $localize`:@@ps.def.err_car_pricing:The pricing by down payment is not finished — see the message under the line.`,
           hard: true,
         }
       : null,
@@ -1797,6 +1762,7 @@ export class ProductStudioPage {
     this.defRate.set(p.rateDefaults?.baseRatePercent ?? '');
     this.defBasis.set(p.rateDefaults?.rateBasis ?? 'reducing');
     this.defPlans.set(p.planDefaults ? structuredClone(p.planDefaults) : null);
+    this.defCarEdited.set(null);
   }
 
   private async saveDefaults(): Promise<void> {
@@ -2060,11 +2026,12 @@ export class ProductStudioPage {
 
   constructor() {
     void this.enums.load('surrogate_fact');
+    void this.enums.refresh('car_category');
+    void this.enums.refresh('car_brand');
     this.nameForm.valueChanges.subscribe(() => this.nameRev.update((n) => n + 1));
     void this.load();
     void this.loadAsks();
     void this.loadFixedAsks();
-    void this.loadPlanQuestions();
     void this.api
       .listMethodTemplates()
       .then((res) => this.methods.set(res.data))

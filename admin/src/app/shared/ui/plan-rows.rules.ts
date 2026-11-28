@@ -96,6 +96,8 @@ export function planSlotValueKind(slot: PlanSlotKey): FactGridValueKind {
     case 'carInsuranceRateByFact':
       return 'sharePercent';
     case 'maxCarAgeAtEndYearsByFact':
+    case 'interestFreeYearsByFact':
+    case 'maxVehicleAgeYearsByFact':
       return 'years';
   }
 }

@@ -69,6 +69,8 @@ test('bank defaults: product → new bank program (copy, edited) → quote; noth
   const existingBefore = await program(request, auth, EXISTING);
   let created: string | null = null;
   try {
+    // Start from no plans, so the card opens empty whatever an earlier run left.
+    await putDefaults(request, auth, 'plan-defaults', { plans: null });
     await signIn(page);
     await page.goto(`/program-catalog/products/${PRODUCT}`);
     await page.locator('app-wizard-steps').getByText('Bank defaults').click();
@@ -84,10 +86,17 @@ test('bank defaults: product → new bank program (copy, edited) → quote; noth
     await type('psDefMinMonths', '12');
     await type('psDefMaxMonths', '72');
     await type('psDefRate', '16');
-    // A product with no plans yet starts its table at the base rate; one that has plans shows them.
-    const start = page.getByRole('button', { name: 'Start the table' });
-    if (await start.isVisible()) await start.click();
-    await expect(page.locator('app-plan-rows-editor')).toBeVisible();
+    // The car pricing card (v37.0.0): one band from 0% at 16%, and BMW at 9% on every band.
+    const card = page.locator('app-car-pricing-card');
+    await expect(card).toBeVisible();
+    await card.getByRole('button', { name: 'Add a band' }).click();
+    await card.getByLabel('Down payment from').first().fill('0');
+    await card.locator('input[aria-label="Rate"]').first().fill('16');
+    await card.getByRole('button', { name: 'Add an exception' }).click();
+    await pick(page, card.locator('app-search-select nz-select'), 'BMW');
+    await card.locator('.cpx__fig').first().locator('input').fill('9');
+    await card.getByRole('button', { name: 'Done' }).click();
+    await expect(card.getByText('Brand BMW · all bands → Rate 9%')).toBeVisible();
     expect(await overflowX(page)).toBe(0);
     await page.getByRole('button', { name: 'Save changes' }).first().click();
     const confirm = page.locator('.ant-modal-confirm');
@@ -121,12 +130,12 @@ test('bank defaults: product → new bank program (copy, edited) → quote; noth
     expect(await value('maxAmountEGP')).toMatch(/^3000000(\.00)?$/);
     expect(await value('minMonths')).toBe('12');
     expect(await value('maxMonths')).toBe('72');
-    // The copied plans table prices every deposit, so the rate is read in the table, not a box.
+    // The copied card prices every deposit, so the rate is read on the card, not in a box.
     const plans = after['planDefaults'] as { rateByFact: { cells: { value: string }[] } };
-    const firstRate = page.locator('app-plan-rows-editor input[id^="plan-rateByFact-"]').first();
-    expect(Number((await firstRate.inputValue()).replace(/,/g, ''))).toBe(
-      Number(plans.rateByFact.cells[0]!.value),
-    );
+    const bankCard = page.locator('app-car-pricing-card');
+    expect(await bankCard.locator('input[aria-label="Rate"]').first().inputValue()).toBe('16');
+    await expect(bankCard.getByText('Brand BMW · all bands → Rate 9%')).toBeVisible();
+    await expect(page.locator('#card-pricing')).toHaveCount(0);
     expect(await overflowX(page)).toBe(0);
 
     // The bank edits its copy, then creates the program.
@@ -172,6 +181,8 @@ test('bank defaults: product → new bank program (copy, edited) → quote; noth
           { questionCode: 'repayment_period_months', numericValue: '60' },
           { questionCode: 'current_loans', optionCodes: ['none'] },
           { questionCode: 'car_model_year', numericValue: String(new Date().getFullYear() - 1) },
+          { questionCode: 'car_category', optionCode: 'japanese' },
+          { questionCode: 'what_brand_is_the_car', optionCode: 'toyota' },
           { questionCode: 'months_in_current_job', numericValue: '36' },
         ],
       },
@@ -187,8 +198,8 @@ test('bank defaults: product → new bank program (copy, edited) → quote; noth
       offer,
       JSON.stringify(data.hidden.find((h) => h['programCode'] === created) ?? null),
     ).toBeTruthy();
-    const tableRates = plans.rateByFact.cells.map((c) => Number(c.value));
-    expect(tableRates).toContain(Number(offer!['effectiveRatePercent']));
+    // A Toyota is not BMW: the band's own 16%.
+    expect(Number(offer!['effectiveRatePercent'])).toBe(16);
 
     // An existing program under the same product is untouched.
     const existingAfter = await program(request, auth, EXISTING);

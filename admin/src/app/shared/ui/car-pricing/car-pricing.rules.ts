@@ -1,4 +1,9 @@
-import type { FactGridAxis, FactGridBand, FactGridCell, FactGridConfig } from '@shared/ui/fact-grid.rules';
+import type {
+  FactGridAxis,
+  FactGridBand,
+  FactGridCell,
+  FactGridConfig,
+} from '@shared/ui/fact-grid.rules';
 
 /**
  * The car pricing card (v37.0.0) — what an operator types, and the five grids the engine reads.
@@ -105,14 +110,18 @@ function stored(figure: CarFigure, value: string): string {
   return String(Math.round(months));
 }
 
-function exceptionKeys(ex: CarException): [FactGridCell['keys'][1], FactGridCell['keys'][2], FactGridCell['keys'][3]] {
+function exceptionKeys(
+  ex: CarException,
+): [FactGridCell['keys'][1], FactGridCell['keys'][2], FactGridCell['keys'][3]] {
   if (ex.kind === 'brand') return [{ key: ex.value ?? '' }, null, null];
   if (ex.kind === 'electric') return [null, { key: ELECTRIC_FUEL }, null];
   return [null, null, { key: ex.value ?? '' }];
 }
 
 function bandIndexes(ex: CarException, bandCount: number): number[] {
-  return ex.bands === 'all' ? Array.from({ length: bandCount }, (_, i) => i) : [...ex.bands].sort((a, b) => a - b);
+  return ex.bands === 'all'
+    ? Array.from({ length: bandCount }, (_, i) => i)
+    : [...ex.bands].sort((a, b) => a - b);
 }
 
 /**
@@ -198,7 +207,12 @@ export function carPricingFromGrids(grids: CarPricingGrids | null | undefined): 
     for (const cell of grid.cells) {
       const b = cell.keys[0];
       if (b === null || b === undefined || typeof b !== 'object' || 'key' in b) return null;
-      if (b.fromExclusive !== undefined || b.toInclusive !== undefined || b.fromInclusive === undefined) return null;
+      if (
+        b.fromExclusive !== undefined ||
+        b.toInclusive !== undefined ||
+        b.fromInclusive === undefined
+      )
+        return null;
       const band: CarBand = { from: b.fromInclusive, to: b.toExclusive ?? null };
       bandIds.set(`${band.from}|${band.to ?? ''}`, band);
     }
@@ -208,7 +222,11 @@ export function carPricingFromGrids(grids: CarPricingGrids | null | undefined): 
   const rows: CarPricing['rows'] = bands.map(() => ({}));
 
   // Per exception (kind + value, in order of first sight): band → figures.
-  const groups: Array<{ kind: CarExceptionKind; value: string | null; byBand: Map<number, Partial<Record<CarFigure, string>>> }> = [];
+  const groups: Array<{
+    kind: CarExceptionKind;
+    value: string | null;
+    byBand: Map<number, Partial<Record<CarFigure, string>>>;
+  }> = [];
   for (const figure of figures) {
     for (const cell of grids[SLOT_OF[figure]]!.cells) {
       const b = cell.keys[0] as FactGridBand;
@@ -232,7 +250,10 @@ export function carPricingFromGrids(grids: CarPricingGrids | null | undefined): 
   // Bands with the same figures become one exception line.
   const exceptions: CarException[] = [];
   for (const g of groups) {
-    const sets = new Map<string, { figures: Partial<Record<CarFigure, string>>; bands: number[] }>();
+    const sets = new Map<
+      string,
+      { figures: Partial<Record<CarFigure, string>>; bands: number[] }
+    >();
     for (const [i, f] of [...g.byBand.entries()].sort((a, b) => a[0] - b[0])) {
       const id = CAR_FIGURES.map((k) => f[k] ?? '').join('|');
       const s = sets.get(id) ?? { figures: f, bands: [] };
@@ -278,15 +299,25 @@ export function carPricingIssues(p: CarPricing): CarPricingIssue[] {
     }
     if (band.to !== null && band.to !== '') {
       if (!NUMBER.test(band.to) || Number(band.to) > 100 || Number(band.to) <= Number(band.from)) {
-        add($localize`:@@carPricing.err.to:The band must end above where it starts, at 100% at most.`);
+        add(
+          $localize`:@@carPricing.err.to:The band must end above where it starts, at 100% at most.`,
+        );
         return;
       }
     } else if (!last) {
-      add($localize`:@@carPricing.err.open:Only the last band can be open-ended — type where this one ends.`);
+      add(
+        $localize`:@@carPricing.err.open:Only the last band can be open-ended — type where this one ends.`,
+      );
       return;
     }
     const next = p.bands[i + 1];
-    if (next && band.to !== null && band.to !== '' && NUMBER.test(next.from) && Number(next.from) < Number(band.to)) {
+    if (
+      next &&
+      band.to !== null &&
+      band.to !== '' &&
+      NUMBER.test(next.from) &&
+      Number(next.from) < Number(band.to)
+    ) {
       add($localize`:@@carPricing.err.overlap:This band overlaps the next one.`);
       return;
     }
@@ -296,15 +327,20 @@ export function carPricingIssues(p: CarPricing): CarPricingIssue[] {
       return;
     }
     if (CAR_FIGURES.some((f) => badNumber(f, row[f]))) {
-      add($localize`:@@carPricing.err.number:A figure here is not a number (a term in years must come to whole months).`);
+      add(
+        $localize`:@@carPricing.err.number:A figure here is not a number (a term in years must come to whole months).`,
+      );
     }
   });
   p.exceptions.forEach((ex, i) => {
-    const add = (message: string): void => void issues.push({ where: 'exception', index: i, message });
+    const add = (message: string): void =>
+      void issues.push({ where: 'exception', index: i, message });
     if (ex.kind !== 'electric' && (ex.value === null || ex.value === '')) {
-      add(ex.kind === 'brand'
-        ? $localize`:@@carPricing.err.brand:Pick the brand.`
-        : $localize`:@@carPricing.err.category:Pick the category.`);
+      add(
+        ex.kind === 'brand'
+          ? $localize`:@@carPricing.err.brand:Pick the brand.`
+          : $localize`:@@carPricing.err.category:Pick the category.`,
+      );
       return;
     }
     if (ex.bands !== 'all' && ex.bands.length === 0) {
@@ -316,7 +352,9 @@ export function carPricingIssues(p: CarPricing): CarPricingIssue[] {
       return;
     }
     if (CAR_FIGURES.some((f) => badNumber(f, ex.figures[f]))) {
-      add($localize`:@@carPricing.err.number:A figure here is not a number (a term in years must come to whole months).`);
+      add(
+        $localize`:@@carPricing.err.number:A figure here is not a number (a term in years must come to whole months).`,
+      );
     }
   });
   return issues;

@@ -13,22 +13,13 @@ import {
   type CarFigure,
   type CarPricing,
 } from './car-pricing.rules';
-
-const LABEL: Record<CarFigure, string> = {
-  rate: $localize`:@@carPricing.fig.rate:Rate`,
-  maxYears: $localize`:@@carPricing.fig.maxYears:Longest term`,
-  insurance: $localize`:@@carPricing.fig.insurance:Insurance`,
-  interestFreeYears: $localize`:@@carPricing.fig.interestFree:Interest-free`,
-  oldestCar: $localize`:@@carPricing.fig.oldestCar:Oldest car`,
-};
-
-const UNIT: Record<CarFigure, string> = {
-  rate: '%',
-  maxYears: $localize`:@@carPricing.unit.years:years`,
-  insurance: $localize`:@@carPricing.unit.perYear:% a year`,
-  interestFreeYears: $localize`:@@carPricing.unit.years:years`,
-  oldestCar: $localize`:@@carPricing.unit.yearsOld:years old`,
-};
+import {
+  CAR_FIGURE_LABEL,
+  CAR_FIGURE_UNIT,
+  CAR_KIND_LABEL,
+  carBandText,
+  carExceptionSentence,
+} from './car-pricing.text';
 
 const ADD_LABEL: Record<CarFigure, string> = {
   rate: '',
@@ -82,7 +73,7 @@ const ADD_LABEL: Record<CarFigure, string> = {
           <tbody>
             @for (band of pricing().bands; track $index; let i = $index; let last = $last) {
               <tr [class.cp__row--bad]="bandIssue(i)">
-                <td>
+                <td [attr.data-label]="downPaymentLabel">
                   <span class="cp__band">
                     <input
                       nz-input
@@ -106,7 +97,7 @@ const ADD_LABEL: Record<CarFigure, string> = {
                   </span>
                 </td>
                 @for (f of columns(); track f) {
-                  <td>
+                  <td [attr.data-label]="label[f]">
                     <span class="cp__cell">
                       <input
                         nz-input
@@ -163,7 +154,9 @@ const ADD_LABEL: Record<CarFigure, string> = {
 
       <div class="cp__ex">
         <h4 class="cp__title" i18n="@@carPricing.ex.title">Exceptions</h4>
-        <p class="cp__hint" i18n="@@carPricing.ex.hint">A brand beats electric, electric beats a category, and each beats the band's own row.</p>
+        <p class="cp__hint" i18n="@@carPricing.ex.hint">
+          A brand beats electric, electric beats a category, and each beats the band's own row.
+        </p>
 
         @if (pricing().exceptions.length > 0) {
           <ul class="cp__list">
@@ -198,15 +191,25 @@ const ADD_LABEL: Record<CarFigure, string> = {
                     </div>
 
                     <div class="cpx__bands" role="group" [attr.aria-labelledby]="'cpx-on-' + i">
-                      <span class="cpx__legend" [id]="'cpx-on-' + i" i18n="@@carPricing.ex.on">On</span>
+                      <span class="cpx__legend" [id]="'cpx-on-' + i" i18n="@@carPricing.ex.on"
+                        >On</span
+                      >
                       <label class="cpx__check">
-                        <input type="checkbox" [checked]="ex.bands === 'all'" (change)="setAll(i, $any($event.target).checked)" />
+                        <input
+                          type="checkbox"
+                          [checked]="ex.bands === 'all'"
+                          (change)="setAll(i, $any($event.target).checked)"
+                        />
                         <span i18n="@@carPricing.ex.allBands">All bands</span>
                       </label>
                       @if (ex.bands !== 'all') {
                         @for (band of pricing().bands; track $index; let b = $index) {
                           <label class="cpx__check">
-                            <input type="checkbox" [checked]="ex.bands.includes(b)" (change)="toggleBand(i, b, $any($event.target).checked)" />
+                            <input
+                              type="checkbox"
+                              [checked]="ex.bands.includes(b)"
+                              (change)="toggleBand(i, b, $any($event.target).checked)"
+                            />
                             <span>{{ bandText(band) }}</span>
                           </label>
                         }
@@ -230,16 +233,34 @@ const ADD_LABEL: Record<CarFigure, string> = {
                         </label>
                       }
                     </div>
-                    <p class="cp__hint" i18n="@@carPricing.ex.blank">Leave a figure empty to keep the band's.</p>
+                    <p class="cp__hint" i18n="@@carPricing.ex.blank">
+                      Leave a figure empty to keep the band's.
+                    </p>
 
                     <div class="cpx__done">
-                      <button nz-button nzType="primary" type="button" (click)="editing.set(null)" i18n="@@carPricing.ex.done">Done</button>
+                      <button
+                        nz-button
+                        nzType="primary"
+                        type="button"
+                        (click)="editing.set(null)"
+                        i18n="@@carPricing.ex.done"
+                      >
+                        Done
+                      </button>
                     </div>
                   </div>
                 } @else {
                   <span class="cp__sentence">{{ sentence(ex) }}</span>
                   <span class="cp__itemActions">
-                    <button nz-button nzType="link" type="button" (click)="editing.set(i)" i18n="@@carPricing.ex.edit">Edit</button>
+                    <button
+                      nz-button
+                      nzType="link"
+                      type="button"
+                      (click)="editing.set(i)"
+                      i18n="@@carPricing.ex.edit"
+                    >
+                      Edit
+                    </button>
                     <button
                       nz-button
                       nzType="text"
@@ -336,7 +357,7 @@ const ADD_LABEL: Record<CarFigure, string> = {
         font-feature-settings: var(--font-feature-tabular);
       }
       .cp__num--edge {
-        inline-size: 4.5rem;
+        inline-size: 6.5rem;
       }
       .cp__to,
       .cp__unit {
@@ -486,6 +507,55 @@ const ADD_LABEL: Record<CarFigure, string> = {
         display: flex;
         justify-content: flex-end;
       }
+      /* A phone: each band is a small block of labelled fields, never a sideways scroll. */
+      @media (max-width: 640px) {
+        .cp__table thead {
+          display: none;
+        }
+        .cp__table,
+        .cp__table tbody,
+        .cp__table tr,
+        .cp__table td {
+          display: block;
+        }
+        .cp__table tr:not(.cp__issueRow) {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: var(--space-2) var(--space-3);
+          padding-block: var(--space-3);
+          border-block-end: 1px solid var(--color-border-default);
+        }
+        .cp__table td {
+          padding: 0;
+          border: 0;
+        }
+        .cp__table td[data-label]::before {
+          content: attr(data-label);
+          display: block;
+          margin-block-end: var(--space-1);
+          font-size: var(--text-xs);
+          color: var(--color-text-secondary);
+        }
+        .cp__table td:first-child {
+          grid-column: 1 / -1;
+        }
+        .cp__end {
+          grid-column: 1 / -1;
+          inline-size: auto;
+        }
+        .cp__num {
+          inline-size: 100%;
+          min-inline-size: 0;
+        }
+        .cp__cell,
+        .cp__band {
+          display: flex;
+        }
+        .cp__num--edge {
+          inline-size: auto;
+          flex: 1 1 0;
+        }
+      }
       .cp__sr {
         position: absolute;
         inline-size: 1px;
@@ -503,16 +573,17 @@ export class CarPricingCardComponent {
   readonly brands = input<readonly SearchSelectOption[]>([]);
   readonly pricingChange = output<CarPricing>();
 
-  protected readonly label = LABEL;
-  protected readonly unit = UNIT;
+  protected readonly label = CAR_FIGURE_LABEL;
+  protected readonly unit = CAR_FIGURE_UNIT;
   protected readonly addLabel = ADD_LABEL;
   protected readonly figures = CAR_FIGURES;
   protected readonly kinds: ReadonlyArray<{ kind: CarExceptionKind; label: string }> = [
-    { kind: 'category', label: $localize`:@@carPricing.kind.category:Category` },
-    { kind: 'brand', label: $localize`:@@carPricing.kind.brand:Brand` },
-    { kind: 'electric', label: $localize`:@@carPricing.kind.electric:Electric` },
+    { kind: 'category', label: CAR_KIND_LABEL.category },
+    { kind: 'brand', label: CAR_KIND_LABEL.brand },
+    { kind: 'electric', label: CAR_KIND_LABEL.electric },
   ];
 
+  protected readonly downPaymentLabel = $localize`:@@carPricing.col.downPayment:Down payment`;
   protected readonly fromLabel = $localize`:@@carPricing.aria.from:Down payment from`;
   protected readonly toLabel = $localize`:@@carPricing.aria.to:Down payment up to`;
   protected readonly andAbove = $localize`:@@carPricing.andAbove:and above`;
@@ -538,7 +609,9 @@ export class CarPricingCardComponent {
         p.exceptions.some((e) => (e.figures[f] ?? '') !== ''),
     );
   });
-  protected readonly addable = computed(() => CAR_FIGURES.filter((f) => !this.columns().includes(f)));
+  protected readonly addable = computed(() =>
+    CAR_FIGURES.filter((f) => !this.columns().includes(f)),
+  );
 
   private readonly issues = computed(() => carPricingIssues(this.pricing()));
 
@@ -551,29 +624,11 @@ export class CarPricingCardComponent {
   }
 
   protected bandText(band: CarBand): string {
-    return band.to === null || band.to === ''
-      ? $localize`:@@carPricing.bandOpen:${band.from}:FROM:% and above`
-      : `${band.from}–${band.to}%`;
+    return carBandText(band);
   }
 
   protected sentence(ex: CarException): string {
-    const p = this.pricing();
-    const who =
-      ex.kind === 'electric'
-        ? this.kinds[2]!.label
-        : `${ex.kind === 'brand' ? this.kinds[1]!.label : this.kinds[0]!.label} ${this.nameOf(ex)}`;
-    const on =
-      ex.bands === 'all'
-        ? $localize`:@@carPricing.allBandsShort:all bands`
-        : ex.bands
-            .map((b) => p.bands[b])
-            .filter((b): b is CarBand => b !== undefined)
-            .map((b) => this.bandText(b))
-            .join(', ');
-    const what = CAR_FIGURES.filter((f) => (ex.figures[f] ?? '') !== '')
-      .map((f) => `${LABEL[f]} ${ex.figures[f]}${f === 'rate' ? '%' : ' ' + UNIT[f]}`)
-      .join(' · ');
-    return `${who} · ${on} → ${what || '…'}`;
+    return carExceptionSentence(ex, this.pricing().bands, (e) => this.nameOf(e));
   }
 
   private nameOf(ex: CarException): string {
@@ -652,7 +707,10 @@ export class CarPricingCardComponent {
 
   private patchException(i: number, patch: Partial<CarException>): void {
     const p = this.pricing();
-    this.emit({ ...p, exceptions: p.exceptions.map((ex, j) => (j === i ? { ...ex, ...patch } : ex)) });
+    this.emit({
+      ...p,
+      exceptions: p.exceptions.map((ex, j) => (j === i ? { ...ex, ...patch } : ex)),
+    });
   }
 
   protected addException(): void {
@@ -685,7 +743,9 @@ export class CarPricingCardComponent {
   protected toggleBand(i: number, b: number, on: boolean): void {
     const ex = this.pricing().exceptions[i];
     if (!ex || ex.bands === 'all') return;
-    const bands = on ? [...new Set([...ex.bands, b])].sort((x, y) => x - y) : ex.bands.filter((x) => x !== b);
+    const bands = on
+      ? [...new Set([...ex.bands, b])].sort((x, y) => x - y)
+      : ex.bands.filter((x) => x !== b);
     this.patchException(i, { bands: bands.length === this.pricing().bands.length ? 'all' : bands });
   }
 

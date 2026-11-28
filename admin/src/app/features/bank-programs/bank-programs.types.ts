@@ -143,6 +143,8 @@ export type RateBasis = 'reducing' | 'flat';
 
 export interface PricingConfig {
   isVariableRate: boolean;
+  /** Interest-free years, on the car pricing card's axes (v37.0.0). */
+  interestFreeYearsByFact?: FactGridConfig;
   rateBasis?: RateBasis;
   baseRatePercent?: string;
   currentEffectiveRatePercent?: string;
@@ -1069,6 +1071,10 @@ export interface PlanDefaults {
   carInsuranceRateByFact?: FactGridConfig;
   /** A bank program's own only (2026-11-20): the oldest the car may be when the loan ends. */
   maxCarAgeAtEndYearsByFact?: FactGridConfig;
+  /** Interest-free years by deposit (v37.0.0). */
+  interestFreeYearsByFact?: FactGridConfig;
+  /** The oldest the car may be today, years (v37.0.0). */
+  maxVehicleAgeYearsByFact?: FactGridConfig;
 }
 
 /**

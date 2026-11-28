@@ -1628,6 +1628,10 @@ export class PlanRowsEditorComponent {
         return $localize`:@@spd.plan_table.col_car_insurance:Insurance`;
       case 'maxCarAgeAtEndYearsByFact':
         return $localize`:@@spd.plan_table.col_car_age_end:Max car age when the loan ends`;
+      case 'interestFreeYearsByFact':
+        return $localize`:@@carPricing.fig.interestFree:Interest-free`;
+      case 'maxVehicleAgeYearsByFact':
+        return $localize`:@@carPricing.fig.oldestCar:Oldest car`;
     }
   }
 

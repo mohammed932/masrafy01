@@ -151,6 +151,16 @@ import {
 import { BanksApiService } from '../../banks/banks.api.service';
 import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed';
 import { newProgramDefaults } from './new-program-defaults';
+import { CarPricingCardComponent } from '@shared/ui/car-pricing/car-pricing-card.component';
+import {
+  carPricingFromGrids,
+  carPricingProblem,
+  carPricingToGrids,
+  emptyCarPricing,
+  hasCarPricingGrids,
+  type CarPricing,
+  type CarPricingGrids,
+} from '@shared/ui/car-pricing/car-pricing.rules';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
   WizardStepsComponent,
@@ -192,6 +202,7 @@ type StepIssue =
   | 'carInsuranceGrid'
   | 'planCard'
   | 'cases'
+  | 'carPricing'
   | 'tenor'
   | 'loanAmounts';
 
@@ -320,6 +331,7 @@ const PRICING_KEYS_EDITED_HERE = [
   'variableRateNote',
   'rateByLoanAmountBand',
   'rateByFact',
+  'interestFreeYearsByFact',
 ] as const;
 type CarriedPricing = Omit<PricingConfig, (typeof PRICING_KEYS_EDITED_HERE)[number]>;
 
@@ -354,6 +366,7 @@ const TENOR_KEYS_EDITED_HERE = [
   'maxMonthsByFact',
   'minMonthsByFact',
   'maxCarAgeAtEndYearsByFact',
+  'maxVehicleAgeYearsByFact',
 ] as const;
 /**
  * The `fees` keys this form owns. Everything else on that blob is CARRIED.
@@ -431,6 +444,7 @@ function keyedByDeposit(grid: FactGridConfig): boolean {
     FactGridEditorComponent,
     PlanRowsEditorComponent,
     ProgramCasesEditorComponent,
+    CarPricingCardComponent,
     MoneyInputDirective,
     WizardStepsComponent,
   ],
@@ -1451,6 +1465,27 @@ function keyedByDeposit(grid: FactGridConfig): boolean {
                    single checkbox. Everything that decides the rate now lives under one
                    heading, in the order it is decided: whose rate, how it is charged, then
                    the tables that override it. -->
+              @if (isAutoLoan()) {
+                <section id="card-car-pricing" class="card">
+                  <header class="card-head">
+                    <div>
+                      <h2 class="card-title" i18n="@@bank_programs.car_pricing.title">Pricing by down payment</h2>
+                      <p class="card-sub" i18n="@@bank_programs.car_pricing.sub">A rate for each down-payment band, and the brands, categories or electric cars this bank prices differently.</p>
+                    </div>
+                  </header>
+                  @if (carPricingUnreadable()) {
+                    <p class="field-hint is-read" i18n="@@bank_programs.car_pricing.unreadable">This program's tables are not in this card's shape, so they are kept as they are and shown in the older editors below.</p>
+                  } @else {
+                    <app-car-pricing-card
+                      [pricing]="carPricing()"
+                      [categories]="carCategoryOptions()"
+                      [brands]="carBrandOptions()"
+                      (pricingChange)="onCarPricingChange($event)"
+                    />
+                  }
+                </section>
+              }
+              @if (!carCardOn()) {
               <section id="card-pricing" class="card" formGroupName="pricing">
                 <header class="card-head">
                   <div>
@@ -1990,6 +2025,7 @@ function keyedByDeposit(grid: FactGridConfig): boolean {
                   }
                 </div>
               </section>
+              }
 
               <!-- Every fee the backend requires is on this step, in the open. -->
               <section class="card" formGroupName="fees">
@@ -2116,7 +2152,7 @@ function keyedByDeposit(grid: FactGridConfig): boolean {
                      under 50%, and a number in code would be wrong for one of them. Hidden
                      while this bank reads the product's plans: the table it would edit is
                      not this bank's to change. -->
-                @if (isAutoLoan() && !plansInherits() && !planCardShown() && !planStartShown()) {
+                @if (isAutoLoan() && !carCardOn() && !plansInherits() && !planCardShown() && !planStartShown()) {
                   <div class="fees-cover">
                     <label
                       nz-checkbox
@@ -2148,7 +2184,7 @@ function keyedByDeposit(grid: FactGridConfig): boolean {
                 }
               </section>
               <!-- The bank's cases: a combination of answers that changes its offer (car loans). -->
-              @if (isAutoLoan()) {
+              @if (isAutoLoan() && !carCardOn()) {
                 <section id="card-cases" class="card">
                   <app-program-cases-editor
                     [cases]="cases()"
@@ -4372,16 +4408,24 @@ export class BankProgramFormPage implements OnInit {
     // The two grids, same reason as the DBR table one line up: both live in a signal rather
     // than a control, so without this Continue walks past a broken table and the save comes
     // back `FACT_GRID_INVALID` from the server three steps later.
-    if (id === 'money' && this.rateGridError() !== null) out.push('rateGrid');
+    // On a car program the pricing card holds these grids and gates the step itself (below).
+    if (id === 'money' && !this.carCardOn() && this.rateGridError() !== null) out.push('rateGrid');
     // The cover table, on the money step beside the rate grid, for the same reason: a table
     // held in a signal walks past Continue and comes back `FACT_GRID_INVALID` from the
     // server. It is the one grid on this card that changes no figure, and it still must
     // block — a disclosure saved broken is a disclosure that never appears.
-    if (id === 'money' && this.carInsuranceGridError() !== null) out.push('carInsuranceGrid');
+    if (id === 'money' && !this.carCardOn() && this.carInsuranceGridError() !== null) {
+      out.push('carInsuranceGrid');
+    }
     // The plan card, for the same reason as the two grids above: six tables in signals, so a
     // half-typed row walks past Continue and comes back FACT_GRID_INVALID from the server.
-    if (id === 'money' && this.planCardError()) out.push('planCard');
-    if (id === 'money' && this.isAutoLoan() && casesHaveProblem(this.cases())) out.push('cases');
+    if (id === 'money' && !this.carCardOn() && this.planCardError()) out.push('planCard');
+    if (id === 'money' && this.isAutoLoan() && !this.carCardOn() && casesHaveProblem(this.cases())) {
+      out.push('cases');
+    }
+    if (id === 'money' && this.carCardOn() && carPricingProblem(this.carPricing()) !== null) {
+      out.push('carPricing');
+    }
     // The DURATION, which is a verdict and not a control error for one reason: blank is legal
     // exactly when a surrogate product stands behind the program's name, and that answer
     // lives in a response the control cannot see. Without this the step would report every
@@ -4395,7 +4439,9 @@ export class BankProgramFormPage implements OnInit {
     // amount controls used to carry went — a `Validators.required` would refuse the one
     // state the product's default exists to make possible.
     if (id === 'money' && this.loanAmountsUnanswered()) out.push('loanAmounts');
-    if (id === 'requirements' && this.vehicleGridError() !== null) out.push('vehicleGrid');
+    if (id === 'requirements' && !this.carCardOn() && this.vehicleGridError() !== null) {
+      out.push('vehicleGrid');
+    }
     // The rule's own cap, same card, same reason and one step further: its control carries no
     // validator at all, so an out-of-range figure used to pass Continue AND Save and come back
     // as `INCOME_RULE_DBR_OVERRIDE_INVALID` from the server. Gated on the field being on screen
@@ -4580,6 +4626,8 @@ export class BankProgramFormPage implements OnInit {
           return $localize`:@@bank_programs.step.issue_plan_card:A row of this bank's plans is not finished — fill it in, or remove the row.`;
         case 'cases':
           return $localize`:@@bank_programs.step.issue_cases:A case is not finished — see the message on it.`;
+        case 'carPricing':
+          return $localize`:@@bank_programs.step.issue_car_pricing:The pricing by down payment is not finished — see the message under the line.`;
         case 'tenor':
           return $localize`:@@bank_programs.step.issue_tenor:Say how long this bank lends for — both months, or neither if it follows the product's duration.`;
         case 'loanAmounts':
@@ -4717,6 +4765,53 @@ export class BankProgramFormPage implements OnInit {
   readonly minMonthsByFact = signal<FactGridConfig | null>(null);
   /** The oldest the car may be when the loan ends — a column of the plan table only. */
   readonly maxCarAgeAtEndYearsByFact = signal<FactGridConfig | null>(null);
+  /** The car pricing card's two figures with no older editor (v37.0.0). */
+  readonly interestFreeYearsByFact = signal<FactGridConfig | null>(null);
+  readonly maxVehicleAgeYearsByFact = signal<FactGridConfig | null>(null);
+
+  /**
+   * THE CAR PRICING CARD (v37.0.0) — the one place a car program's price is stated. It reads
+   * the program's own five grids, or, while the program follows its product, the product's
+   * (a copy: the first edit makes them this bank's). Grids the card cannot read are left as
+   * they are and the older editors stay on screen.
+   */
+  private readonly carGridsLoaded = signal<CarPricingGrids | null>(null);
+  private readonly carPricingEdited = signal<CarPricing | null>(null);
+  private readonly carPricingStart = computed<{ pricing: CarPricing; unreadable: boolean }>(() => {
+    const own = this.carGridsLoaded();
+    const source = own !== null && hasCarPricingGrids(own) ? own : this.productPlans();
+    if (source === null || !hasCarPricingGrids(source)) {
+      return { pricing: emptyCarPricing(), unreadable: false };
+    }
+    const read = carPricingFromGrids(source);
+    return read === null ? { pricing: emptyCarPricing(), unreadable: true } : { pricing: read, unreadable: false };
+  });
+  readonly carPricing = computed<CarPricing>(() => this.carPricingEdited() ?? this.carPricingStart().pricing);
+  readonly carPricingUnreadable = computed(
+    () => this.carPricingEdited() === null && this.carPricingStart().unreadable,
+  );
+  readonly carCardOn = computed(() => this.isAutoLoan() && !this.carPricingUnreadable());
+  protected readonly carCategoryOptions = computed(() =>
+    this.enums.membersFor('car_category')().map((m) => ({ value: m.key, label: this.localeIsAr ? m.labelAr : m.labelEn })),
+  );
+  protected readonly carBrandOptions = computed(() =>
+    this.enums.membersFor('car_brand')().map((m) => ({ value: m.key, label: this.localeIsAr ? m.labelAr : m.labelEn })),
+  );
+
+  /** Every edit on the card becomes this bank's own grids, written where the save reads them. */
+  protected onCarPricingChange(next: CarPricing): void {
+    this.carPricingEdited.set(next);
+    const g = carPricingToGrids(next);
+    this.rateByFact.set(g.rateByFact ?? null);
+    this.toggles.rateGrid.set(g.rateByFact !== undefined);
+    this.maxMonthsByFact.set(g.maxMonthsByFact ?? null);
+    this.toggles.vehicleGrid.set(g.maxMonthsByFact !== undefined);
+    this.carInsuranceRateByFact.set(g.carInsuranceRateByFact ?? null);
+    this.toggles.carInsuranceGrid.set(g.carInsuranceRateByFact !== undefined);
+    this.interestFreeYearsByFact.set(g.interestFreeYearsByFact ?? null);
+    this.maxVehicleAgeYearsByFact.set(g.maxVehicleAgeYearsByFact ?? null);
+    this.plansSource.set('own');
+  }
   readonly rateGridError = computed(() =>
     this.toggles.rateGrid() ? factGridErrorFor(this.rateByFact(), 'ratePercent') : null,
   );
@@ -6810,6 +6905,13 @@ export class BankProgramFormPage implements OnInit {
       if (plans.maxCarAgeAtEndYearsByFact !== undefined) {
         this.maxCarAgeAtEndYearsByFact.set(structuredClone(plans.maxCarAgeAtEndYearsByFact));
       }
+      // The car pricing card's other two (v37.0.0).
+      if (plans.interestFreeYearsByFact !== undefined) {
+        this.interestFreeYearsByFact.set(structuredClone(plans.interestFreeYearsByFact));
+      }
+      if (plans.maxVehicleAgeYearsByFact !== undefined) {
+        this.maxVehicleAgeYearsByFact.set(structuredClone(plans.maxVehicleAgeYearsByFact));
+      }
       // The toggles follow the copy, or the tables that DO have editors are held in signals
       // nothing renders and nothing emits — a copy that saves as a delete.
       this.toggles.rateGrid.set(this.rateByFact() !== null);
@@ -6836,6 +6938,8 @@ export class BankProgramFormPage implements OnInit {
     this.minAmountByFact.set(null);
     this.minMonthsByFact.set(null);
     this.maxCarAgeAtEndYearsByFact.set(null);
+    this.interestFreeYearsByFact.set(null);
+    this.maxVehicleAgeYearsByFact.set(null);
     this.carInsuranceRateByFact.set(null);
     this.toggles.rateGrid.set(false);
     this.toggles.vehicleGrid.set(false);
@@ -6859,6 +6963,8 @@ export class BankProgramFormPage implements OnInit {
     this.minAmountByFact.set(null);
     this.minMonthsByFact.set(null);
     this.maxCarAgeAtEndYearsByFact.set(null);
+    this.interestFreeYearsByFact.set(null);
+    this.maxVehicleAgeYearsByFact.set(null);
     this.carInsuranceRateByFact.set(null);
     this.toggles.rateGrid.set(false);
     this.toggles.vehicleGrid.set(false);
@@ -8037,6 +8143,9 @@ export class BankProgramFormPage implements OnInit {
     // Re-read as well as preloaded: a figure just created from a question (feature 012's
     // "Use in calculation") must be pickable as a table axis without a full reload.
     void this.enums.refresh('surrogate_fact');
+    // The car pricing card's exception pickers (v37.0.0) — re-read, the Car list may have changed.
+    void this.enums.refresh('car_category');
+    void this.enums.refresh('car_brand');
 
     this.banksLoaded = this.loadActiveBanks();
 
@@ -8624,6 +8733,9 @@ export class BankProgramFormPage implements OnInit {
         ...(this.maxCarAgeAtEndYearsByFact() !== null
           ? { maxCarAgeAtEndYearsByFact: this.maxCarAgeAtEndYearsByFact()! }
           : {}),
+        ...(!this.plansInherits() && this.maxVehicleAgeYearsByFact() !== null
+          ? { maxVehicleAgeYearsByFact: this.maxVehicleAgeYearsByFact()! }
+          : {}),
       },
       loanLimits: {
         // Carried FIRST so an edited key can never be overwritten by a stale stored copy of
@@ -8681,6 +8793,9 @@ export class BankProgramFormPage implements OnInit {
         // operator picked.
         ...(!this.plansInherits() && this.toggles.rateGrid() && this.rateByFact() !== null
           ? { rateByFact: this.rateByFact()! }
+          : {}),
+        ...(!this.plansInherits() && this.interestFreeYearsByFact() !== null
+          ? { interestFreeYearsByFact: this.interestFreeYearsByFact()! }
           : {}),
       },
       eligibility: {
@@ -8866,6 +8981,22 @@ export class BankProgramFormPage implements OnInit {
       (initial.tenor as { minMonthsByFact?: FactGridConfig }).minMonthsByFact ?? null,
     );
     this.maxCarAgeAtEndYearsByFact.set(initial.tenor.maxCarAgeAtEndYearsByFact ?? null);
+    this.interestFreeYearsByFact.set(initial.pricing.interestFreeYearsByFact ?? null);
+    this.maxVehicleAgeYearsByFact.set(initial.tenor.maxVehicleAgeYearsByFact ?? null);
+    // The car card starts from the stored grids — its own only; a program on its product's
+    // plans starts from the product's (`carPricingStart`).
+    this.carPricingEdited.set(null);
+    this.carGridsLoaded.set(
+      initial.plansSource === 'product'
+        ? null
+        : {
+            ...(storedRateGrid ? { rateByFact: storedRateGrid } : {}),
+            ...(storedVehicleGrid ? { maxMonthsByFact: storedVehicleGrid } : {}),
+            ...(initial.fees?.carInsuranceRateByFact ? { carInsuranceRateByFact: initial.fees.carInsuranceRateByFact } : {}),
+            ...(initial.pricing.interestFreeYearsByFact ? { interestFreeYearsByFact: initial.pricing.interestFreeYearsByFact } : {}),
+            ...(initial.tenor.maxVehicleAgeYearsByFact ? { maxVehicleAgeYearsByFact: initial.tenor.maxVehicleAgeYearsByFact } : {}),
+          },
+    );
     // Whose plan tables this program reads. ABSENT READS AS `'own'` — every program written
     // before the field existed carries its own figures.
     this.plansSource.set(initial.plansSource === 'product' ? 'product' : 'own');

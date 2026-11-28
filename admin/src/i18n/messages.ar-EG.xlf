@@ -6037,6 +6037,12 @@ RAV4</target></trans-unit>
       <trans-unit id="carPricing.unit.perYear" datatype="html"><source>% a year</source><target>% سنوياً</target></trans-unit>
       <trans-unit id="carPricing.unit.years" datatype="html"><source>years</source><target>سنوات</target></trans-unit>
       <trans-unit id="carPricing.unit.yearsOld" datatype="html"><source>years old</source><target>سنوات عمراً</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_car_pricing" datatype="html"><source>The pricing by down payment is not finished — see the message under the line.</source><target>التسعير حسب المقدم لم يكتمل — راجع الرسالة تحت السطر.</target></trans-unit>
+      <trans-unit id="bank_programs.car_pricing.title" datatype="html"><source>Pricing by down payment</source><target>التسعير حسب المقدم</target></trans-unit>
+      <trans-unit id="bank_programs.car_pricing.sub" datatype="html"><source>A rate for each down-payment band, and the brands, categories or electric cars this bank prices differently.</source><target>عائد لكل شريحة مقدم، والماركات أو الفئات أو السيارات الكهربائية التي يسعّرها هذا البنك بشكل مختلف.</target></trans-unit>
+      <trans-unit id="bank_programs.car_pricing.unreadable" datatype="html"><source>This program's tables are not in this card's shape, so they are kept as they are and shown in the older editors below.</source><target>جداول هذا البرنامج ليست بشكل هذه البطاقة، لذلك تُركت كما هي وتظهر في المحررات القديمة أدناه.</target></trans-unit>
+      <trans-unit id="ps.def.car_pricing_hint" datatype="html"><source>The rates each bank starts from, by down payment, with any brand, category or electric exceptions. Leave it empty and each bank starts from a blank card.</source><target>العوائد التي يبدأ منها كل بنك حسب المقدم، مع أي استثناءات للماركة أو الفئة أو الكهربائية. اتركها فارغة ليبدأ كل بنك ببطاقة فارغة.</target></trans-unit>
+      <trans-unit id="ps.def.err_car_pricing" datatype="html"><source>The pricing by down payment is not finished — see the message under the line.</source><target>التسعير حسب المقدم لم يكتمل — راجع الرسالة تحت السطر.</target></trans-unit>
     </body>
   </file>
 </xliff>

@@ -41,6 +41,8 @@ import { PlatformEnumerationsService } from '@core/platform-enumerations/platfor
 import type { EnumerationType } from '@core/platform-enumerations/platform-enumerations.types';
 import { formatGroupedNumber } from '@core/directives/money-format';
 import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
+import { CAR_FIGURES, carPricingFromGrids, type CarFigure, type CarPricing } from '@shared/ui/car-pricing/car-pricing.rules';
+import { CAR_FIGURE_LABEL, CAR_FIGURE_UNIT, carBandText, carExceptionSentence } from '@shared/ui/car-pricing/car-pricing.text';
 
 /**
  * Bank-program detail — drill-down target of a bank's program list
@@ -240,6 +242,45 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
               </section>
             }
 
+            <!-- How this car program is priced (v37.0.0): the bands by down payment and the
+               exceptions on them — the part that prices the car, so it comes first. -->
+            @if (carPricingOf(p); as cp) {
+              <section class="card">
+                <div class="card-head">
+                  <h2 class="card-title" i18n="@@bank_programs.car_pricing.title">Pricing by down payment</h2>
+                </div>
+                <div class="cpd-scroll">
+                  <table class="cpd">
+                    <thead>
+                      <tr>
+                        <th scope="col" i18n="@@carPricing.col.downPayment">Down payment</th>
+                        @for (f of cp.columns; track f) {
+                          <th scope="col">{{ carFigureLabel[f] }}</th>
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (band of cp.pricing.bands; track $index; let i = $index) {
+                        <tr>
+                          <th scope="row"><bdi dir="ltr">{{ carBandText(band) }}</bdi></th>
+                          @for (f of cp.columns; track f) {
+                            <td class="numeric">{{ cp.pricing.rows[i]?.[f] ? carFigureCell(f, cp.pricing.rows[i]![f]!) : '—' }}</td>
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                @if (cp.sentences.length > 0) {
+                  <h3 class="cpd-h" i18n="@@carPricing.ex.title">Exceptions</h3>
+                  <ul class="cpd-list">
+                    @for (line of cp.sentences; track $index) {
+                      <li>{{ line }}</li>
+                    }
+                  </ul>
+                }
+              </section>
+            }
             <!-- What this bank changes for a combination of answers — the part of the program
                that prices the car, so it comes first. -->
             @if (caseLines(p).length > 0) {
@@ -913,6 +954,47 @@ import { RelativeTimePipe } from '../../../shared/relative-time.pipe';
         font-size: var(--text-sm);
         color: var(--color-text-secondary);
       }
+      .cpd-scroll {
+        overflow-x: auto;
+      }
+      .cpd {
+        inline-size: 100%;
+        border-collapse: collapse;
+        font-variant-numeric: tabular-nums;
+      }
+      .cpd th,
+      .cpd td {
+        padding: var(--space-2) var(--space-3);
+        text-align: start;
+        border-block-end: 1px solid var(--color-border-default);
+        font-size: var(--text-sm);
+      }
+      .cpd thead th {
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-secondary);
+        border-block-end-color: var(--color-border-strong);
+      }
+      .cpd tbody th {
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+        white-space: nowrap;
+      }
+      .cpd-h {
+        margin: var(--space-5) 0 var(--space-2);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .cpd-list {
+        margin: 0;
+        padding-inline-start: var(--space-5);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        font-size: var(--text-sm);
+        color: var(--color-text-primary);
+      }
       .case-list {
         list-style: none;
         margin: 0;
@@ -1200,6 +1282,40 @@ export class BankProgramDetailPage {
     if (v === null || v === undefined || v === '') return '—';
     const t = String(v);
     return /^-?\d+\.\d+$/.test(t) ? t.replace(/0+$/, '').replace(/\.$/, '') : t;
+  }
+
+  protected readonly carFigureLabel = CAR_FIGURE_LABEL;
+  protected readonly carBandText = carBandText;
+
+  /** A cell of the pricing table: the figure and its unit ("9%", "5 years"). */
+  protected carFigureCell(f: CarFigure, value: string): string {
+    const v = this.n(value);
+    return f === 'rate' ? `${v}%` : `${v} ${CAR_FIGURE_UNIT[f]}`;
+  }
+
+  /**
+   * The car pricing card read back (v37.0.0), or `null` off a car program or when its grids are
+   * not in the card's shape (the older read-outs below show them).
+   */
+  protected carPricingOf(
+    p: BankProgramResponse,
+  ): { pricing: CarPricing; columns: CarFigure[]; sentences: string[] } | null {
+    if (p.productCategory !== 'car') return null;
+    const pricing = carPricingFromGrids({
+      ...(p.pricing.rateByFact ? { rateByFact: p.pricing.rateByFact } : {}),
+      ...(p.pricing.interestFreeYearsByFact ? { interestFreeYearsByFact: p.pricing.interestFreeYearsByFact } : {}),
+      ...(p.tenor.maxMonthsByFact ? { maxMonthsByFact: p.tenor.maxMonthsByFact } : {}),
+      ...(p.tenor.maxVehicleAgeYearsByFact ? { maxVehicleAgeYearsByFact: p.tenor.maxVehicleAgeYearsByFact } : {}),
+      ...(p.fees.carInsuranceRateByFact ? { carInsuranceRateByFact: p.fees.carInsuranceRateByFact } : {}),
+    });
+    if (pricing === null) return null;
+    const columns = CAR_FIGURES.filter((f) => f === 'rate' || pricing.rows.some((r) => (r[f] ?? '') !== ''));
+    const label = (type: 'car_brand' | 'car_category', key: string | null): string =>
+      this.enums.membersFor(type)().find((m) => m.key === key)?.[this.localeIsAr ? 'labelAr' : 'labelEn'] ?? key ?? '…';
+    const sentences = pricing.exceptions.map((ex) =>
+      carExceptionSentence(ex, pricing.bands, (e) => label(e.kind === 'brand' ? 'car_brand' : 'car_category', e.value)),
+    );
+    return { pricing, columns, sentences };
   }
 
   /**
@@ -1958,6 +2074,8 @@ export class BankProgramDetailPage {
       'required_document',
       'surrogate_fact',
       'program_name',
+      'car_category',
+      'car_brand',
     ]);
   }
 
