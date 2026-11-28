@@ -1412,6 +1412,8 @@ export class MatchingSimulatorPage {
         return $localize`:@@sim.rule_months:Not long enough in the job`;
       case 'salary_transfer':
         return $localize`:@@sim.rule_transfer:Salary transfer required`;
+      case 'car_condition':
+        return $localize`:@@sim.rule_car_condition:Finances the other kind of car (new / used)`;
       default:
         return rule;
     }

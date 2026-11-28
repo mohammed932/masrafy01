@@ -339,6 +339,8 @@ model BankProgram {
   /// the tables, it selects whose apply. A stated grid on the program still wins slot by
   /// slot, so "took the product's plans and typed my own rate" is expressible.
   plansSource String? @db.VarChar(16)
+  /// v37.1.0 — a car program finances `new` cars, `used` cars or `any`; null off a car program.
+  carCondition String? @db.VarChar(8)
   /// v36.4.0 — the bank's CASES: `[{ id, allOf: [{ factKey, key }], effects, refuse? }]`,
   /// first match wins (`program-cases.ts`). NULL = none.
   cases       Json?

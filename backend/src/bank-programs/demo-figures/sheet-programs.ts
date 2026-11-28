@@ -117,6 +117,8 @@ interface Input {
   friendlyName: string;
   friendlyNameAr: string;
   programNameKey: string;
+  /** v37.1.0 — car programs: `new` / `used` / `any` (absent = any). */
+  carCondition?: 'new' | 'used' | 'any';
   programType: 'income_proof' | 'income_surrogate';
   sheet: string;
   notes: string[];
@@ -244,6 +246,7 @@ function program(input: Input): ProgramSpec {
     friendlyName: input.friendlyName,
     friendlyNameAr: input.friendlyNameAr,
     programNameKey: input.programNameKey,
+    ...(input.productCategory === 'car' ? { carCondition: input.carCondition ?? 'any' } : {}),
     programType: input.programType,
     productCategory: input.productCategory ?? 'personal',
     isShariaCompliant: false,
@@ -1301,7 +1304,8 @@ const SPECS: readonly ProgramSpec[] = [
     bankName: CAE,
     programType: 'income_proof',
     productCategory: 'car',
-    programNameKey: 'new_car',
+    programNameKey: 'car_loan',
+    carCondition: 'new',
     tenor: {
       minMonths: 6,
       maxMonths: 84,
@@ -1390,7 +1394,8 @@ const SPECS: readonly ProgramSpec[] = [
     bankName: CAE,
     programType: 'income_proof',
     productCategory: 'car',
-    programNameKey: 'used_car',
+    programNameKey: 'car_loan',
+    carCondition: 'used',
     tenor: {
       minMonths: 6,
       maxMonths: 84,
@@ -1484,7 +1489,8 @@ const SPECS: readonly ProgramSpec[] = [
     bankName: CAE,
     programType: 'income_proof',
     productCategory: 'car',
-    programNameKey: 'new_car',
+    programNameKey: 'car_loan',
+    carCondition: 'new',
     tenor: { minMonths: 6, maxMonths: 84 },
     minAmountEGP: '15000',
     maxAmountEGP: '10000000',

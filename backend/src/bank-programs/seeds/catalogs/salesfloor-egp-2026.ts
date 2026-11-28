@@ -133,7 +133,7 @@ export const salesfloorEgp2026: SeedCatalog = {
       programCode: 'SF-AUTO',
       bankName: 'Sales Floor (2026)',
       friendlyName: 'Auto Loan — Down-Payment Tiered',
-      programNameKey: 'new_car',
+      programNameKey: 'car_loan',
       programType: 'income_proof',
       productCategory: 'car',
       tenor: { minMonths: 12, maxMonths: 84 },

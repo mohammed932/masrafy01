@@ -165,6 +165,8 @@ interface Fixture {
   ltvPercent?: number;
   /** Part F: tables merged into the program's own blocks (plans by deposit, car-age rules). */
   extra?: { pricing?: Json; loanLimits?: Json; tenor?: Json };
+  /** Part I (v37.1.0): what a car program finances. */
+  carCondition?: 'new' | 'used' | 'any';
 }
 const DOCS = ['national_id', 'salary_certificate', 'hr_letter', 'bank_statement'];
 const FIXTURES: Fixture[] = [
@@ -257,6 +259,7 @@ async function upsertFixture(f: Fixture, bankName: string, bankId: string): Prom
       };
     })(),
     incomeAssumption: f.incomeAssumption ?? { strategy: 'declared', ...(f.iScoreTiers ? { iScoreTiers: f.iScoreTiers } : {}) },
+    ...(f.carCondition ? { carCondition: f.carCondition } : {}),
     fees: {
       ...template['fees'],
       adminFeePercent: String(f.adminFeePct),
@@ -288,7 +291,7 @@ async function upsertFixture(f: Fixture, bankName: string, bankId: string): Prom
  * shows on that product's card). The next run creates them again.
  */
 async function removeFixtures(): Promise<void> {
-  for (const fx of [...FIXTURES, ...EXTRA_FIXTURES, ...AUTO_FIXTURES, ...LE_FIXTURES]) {
+  for (const fx of [...FIXTURES, ...EXTRA_FIXTURES, ...AUTO_FIXTURES, ...LE_FIXTURES, ...NU_FIXTURES]) {
     const now = await call('GET', `/bank-programs/${fx.code}`);
     if (now['success'] !== true) continue;
     const res = await fetch(`${API}/bank-programs/${fx.code}`, {
@@ -647,10 +650,10 @@ async function partB(): Promise<void> {
         { label: ' [income 60,000]', age: 35, num: { monthly_income: 60000 }, pick: {} },
         { label: ' [age 55]', age: 55, num: {}, pick: {} },
         { label: ' [car 3M, 1M down]', age: 35, num: { car_price: 3000000, car_down_payment: 1000000 }, pick: {} },
-        { label: ' [2018 car]', age: 35, num: { car_model_year: 2018 }, pick: {} },
+        { label: ' [2018 used car]', age: 35, num: { car_model_year: 2018 }, pick: { car_condition: 'used' } },
         { label: ' [electric car]', age: 35, num: {}, pick: { car_fuel_type: 'electric' } },
         // A used-car table may want 40%+ down: half down on a 2020 car, and on an electric one.
-        { label: ' [2020 car, 50% down]', age: 35, num: { car_model_year: 2020, car_down_payment: 400000, amount_requested: 400000 }, pick: {} },
+        { label: ' [2020 used car, 50% down]', age: 35, num: { car_model_year: 2020, car_down_payment: 400000, amount_requested: 400000 }, pick: { car_condition: 'used' } },
         { label: ' [electric, 50% down]', age: 35, num: { car_down_payment: 400000, amount_requested: 400000 }, pick: { car_fuel_type: 'electric' } },
       ];
       const debtQ = qs.find((q) => q['code'] === 'current_loans');
@@ -1414,6 +1417,101 @@ async function partH(): Promise<void> {
   console.log(`  programs by loan type / income: ${[...byType.entries()].map(([k, n]) => `${k} ${n}`).join(' · ')}`);
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════
+// PART I — new or used, the same way for every car loan (v37.1.0): the question decides the
+// next one, a program financing one kind is hidden from a customer who said the other, and a
+// bank may keep a new and a used program under one name.
+// ═════════════════════════════════════════════════════════════════════════════════════════════
+const NU_FIXTURES: Fixture[] = [
+  { code: 'TESTING-NU-NEW', friendly: 'TESTING New Cars', category: 'car', carCondition: 'new', rate: 18, basis: 'reducing', minMonths: 12, maxMonths: 60, minAmount: 10000, maxAmount: 5000000, dbrCap: 60, adminFeePct: 0, docs: DOCS },
+  { code: 'TESTING-NU-USED', friendly: 'TESTING Used Cars', category: 'car', carCondition: 'used', rate: 20, basis: 'reducing', minMonths: 12, maxMonths: 60, minAmount: 10000, maxAmount: 5000000, dbrCap: 60, adminFeePct: 0, docs: DOCS },
+];
+
+async function partI(): Promise<void> {
+  console.log('\n══ Part I — new or used for every car loan: the question, the hiding, one name for both ══');
+  const banks = (await ok('GET', '/banks')) as Json[];
+  const bank = banks.find((b) => b['nameEnglish'] === bankNameOf(6)) ?? await ok('POST', '/banks', {
+    nameEnglish: bankNameOf(6), nameArabic: 'بنك TESTING 7', isActive: true, isFeatured: false,
+    notes: 'TESTING fixture for check:engine — not a real bank.' });
+  // Two programs of one bank under ONE name — allowed because one finances new, the other used.
+  for (const f of NU_FIXTURES) await upsertFixture(f, bankNameOf(6), bank['id']);
+
+  // The question and what it opens, on a payslip and a no-payslip car name alike.
+  for (const key of [NAME_KEY, AUTO_NAME_KEY]) {
+    const qs = await servedQuestions(key, 'car');
+    const codes = qs.map((q) => q['code'] as string);
+    const at = (c: string) => codes.indexOf(c);
+    expect(`I · ${key} asks "new or used" before the category`, at('car_condition') !== -1 && at('car_condition') < at('car_category'), codes.join(','));
+    const gate = (c: string) => JSON.stringify(qs.find((q) => q['code'] === c)?.['enabledWhen'] ?? null);
+    expect(`I · ${key} · fuel only for a new car`, gate('car_fuel_type').includes('"car_condition"') && gate('car_fuel_type').includes('"new"'), gate('car_fuel_type'));
+    expect(`I · ${key} · model year only for a used car`, gate('car_model_year').includes('"car_condition"') && gate('car_model_year').includes('"used"'), gate('car_model_year'));
+  }
+
+  // The answer codes the gate reads are locked: an operator cannot add a third answer to it.
+  const condId = await (async () => {
+    const tree = JSON.stringify(await ok('GET', '/questionnaire/tree'));
+    return new RegExp(`"id":"([^"]+)"[^{}]*"code":"car_condition"`).exec(tree)?.[1]
+      ?? new RegExp(`"code":"car_condition"[^{}]*"id":"([^"]+)"`).exec(tree)?.[1];
+  })();
+  const added = condId ? await call('POST', `/questionnaire/questions/${condId}/options`, { labelEn: 'Certified used', labelAr: 'مستعملة معتمدة' }) : { success: true };
+  expect('I · "new or used" is locked: a third answer is refused', added['success'] === false, JSON.stringify(added).slice(0, 160));
+  if (added['success'] === true && condId) {
+    const id = (added['data'] as Json)['id'];
+    await call('DELETE', `/questionnaire/options/${id}`);
+  }
+  // On every car name the question comes before what it opens.
+  for (const key of [NAME_KEY, AUTO_NAME_KEY]) {
+    const codes = (await servedQuestions(key, 'car')).map((q) => q['code'] as string);
+    expect(`I · ${key} · "new or used" before the model year and the fuel`,
+      codes.indexOf('car_condition') < codes.indexOf('car_model_year') && codes.indexOf('car_condition') < codes.indexOf('car_fuel_type'), codes.join(','));
+  }
+
+  const year = new Date().getFullYear();
+  const car = (more: Record<string, string | number | undefined>) => ({ monthly_income: 100000, car_price: 1000000, car_down_payment: 300000,
+    amount_requested: 700000, car_category: 'japanese', what_brand_is_the_car: 'toyota', ...more });
+  const run = async (key: string, over: Record<string, string | number | undefined>) =>
+    simulate({ category: 'car', age: 35, programNameKey: key, answers: answers(car(over)) });
+  const state = (r: Json, code: string): string => {
+    const m = lookup(r, code);
+    if (!m) return 'missing';
+    if (m['figures']) return 'shown';
+    const h = ((r['data']?.['hidden'] ?? []) as Json[]).find((x) => x['programCode'] === code);
+    return `hidden:${(h?.['failedRules'] as string[] | undefined)?.join('+') ?? m['figuresUnavailableReason']}`;
+  };
+  const used = await run(NAME_KEY, { car_condition: 'used', car_model_year: year - 3 });
+  expect('I · "used" → the used-car program is shown', state(used, 'TESTING-NU-USED') === 'shown', state(used, 'TESTING-NU-USED'));
+  expect('I · "used" → the new-car program is hidden (car_condition)', state(used, 'TESTING-NU-NEW') === 'hidden:car_condition', state(used, 'TESTING-NU-NEW'));
+  const fresh = await run(NAME_KEY, { car_condition: 'new', car_fuel_type: 'petrol_diesel' });
+  expect('I · "new" → the new-car program is shown', state(fresh, 'TESTING-NU-NEW') === 'shown', state(fresh, 'TESTING-NU-NEW'));
+  expect('I · "new" → the used-car program is hidden (car_condition)', state(fresh, 'TESTING-NU-USED') === 'hidden:car_condition', state(fresh, 'TESTING-NU-USED'));
+  const blank = await run(NAME_KEY, {});
+  expect('I · not answered yet → neither is hidden for it', !state(blank, 'TESTING-NU-NEW').includes('car_condition') && !state(blank, 'TESTING-NU-USED').includes('car_condition'),
+    `${state(blank, 'TESTING-NU-NEW')} · ${state(blank, 'TESTING-NU-USED')}`);
+  // A no-payslip program that finances both (the seeded "any") is shown either way.
+  const dp = { monthly_income: undefined };
+  const anyUsed = await run(AUTO_NAME_KEY, { ...dp, car_condition: 'used', car_model_year: year - 3 });
+  const anyNew = await run(AUTO_NAME_KEY, { ...dp, car_condition: 'new', car_fuel_type: 'petrol_diesel' });
+  expect('I · no-payslip "both" program shown for a used car', state(anyUsed, 'TESTING-AUTO-DP') === 'shown', state(anyUsed, 'TESTING-AUTO-DP'));
+  expect('I · no-payslip "both" program shown for a new car', state(anyNew, 'TESTING-AUTO-DP') === 'shown', state(anyNew, 'TESTING-AUTO-DP'));
+  const dpRow = await ok('GET', '/bank-programs/TESTING-AUTO-DP');
+  expect('I · a car program that states nothing finances both', dpRow['carCondition'] === 'any', String(dpRow['carCondition']));
+
+  // The name rule: a third program at the bank under that name is refused unless it is the
+  // other kind — here both kinds are taken, so "any", "new" and "used" are all refused.
+  const template = NU_FIXTURES[0]!;
+  for (const kind of ['any', 'new', 'used'] as const) {
+    const code = `TESTING-NU-EXTRA-${kind.toUpperCase()}`;
+    const before = await call('GET', `/bank-programs/${code}`);
+    if (before['success'] === true) {
+      await fetch(`${API}/bank-programs/${code}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}`, 'x-confirm-program-code': code } });
+    }
+    await upsertFixture({ ...template, code, friendly: `TESTING extra ${kind}`, carCondition: kind }, bankNameOf(6), bank['id']).then(
+      () => failures.push(`I · a third "${kind}" program under the same name is refused — it was saved`),
+      (e: unknown) => expect(`I · a third "${kind}" program under the same name is refused`, String(e).includes('BANK_PROGRAM_NAME_TAKEN'), String(e).slice(0, 160)),
+    );
+  }
+}
+
 async function partG(): Promise<void> {
   console.log('\n══ Part G — the car pricing card: bands, brand > electric > category, interest-free, oldest car ══');
   // Its own TESTING bank: one program per name and loan type per bank.
@@ -1468,6 +1566,7 @@ async function main(): Promise<void> {
     await partF();
     await partG();
     await partH();
+    await partI();
     await partE();
   } finally {
     if (!KEEP) {

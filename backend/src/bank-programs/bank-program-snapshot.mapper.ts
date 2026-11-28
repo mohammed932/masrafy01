@@ -77,6 +77,7 @@ export function toBankProgramSnapshot(
   return {
     id: p.id,
     programCode: p.programCode,
+    carCondition: p.carCondition ?? null,
     bankName: p.bankName,
     bankIsFeatured: p.bank?.isFeatured ?? false,
     friendlyName: p.friendlyName,

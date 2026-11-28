@@ -85,7 +85,7 @@ import {
   ProductTemplateRedefinesFiguresException,
   ProductTemplateNotEditableException,
 } from '../common/errors/domain.exceptions';
-import { CreateBankProgramDto } from './dto/create-bank-program.dto';
+import { type CarCondition, CreateBankProgramDto } from './dto/create-bank-program.dto';
 import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
 import {
   buildProgramCodeBase,
@@ -280,6 +280,7 @@ export class BankProgramsService {
         bankName: dto.bankName,
         productCategory: dto.productCategory,
         programNameKey: dto.programNameKey,
+        carCondition: carConditionFor(dto.productCategory, dto.carCondition),
       });
     }
 
@@ -329,6 +330,7 @@ export class BankProgramsService {
           // omitted field has to mean "this bank's own" — leave it untouched and a program
           // that once took the product's plans could never be given back its own.
           plansSource: dto.plansSource ?? null,
+          carCondition: carConditionFor(dto.productCategory, dto.carCondition),
           cases: casesFromWire(dto.cases) as unknown as JsonBlob | null,
           operatorNotes: dto.operatorNotes,
           operatorTips: dto.operatorTips,
@@ -426,6 +428,7 @@ export class BankProgramsService {
       bankName: source.bankName,
       productCategory: source.productCategory,
       programNameKey,
+      carCondition: source.carCondition ?? null,
     });
 
     const program = await this.prisma.$transaction(async (tx) => {
@@ -442,6 +445,7 @@ export class BankProgramsService {
           active: false,
           isShariaCompliant: source.isShariaCompliant,
           plansSource: source.plansSource,
+          carCondition: source.carCondition ?? null,
           cases: (source.cases ?? null) as JsonBlob | null,
           operatorNotes: source.operatorNotes,
           operatorTips: source.operatorTips,
@@ -804,9 +808,18 @@ export class BankProgramsService {
     bankName: string;
     productCategory: string;
     programNameKey: string;
+    /** v37.1.0 — a bank may keep a new-car and a used-car program under one name. */
+    carCondition: string | null;
     exceptProgramCode?: string;
   }): Promise<void> {
-    const taken = await this.repo.findSameNameAtBank(args);
+    const { carCondition, ...where } = args;
+    const others = await this.repo.findSameNameAtBank(where);
+    const coexists = (other: string | null): boolean =>
+      args.productCategory === 'car' &&
+      (carCondition === 'new' || carCondition === 'used') &&
+      (other === 'new' || other === 'used') &&
+      other !== carCondition;
+    const taken = others.find((o) => !coexists(o.carCondition ?? null)) ?? null;
     if (taken !== null) {
       throw new BankProgramNameTakenException({
         programNameKey: args.programNameKey,
@@ -1273,6 +1286,7 @@ export class BankProgramsService {
       // replacement and posts the value back, so an absent one reads as `'own'` and detaches
       // the program from the product's plans on a save that changed nothing else.
       plansSource: plansSourceOf(program.plansSource),
+      carCondition: (program.carCondition ?? null) as CarCondition | null,
       cases: casesToWire(program.cases),
       operatorNotes: program.operatorNotes ?? null,
       operatorTips: program.operatorTips,
@@ -1571,13 +1585,15 @@ export class BankProgramsService {
       !opts.allowSharedName &&
       (dto.programNameKey !== existing.programNameKey ||
         dto.productCategory !== existing.productCategory ||
-        bankId !== existing.bankId)
+        bankId !== existing.bankId ||
+        carConditionFor(dto.productCategory, dto.carCondition) !== (existing.carCondition ?? null))
     ) {
       await this.assertNameFreeAtBank({
         bankId,
         bankName: dto.bankName,
         productCategory: dto.productCategory,
         programNameKey: dto.programNameKey,
+        carCondition: carConditionFor(dto.productCategory, dto.carCondition),
         exceptProgramCode: existing.programCode,
       });
     }
@@ -1673,6 +1689,7 @@ export class BankProgramsService {
           // field means "this bank's own". Writing nothing would leave a program that once
           // took the product's plans unable to be given its own back.
           plansSource: dto.plansSource ?? null,
+          carCondition: carConditionFor(dto.productCategory, dto.carCondition),
           // Full replacement, like the plans source: an absent list clears them.
           cases: casesFromWire(dto.cases) as unknown as JsonBlob | null,
           operatorNotes: dto.operatorNotes ?? null,
@@ -4103,4 +4120,10 @@ function storedMaxLoanByFact(raw: unknown): MaxLoanByFactConfig | undefined {
   return Array.isArray((table as { rows?: unknown }).rows)
     ? (table as MaxLoanByFactConfig)
     : undefined;
+}
+
+/** v37.1.0 — what a car program finances; `any` when a car program states none, null off car. */
+function carConditionFor(productCategory: string, value: CarCondition | undefined): CarCondition | null {
+  if (productCategory !== 'car') return null;
+  return value ?? 'any';
 }

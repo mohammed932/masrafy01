@@ -50,6 +50,7 @@
  * so there is no "asked in the loan type" to hold any more — what a path SERVES is the whole of
  * it (`question-scope.ts`).
  */
+import { CAR_CONDITION_FACT_KEY } from '@/matching/pipeline/match-gate';
 import type { LoanCategory } from '@prisma/client';
 import {
   DEBT_TYPES_QUESTION_CODE,
@@ -108,6 +109,9 @@ const ENGINE_INPUT_TYPES: ReadonlyMap<string, string> = new Map<string, string>(
 const SERVER_READ_QUESTION_CODES: readonly string[] = [
   MONTHS_IN_JOB_QUESTION_CODE,
   CAN_TRANSFER_SALARY_QUESTION_CODE,
+  // v37.1.0 — "Is the car new or used?": the match gate compares its answer codes (`new` /
+  // `used`) with what a program finances, so a third answer would hide every one-kind program.
+  CAR_CONDITION_FACT_KEY,
 ];
 
 /**

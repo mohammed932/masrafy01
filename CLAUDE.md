@@ -220,6 +220,8 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 Full notes (rationale, verification evidence, "not done" lists) live in [docs/CHANGELOG.md](docs/CHANGELOG.md) — read the specific entry only when working on that area. One-line index, newest first:
 
+- 2026-11-29 v37.1.0 — "Is the car new or used?" on every car loan, payslip and no-payslip (opens fuel or model year); New Car + Used Car merged into Car Loan; `bank_program.carCondition` (Finances: new / used / both) hides programs of the other kind (`match-gate.ts`).
+
 - 2026-11-28 v37.0.0 — car loans priced on one card (`shared/ui/car-pricing`): rates by down payment + exceptions by category / brand / electric, interest-free years, oldest car; car list is category → brand; New Car asks fuel, Used Car the model year; twelve car questions retired; seeded car programs re-keyed (`car-card-grids.ts`).
 
 - 2026-11-25 v36.7.0 — the car list ships in `seed:questionnaire` (21 countries, 150 brands, 1,478 models, `prisma/data/car-list.data.ts`); the Nested car demo in `seed:programs`; `seed:car-list` removed.

@@ -38,6 +38,8 @@ export class BankProgramResponseDto {
    * and floor tables — on a form the operator had only opened.
    */
   plansSource!: PlansSource;
+  /** v37.1.0 — `new` / `used` / `any` on a car program, null otherwise. */
+  carCondition!: 'new' | 'used' | 'any' | null;
   /** v36.4.0 — the bank's cases, in the operator's vocabulary. `[]` = none. */
   cases!: ProgramCaseWire[];
   operatorNotes?: string | null;

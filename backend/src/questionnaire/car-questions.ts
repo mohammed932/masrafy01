@@ -12,6 +12,7 @@
  * question is the admin's to add to car programs on the Program catalog, not a code change.
  */
 export const CAR_QUESTION_CODES: readonly string[] = [
+  'car_condition',
   'car_category',
   'what_brand_is_the_car',
   'car_fuel_type',
@@ -21,13 +22,10 @@ export const CAR_QUESTION_CODES: readonly string[] = [
 ];
 
 /**
- * The car questions ONE car name ticks (v37.0.0): the customer picks New or Used first, and each
- * is its own flow — gas or electric is asked on a new car only, the model year on a used car
- * only. Every other car name ticks all six. Used by both seeds for a name newly offered under
- * car; migration `20261128100000_car_flow_questions` made the same change on a live database.
+ * The car questions every car name ticks (v37.1.0): the same seven everywhere. "Is the car new or
+ * used?" decides the rest through the questions' own show-when rules — gas or electric for a new
+ * car, the model year for a used one — so no name needs a list of its own.
  */
-export function carQuestionCodesFor(nameKey: string): readonly string[] {
-  if (nameKey === 'new_car') return CAR_QUESTION_CODES.filter((c) => c !== 'car_model_year');
-  if (nameKey === 'used_car') return CAR_QUESTION_CODES.filter((c) => c !== 'car_fuel_type');
+export function carQuestionCodesFor(_nameKey: string): readonly string[] {
   return CAR_QUESTION_CODES;
 }

@@ -145,13 +145,15 @@ export const CATALOG_CATEGORY_ASSIGNMENTS: Readonly<Record<string, readonly Cata
   youth: ['personal', 'car'],
 
   // ── Two: product names the market genuinely books twice.
-  used_car: ['car', 'personal'],
+  // v37.1.0 — Used Car leaves car (Car Loan + the new-or-used question took over); keeps personal.
+  used_car: ['personal'],
   home_finishing: ['mortgage', 'personal'],
   equipment_finance: ['business', 'car'],
 
   // ── One: the name IS the product. Widening these would be assignment noise,
   // not reach — a "Home Purchase" personal loan is not a thing at these tickets.
-  new_car: ['car'],
+  // v37.1.0 — one payslip car name; New Car is switched off by migration 20261129100000.
+  car_loan: ['car'],
   home_purchase: ['mortgage'],
   working_capital: ['business'],
 };

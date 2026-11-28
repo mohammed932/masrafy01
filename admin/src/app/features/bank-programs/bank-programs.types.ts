@@ -1062,6 +1062,9 @@ export interface ProgramUnderName {
  * demands on the car. One plan is a row across them — "20% down, 10%, 6-60 months, we
  * finance 80%, not under a million, insure it at 1% a year".
  */
+/** v37.1.0 — what a car program finances. */
+export type CarCondition = 'new' | 'used' | 'any';
+
 export interface PlanDefaults {
   rateByFact?: FactGridConfig;
   minMonthsByFact?: FactGridConfig;
@@ -1883,6 +1886,8 @@ export interface BankProgramCreatePayload {
   programType: ProgramType;
   productCategory: string;
   isShariaCompliant?: boolean;
+  /** v37.1.0 — car programs: what kind of car it finances. */
+  carCondition?: CarCondition;
   /** Whose plan tables this program reads. Omit for this bank's own. */
   plansSource?: PlansSource;
   /** v36.4.0 — the bank's cases; `[]` clears them (full replacement). */
@@ -1929,6 +1934,8 @@ export interface BankProgramResponse {
   productCategory: string;
   active: boolean;
   isShariaCompliant: boolean;
+  /** v37.1.0 — `new` / `used` / `any` on a car program, null otherwise. */
+  carCondition?: CarCondition | null;
   /** Whose plan tables this program reads. Absent reads as `'own'`. */
   plansSource?: PlansSource | null;
   /** v36.4.0 — the bank's cases, first match wins. Absent on an older server. */

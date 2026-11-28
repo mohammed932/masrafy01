@@ -844,6 +844,8 @@ export interface DeprecatedKeyWarning {
 export interface BankProgramSnapshot {
   id: string;
   programCode: string;
+  /** v37.1.0 — a car program finances `new`, `used` or `any`; null/absent off car. */
+  carCondition?: string | null;
   bankName: string;
   /** Phase-1 spec: partner bank flag. Used by ranking as a final tiebreaker
    *  so identical primary-sort-key offers from featured banks rank first. */

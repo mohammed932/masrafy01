@@ -44,7 +44,12 @@ function makeRepo(before: Pair[], surrogateProductKey: string | null) {
       findUnique: vi.fn(async () => ({ surrogateProductKey })),
       findMany: vi.fn(async () => [{ id: 'pn_1', surrogateProductKey }]),
     },
-    programNameQuestionAddition: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    // v37.1.0 — a name newly offered under car ticks the car questions (none in this fake).
+    question: { findMany: vi.fn(async () => []) },
+    programNameQuestionAddition: {
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      createMany: vi.fn(async () => ({ count: 0 })),
+    },
     programNameQuestionOrder: { deleteMany: vi.fn(async () => ({ count: 0 })) },
   };
   const prisma = {

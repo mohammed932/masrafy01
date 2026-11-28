@@ -6048,6 +6048,12 @@ RAV4</target></trans-unit>
       <trans-unit id="carPricing.ex.hint2" datatype="html"><source>A brand beats gas or electric, a fuel beats a category, and each beats the band's own row. The rows price every car no exception covers.</source><target>الماركة تسبق البنزين أو الكهربائية، والوقود يسبق الفئة، وكلها تسبق صف الشريحة نفسه. الصفوف تسعّر كل سيارة لا يغطيها استثناء.</target></trans-unit>
       <trans-unit id="carPricing.ex.fuelHint" datatype="html"><source>Applies only where the customer is asked the fuel (New Car). Used cars are not asked it, so they keep the band's own row.</source><target>يُطبَّق فقط حيث يُسأل العميل عن الوقود (سيارة جديدة). لا تُسأل السيارات المستعملة عنه، فتبقى على صف الشريحة.</target></trans-unit>
       <trans-unit id="lengine.ro.car_card" datatype="html"><source>Set on the car pricing card</source><target>يُحدَّد في بطاقة تسعير السيارات</target></trans-unit>
+      <trans-unit id="bank_programs.field.car_condition" datatype="html"><source>Finances</source><target>يموّل</target></trans-unit>
+      <trans-unit id="bank_programs.car_condition.new" datatype="html"><source>New cars</source><target>سيارات جديدة</target></trans-unit>
+      <trans-unit id="bank_programs.car_condition.used" datatype="html"><source>Used cars</source><target>سيارات مستعملة</target></trans-unit>
+      <trans-unit id="bank_programs.car_condition.any" datatype="html"><source>Both</source><target>كلاهما</target></trans-unit>
+      <trans-unit id="bank_programs.field.car_condition_hint" datatype="html"><source>Customers who say the other kind don't see this program. A bank can keep one new-car and one used-car program under the same name.</source><target>العملاء الذين يختارون النوع الآخر لا يرون هذا البرنامج. يمكن للبنك أن يحتفظ ببرنامج للسيارات الجديدة وآخر للمستعملة تحت نفس الاسم.</target></trans-unit>
+      <trans-unit id="sim.rule_car_condition" datatype="html"><source>Finances the other kind of car (new / used)</source><target>يموّل النوع الآخر من السيارات (جديدة / مستعملة)</target></trans-unit>
     </body>
   </file>
 </xliff>

@@ -1,0 +1,651 @@
+<title>Car Loan Setup Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+  /* Layout: one reading column; each task a collapsible panel; steps as a numbered list. */
+  :root {
+    --bg: #f6f8fb;
+    --surface: #ffffff;
+    --fg: #16202c;
+    --muted: #556273;
+    --line: #dde3ea;
+    --accent: #0869c3;
+    --accent-soft: #e6f0fa;
+    --warn: #8a5a00;
+    --warn-soft: #fff4dc;
+    --code-bg: #eef2f6;
+    --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f151c; --surface: #17202a; --fg: #e6ecf2; --muted: #9aa8b8; --line: #2a3644;
+      --accent: #5aa8ec; --accent-soft: #15283b; --warn: #f0c060; --warn-soft: #2e2512; --code-bg: #1f2a36;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f151c; --surface: #17202a; --fg: #e6ecf2; --muted: #9aa8b8; --line: #2a3644;
+    --accent: #5aa8ec; --accent-soft: #15283b; --warn: #f0c060; --warn-soft: #2e2512; --code-bg: #1f2a36;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 32px 64px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 12px; }
+  header { display: grid; gap: 8px; margin-bottom: 12px; }
+  h1 { font-family: var(--font-head); font-size: 1.9rem; line-height: 1.2; margin: 0; text-wrap: balance; }
+  .lede { color: var(--muted); margin: 0; max-width: 65ch; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .chip { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  .controls button {
+    font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--fg); cursor: pointer;
+  }
+  .controls button:hover { border-color: var(--accent); color: var(--accent); }
+  .group { font-family: var(--font-head); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 16px 0 0; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  details[open] { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+  summary {
+    list-style: none; cursor: pointer; padding: 14px 16px; display: flex; align-items: baseline; gap: 12px;
+    font-family: var(--font-head); font-weight: 600; font-size: 1.05rem;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+"; font-family: var(--font-mono); color: var(--accent); width: 1ch; flex: none; }
+  details[open] > summary::before { content: "−"; }
+  summary .sub { font-family: var(--font-body); font-weight: 400; font-size: 13.5px; color: var(--muted); margin-left: auto; text-align: right; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
+  .body { padding: 0 16px 16px 40px; display: grid; gap: 12px; min-width: 0; }
+  .body p { margin: 0; max-width: 65ch; }
+  ol, ul { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+  ol ol, ol ul { margin-top: 6px; }
+  b { font-weight: 600; }
+  .ui { font-weight: 600; color: var(--accent); }
+  code { font-family: var(--font-mono); font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  .note { background: var(--warn-soft); color: var(--fg); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .note b { color: var(--warn); }
+  .tip { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 12.5px; }
+  .h3 { font-family: var(--font-head); font-size: 1rem; margin: 8px 0 0; }
+  details.sub-d { background: var(--bg); }
+  details.sub-d > summary { font-size: .98rem; }
+  pre { background: var(--code-bg); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0; font-size: 13px; }
+  @media (max-width: 560px) { summary .sub { display: none; } .body { padding-left: 16px; } h1 { font-size: 1.55rem; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Car loan setup guide</h1>
+    <p class="lede">How to set up auto loans on the admin dashboard, start to end: the car list, a bank's car program priced on the pricing card, a no-payslip car product, product defaults, Loan Engine rules, and checking it all in the simulator.</p>
+    <div class="meta">
+      <span class="chip">Dashboard: localhost:5173</span>
+      <span class="chip">Version v37.0.0</span>
+    </div>
+    <div class="controls">
+      <button type="button" id="openAll">Open all</button>
+      <button type="button" id="closeAll">Close all</button>
+    </div>
+  </header>
+
+  <p class="group">Start here</p>
+
+  <details id="start" open>
+    <summary>Before you start<span class="sub">after pulling the branch</span></summary>
+    <div class="body">
+      <p>Run these once after pulling, in <code>backend/</code>, so your database has the new car list, questions and programs:</p>
+<pre>npx prisma migrate deploy
+npm run seed:questionnaire      # category question, car ticks, republishes the questionnaire
+npm run build
+npm run seed:sheet-figures      # re-keys the seeded car programs onto the pricing card
+npm run start:dev               # backend  → http://localhost:3000</pre>
+      <p>Then in <code>admin/</code>: <code>npm start</code> (dashboard → http://localhost:5173). Log in as an operator.</p>
+      <div class="tip"><b>How a car loan works now:</b> every car customer, with or without a payslip, is first asked <b>"Is the car new or used?"</b>. New cars are then asked gas or electric; used cars their model year. Then the category (American, European, Korean, Japanese, Chinese), the brand, the price and the down payment. Each bank's price is one card: a rate per down-payment band, plus exceptions for a category, a brand, or gas or electric cars.</div>
+    </div>
+  </details>
+
+  <details id="paths">
+    <summary>New or used: the same for every car loan<span class="sub">what differs, where to see it</span></summary>
+    <div class="body">
+      <p>Every car customer, payslip or not, answers <b>"Is the car new or used?"</b> (جديدة / مستعملة) as the first car question. Payslip customers pick one program, <b>Car Loan</b> (قرض سيارة); no-payslip customers pick their product's program (e.g. Car by Down Payment). The answer then changes what comes next and which banks they see.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th></th><th>New</th><th>Used</th></tr></thead>
+        <tbody>
+          <tr><td>Next question</td><td><b>Gas or electric?</b></td><td><b>Model year?</b></td></tr>
+          <tr><td>Card exceptions that apply</td><td>Category, brand, Gas, Electric</td><td>Category, brand (no fuel asked)</td></tr>
+          <tr><td>Oldest car column</td><td>Not used (no age asked)</td><td><b>Used</b>: older cars are refused</td></tr>
+          <tr><td>Programs the customer sees</td><td>those that finance <b>New cars</b> or <b>Both</b></td><td>those that finance <b>Used cars</b> or <b>Both</b></td></tr>
+        </tbody>
+      </table></div>
+      <p><b>Each bank program says what it finances:</b> on its first step, <b>Finances: New cars / Used cars / Both</b>. A bank can keep one new-car program and one used-car program under the same name (e.g. ADIB, Bank NXT, Crédit Agricole on Car Loan).</p>
+      <p><b>Where to see it:</b> <span class="ui">Program catalog</span> → <b>Car Loan</b> (the questions it asks, the banks selling it) · a bank's page → each car program shows <b>Finances</b> · <span class="ui">Matching simulator</span> → Car → Car Loan: answer New or Used and the next question changes.</p>
+      <p><b>Car Loan today:</b> new cars at ABK, ADIB, Bank NXT, Banque Misr, CIB, Crédit Agricole (2), NBE · used cars at ADIB, Bank NXT, Banque du Caire, Crédit Agricole, QNB. No-payslip car programs finance both.</p>
+    </div>
+  </details>
+
+  <p class="group">Both: the car list</p>
+
+  <details id="car-list">
+    <summary>Add, rename or remove a category or a brand<span class="sub">Car list</span></summary>
+    <div class="body">
+      <p class="tip">Worked example: add the category <b>Indian</b> and the brand <b>Tata</b> under it.</p>
+      <ol>
+        <li>Open <span class="ui">Car list</span> in the left menu. The first column is <b>Category</b>, the next <b>Brand</b>.</li>
+        <li><b>Add the category:</b> in the Category column's add box type English <code>Indian</code>, Arabic <code>هندية</code> → <span class="ui">Add</span>.</li>
+        <li>Click <b>Indian</b> to select it.</li>
+        <li><b>Add the brand:</b> in the Brand column's add box type English <code>Tata</code>, Arabic <code>تاتا</code> → <span class="ui">Add</span>. It is filed under Indian.</li>
+        <li><b>Find a brand:</b> type <code>Merc</code> in the Brand column's search box → <b>Mercedes-Benz</b> (under European).</li>
+        <li><b>Rename:</b> row's edit action, e.g. change Arabic <code>تاتا</code> to <code>تاتا موتورز</code>. Programs keep working; they store the key, not the label.</li>
+        <li><b>Remove:</b> row's delete action. Refused while brands are filed under it or a bank's table names it, so remove <b>Tata</b> before <b>Indian</b>.</li>
+      </ol>
+      <div class="note"><b>Note:</b> a brand's category comes from where it is filed. Moving a brand to another category changes which category exceptions apply to it on every program.</div>
+    </div>
+  </details>
+
+  <p class="group">Payslip car loans (income proof)</p>
+
+  <details id="new-program">
+    <summary>Create a payslip car program for a bank<span class="sub">example: HSBC Egypt · Car Loan</span></summary>
+    <div class="body">
+      <p>Each bank program finances <b>new cars</b>, <b>used cars</b> or <b>both</b>. HSBC prices them differently, so it gets one of each under <b>Car Loan</b> (one new + one used per bank is allowed). A bank that prices them the same makes one program with Finances: <b>Both</b>.</p>
+      <details class="sub-d" id="create-payslip-new">
+        <summary>New car<span class="sub">HSBC Egypt · New Car Loan</span></summary>
+        <div class="body">
+          <ol>
+            <li>Open <span class="ui">Banks</span> → <b>HSBC Egypt</b> → <span class="ui">Add bank program</span> in its Auto Loan section.</li>
+            <li><b>Program step:</b>
+              <ol>
+                <li>Loan type: <b>Auto Loan</b>. Income: <b>Income proof</b>.</li>
+                <li>Program name: <b>Car Loan</b>.</li>
+                <li>Friendly name English: <code>New Car Loan</code> · Arabic: <code>قرض السيارة الجديدة</code>.</li>
+                <li>Finances: <b>New cars</b> (customers who answer Used won't see it).</li>
+                <li><span class="ui">Continue</span>.</li>
+              </ol>
+            </li>
+            <li><b>Money step:</b>
+              <ol>
+                <li>Loan amount: minimum <code>100,000</code> · maximum <code>3,000,000</code> EGP.</li>
+                <li>Loan duration: minimum <code>12</code> · maximum <code>72</code> months.</li>
+                <li>Pricing by down payment:
+                  <ul>
+                    <li>Row 1: <code>10</code> to <code>20</code> % · Rate <code>20</code></li>
+                    <li><span class="ui">Add a band</span> → Row 2: <code>20</code> to <code>50</code> % · Rate <code>18</code></li>
+                    <li><span class="ui">Add a band</span> → Row 3: <code>50</code> to <i>(empty = and above)</i> · Rate <code>16</code></li>
+                    <li><span class="ui">+ Interest-free years</span> → <code>1</code> on Row 3</li>
+                    <li><span class="ui">Add an exception</span> → <b>Electric</b> · All bands · Longest term <code>5</code> → <span class="ui">Done</span></li>
+                    <li><span class="ui">Add an exception</span> → <b>Brand</b> · <b>BMW</b> · All bands · Rate <code>15</code> → <span class="ui">Done</span></li>
+                    <li>No Oldest car column: a new car's age is not asked.</li>
+                  </ul>
+                </li>
+                <li>Fees: leave as filled → <span class="ui">Continue</span>.</li>
+              </ol>
+            </li>
+            <li><b>Requirements step:</b> age <code>21</code>–<code>60</code> · minimum income <code>10,000</code> EGP a month · months in job <code>6</code> · debt burden cap <code>50</code> % · documents: National ID, Salary certificate → <span class="ui">Continue</span>.</li>
+            <li><b>Review step:</b> check the summary → <span class="ui">Create bank program</span>.</li>
+          </ol>
+        </div>
+      </details>
+      <details class="sub-d" id="create-payslip-used">
+        <summary>Used car<span class="sub">HSBC Egypt · Used Car Loan</span></summary>
+        <div class="body">
+          <ol>
+            <li>Open <span class="ui">Banks</span> → <b>HSBC Egypt</b> → <span class="ui">Add bank program</span> in its Auto Loan section.</li>
+            <li><b>Program step:</b>
+              <ol>
+                <li>Loan type: <b>Auto Loan</b>. Income: <b>Income proof</b>.</li>
+                <li>Program name: <b>Car Loan</b>.</li>
+                <li>Friendly name English: <code>Used Car Loan</code> · Arabic: <code>قرض السيارة المستعملة</code>.</li>
+                <li>Finances: <b>Used cars</b> (customers who answer New won't see it).</li>
+                <li><span class="ui">Continue</span>.</li>
+              </ol>
+            </li>
+            <li><b>Money step:</b>
+              <ol>
+                <li>Loan amount: minimum <code>100,000</code> · maximum <code>3,000,000</code> EGP.</li>
+                <li>Loan duration: minimum <code>12</code> · maximum <code>60</code> months.</li>
+                <li>Pricing by down payment:
+                  <ul>
+                    <li>Row 1: <code>20</code> to <code>30</code> % · Rate <code>22</code></li>
+                    <li><span class="ui">Add a band</span> → Row 2: <code>30</code> to <code>50</code> % · Rate <code>20</code></li>
+                    <li><span class="ui">Add a band</span> → Row 3: <code>50</code> to <i>(empty = and above)</i> · Rate <code>18</code></li>
+                    <li><span class="ui">+ Oldest car</span> → <code>8</code> on all three rows</li>
+                    <li><span class="ui">Add an exception</span> → <b>Category</b> · <b>Chinese</b> · All bands · Oldest car <code>5</code> → <span class="ui">Done</span></li>
+                    <li><span class="ui">Add an exception</span> → <b>Brand</b> · <b>BMW</b> · All bands · Rate <code>17</code> → <span class="ui">Done</span></li>
+                    <li>No Gas / Electric exceptions: a used car is not asked its fuel.</li>
+                  </ul>
+                </li>
+                <li>Fees: leave as filled → <span class="ui">Continue</span>.</li>
+              </ol>
+            </li>
+            <li><b>Requirements step:</b> age <code>21</code>–<code>60</code> · minimum income <code>10,000</code> EGP a month · months in job <code>6</code> · debt burden cap <code>50</code> % · documents: National ID, Salary certificate → <span class="ui">Continue</span>.</li>
+            <li><b>Review step:</b> check the summary → <span class="ui">Create bank program</span>.</li>
+          </ol>
+        </div>
+      </details>
+      <p class="tip">Continue is blocked while the card has a problem; the message sits under the line it is about. Check the result: "Check it in the simulator".</p>
+    </div>
+  </details>
+
+
+
+  <p class="group">No-payslip car loans (surrogate)</p>
+
+  <details id="no-payslip">
+    <summary>A no-payslip car loan from scratch<span class="sub">example: EG Bank · Car by Down Payment</span></summary>
+    <div class="body">
+      <p class="tip">The income is worked out from the down payment: income = down payment ÷ 3.6.</p>
+      <details class="sub-d" id="create-nopay-new">
+        <summary>New car<span class="sub">EG Bank · Car by Down Payment — New</span></summary>
+        <div class="body">
+    <p><b>1. The calculation method</b></p>
+          <ol>
+            <li><span class="ui">Surrogate methods</span> → <span class="ui">New</span>.</li>
+            <li>Name English <code>Down payment ÷ 3.6</code> · Arabic <code>المقدم ÷ 3.6</code> → <span class="ui">Next</span>.</li>
+            <li>Answer it reads: <b>How much is your down payment?</b> · How: <b>Divided by</b> → <span class="ui">Next</span> → <span class="ui">Next</span>.</li>
+            <li>Default figure: <code>3.6</code> → <span class="ui">Save method</span>.</li>
+          </ol>
+          <p><b>2. The product</b></p>
+          <ol>
+            <li><span class="ui">Program catalog</span> → <span class="ui">New product</span>.</li>
+            <li>Name English <code>Car by Down Payment</code> · Arabic <code>سيارة بالمقدم</code> · loan type <b>Auto Loan</b> · start from <b>Blank</b> → <span class="ui">Create and continue</span>.</li>
+            <li><b>What it asks:</b> <span class="ui">Add questions</span> → search <code>price</code> → add <i>What is the car's price?</i> · search <code>down payment</code> → add <i>How much is your down payment?</i> → <span class="ui">Done</span>.</li>
+            <li><b>Amount:</b> <b>Monthly income</b> · method <b>Down payment ÷ 3.6</b> · DBR cap <code>50</code>.</li>
+            <li><b>Bank defaults</b> (the figures every bank under this product starts from):
+              <ul>
+                <li>Loan amount <code>100,000</code> to <code>2,000,000</code> EGP · Loan duration <code>12</code> to <code>60</code> months</li>
+                <li><span class="ui">Add a band</span> → <code>20</code> to <code>40</code> % · Rate <code>21</code></li>
+                <li><span class="ui">Add a band</span> → <code>40</code> to <i>(empty)</i> · Rate <code>19</code></li>
+                <li><span class="ui">+ Insurance</span> → <code>1.5</code> on the 20–40 row</li>
+                <li><span class="ui">+ Interest-free years</span> → <code>1</code> on the 40+ row</li>
+                <li><span class="ui">Add an exception</span> → <b>Electric</b> · All bands · Longest term <code>5</code> → <span class="ui">Done</span></li>
+              </ul>
+              Optional: leave it empty and you type these on each bank program instead.</li>
+            <li><span class="ui">Save changes</span> (top right of the page) → <span class="ui">Go live</span> ("The product is live.").</li>
+          </ol>
+          <p><b>3. The program name customers pick</b></p>
+          <ol>
+            <li>Product page menu (⋯) → <span class="ui">Sell it as a program</span>.</li>
+            <li>Name English <code>Car by Down Payment</code> · Arabic <code>سيارة بالمقدم</code> · switch <b>Auto Loan</b> on, <b>Personal Loan</b> off → <span class="ui">Create program</span>.</li>
+          </ol>
+          <p><b>4. The bank's program</b></p>
+          <ol>
+            <li><span class="ui">Banks</span> → <b>EG Bank</b> → <span class="ui">Add bank program</span> (Auto Loan).</li>
+            <li><b>Program step:</b>
+              <ol>
+                <li>Income: <b>Surrogate</b> · program name <b>Car by Down Payment</b>.</li>
+                <li>Friendly name English: <code>Car by Down Payment — New</code> · Arabic: <code>سيارة بالمقدم — جديدة</code>.</li>
+                <li>Finances: <b>New cars</b>.</li>
+                <li><span class="ui">Continue</span> → <span class="ui">Continue</span>.</li>
+              </ol>
+            </li>
+            <li><b>Money step:</b>
+              <ol>
+                <li>Loan amount: minimum <code>100,000</code> · maximum <code>2,000,000</code> EGP.</li>
+                <li>Loan duration: minimum <code>12</code> · maximum <code>60</code> months.</li>
+                <li>Pricing by down payment: opens with the product's Bank defaults from step 2 (20–40% at 21, 40%+ at 19, insurance 1.5, 1 interest-free year, electric 5 years). Keep the defaults, or change what EG Bank does differently (e.g. the 20–40 rate <code>21</code> → <code>20.5</code>). No Oldest car column: a new car's age is not asked.</li>
+                <li>Fees: leave as filled → <span class="ui">Continue</span>.</li>
+              </ol>
+            </li>
+            <li><b>Requirements step:</b> minimum age <code>21</code> · maximum age <code>60</code> · documents: tick <b>National ID</b> → <span class="ui">Continue</span>.</li>
+            <li><b>Review step:</b> check the summary → <span class="ui">Create bank program</span>.</li>
+          </ol>
+        </div>
+      </details>
+      <details class="sub-d" id="create-nopay-used">
+        <summary>Used car<span class="sub">EG Bank · Car by Down Payment — Used</span></summary>
+        <div class="body">
+          <p class="note"><b>Already did steps 1–3 for the new-car program?</b> The method, the product and the program name are shared — skip to step 4.</p>
+    <p><b>1. The calculation method</b></p>
+          <ol>
+            <li><span class="ui">Surrogate methods</span> → <span class="ui">New</span>.</li>
+            <li>Name English <code>Down payment ÷ 3.6</code> · Arabic <code>المقدم ÷ 3.6</code> → <span class="ui">Next</span>.</li>
+            <li>Answer it reads: <b>How much is your down payment?</b> · How: <b>Divided by</b> → <span class="ui">Next</span> → <span class="ui">Next</span>.</li>
+            <li>Default figure: <code>3.6</code> → <span class="ui">Save method</span>.</li>
+          </ol>
+          <p><b>2. The product</b></p>
+          <ol>
+            <li><span class="ui">Program catalog</span> → <span class="ui">New product</span>.</li>
+            <li>Name English <code>Car by Down Payment</code> · Arabic <code>سيارة بالمقدم</code> · loan type <b>Auto Loan</b> · start from <b>Blank</b> → <span class="ui">Create and continue</span>.</li>
+            <li><b>What it asks:</b> <span class="ui">Add questions</span> → search <code>price</code> → add <i>What is the car's price?</i> · search <code>down payment</code> → add <i>How much is your down payment?</i> → <span class="ui">Done</span>.</li>
+            <li><b>Amount:</b> <b>Monthly income</b> · method <b>Down payment ÷ 3.6</b> · DBR cap <code>50</code>.</li>
+            <li><b>Bank defaults</b> (the figures every bank under this product starts from):
+              <ul>
+                <li>Loan amount <code>100,000</code> to <code>2,000,000</code> EGP · Loan duration <code>12</code> to <code>60</code> months</li>
+                <li><span class="ui">Add a band</span> → <code>20</code> to <code>40</code> % · Rate <code>21</code></li>
+                <li><span class="ui">Add a band</span> → <code>40</code> to <i>(empty)</i> · Rate <code>19</code></li>
+                <li><span class="ui">+ Insurance</span> → <code>1.5</code> on the 20–40 row</li>
+                <li><span class="ui">+ Interest-free years</span> → <code>1</code> on the 40+ row</li>
+                <li><span class="ui">Add an exception</span> → <b>Electric</b> · All bands · Longest term <code>5</code> → <span class="ui">Done</span></li>
+              </ul>
+              Optional: leave it empty and you type these on each bank program instead.</li>
+            <li><span class="ui">Save changes</span> (top right of the page) → <span class="ui">Go live</span> ("The product is live.").</li>
+          </ol>
+          <p><b>3. The program name customers pick</b></p>
+          <ol>
+            <li>Product page menu (⋯) → <span class="ui">Sell it as a program</span>.</li>
+            <li>Name English <code>Car by Down Payment</code> · Arabic <code>سيارة بالمقدم</code> · switch <b>Auto Loan</b> on, <b>Personal Loan</b> off → <span class="ui">Create program</span>.</li>
+          </ol>
+          <p><b>4. The bank's program</b></p>
+          <ol>
+            <li><span class="ui">Banks</span> → <b>EG Bank</b> → <span class="ui">Add bank program</span> (Auto Loan).</li>
+            <li><b>Program step:</b>
+              <ol>
+                <li>Income: <b>Surrogate</b> · program name <b>Car by Down Payment</b>.</li>
+                <li>Friendly name English: <code>Car by Down Payment — Used</code> · Arabic: <code>سيارة بالمقدم — مستعملة</code>.</li>
+                <li>Finances: <b>Used cars</b>.</li>
+                <li><span class="ui">Continue</span> → <span class="ui">Continue</span>.</li>
+              </ol>
+            </li>
+            <li><b>Money step:</b>
+              <ol>
+                <li>Loan amount: minimum <code>100,000</code> · maximum <code>2,000,000</code> EGP.</li>
+                <li>Loan duration: minimum <code>12</code> · maximum <code>60</code> months.</li>
+                <li>Pricing by down payment: opens with the product's Bank defaults from step 2 (20–40% at 21, 40%+ at 19, insurance 1.5, 1 interest-free year, electric 5 years). Then <span class="ui">+ Oldest car</span> → <code>8</code> on every row · <span class="ui">Add an exception</span> → <b>Category</b> · <b>Chinese</b> · All bands · Oldest car <code>5</code> → <span class="ui">Done</span>. The electric exception never applies to a used car (its fuel is not asked); you can remove it.</li>
+                <li>Fees: leave as filled → <span class="ui">Continue</span>.</li>
+              </ol>
+            </li>
+            <li><b>Requirements step:</b> minimum age <code>21</code> · maximum age <code>60</code> · documents: tick <b>National ID</b> → <span class="ui">Continue</span>.</li>
+            <li><b>Review step:</b> check the summary → <span class="ui">Create bank program</span>.</li>
+          </ol>
+        </div>
+      </details>
+      <p class="note"><b>Already made the EG Bank program</b> (it is set to Both)? Open it → Edit → set Finances to <b>New cars</b> → save, then add the Used one.</p>
+    </div>
+  </details>
+
+
+  <p class="group">Reference (payslip and no-payslip)</p>
+
+  <details id="card">
+    <summary>Pricing card reference<span class="sub">two parts, open the one you need</span></summary>
+    <div class="body">
+      <p>The payslip and no-payslip steps above already list every value for their examples. Use this when you set up a different bank.</p>
+      <details class="sub-d" id="card-parts">
+        <summary>Fill the pricing card<span class="sub">what each band, column and exception does</span></summary>
+        <div class="body">
+      <p><b>1. Bands (rows).</b> Each row is a down-payment band with a rate.</p>
+      <ol>
+        <li>In the first row type where the band starts and ends, e.g. <code>10</code> to <code>20</code> %, and its <b>Rate</b>, e.g. <code>20</code>.</li>
+        <li>Press <span class="ui">Add a band</span>. The new row starts where the last one ended. Type its end, or leave <b>and above</b> empty on the last row.</li>
+        <li>A band includes its start and stops just before its end: 20% falls in the "20 to 50" band, not in "10 to 20".</li>
+        <li>Remove a band with the bin icon. Exceptions that point at it lose that band too.</li>
+      </ol>
+      <p><b>2. More figures (columns).</b> Rate is always there. Add another column with one click:</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Button</th><th>What it does</th><th>Unit</th></tr></thead>
+        <tbody>
+          <tr><td>+ Longest term</td><td>The longest the loan can run in that band. A longer request is cut to this.</td><td>years</td></tr>
+          <tr><td>+ Insurance</td><td>The car insurance the bank requires, shown to the customer.</td><td>% of the price a year</td></tr>
+          <tr><td>+ Interest-free years</td><td>If the loan term fits inside these years, the whole loan is at 0%. Longer terms pay the band's rate.</td><td>years</td></tr>
+          <tr><td>+ Oldest car</td><td>Cars older than this are refused. Use it on programs that finance used cars.</td><td>years old</td></tr>
+        </tbody>
+      </table></div>
+      <p>Leave a cell empty when that band has no such limit. The <b>×</b> on a column heading removes the column from every row and exception.</p>
+      <p><b>3. Exceptions.</b> For cars a bank prices differently:</p>
+      <ol>
+        <li>Press <span class="ui">Add an exception</span>.</li>
+        <li>Choose <b>Category</b>, <b>Brand</b>, <b>Gas</b> or <b>Electric</b>. For Category or Brand, pick the value (type to search). Gas and Electric apply only where the customer is asked the fuel (New Car).</li>
+        <li>Under <b>On</b>, keep <b>All bands</b> or untick it and pick bands.</li>
+        <li>Type only the figures that change. Leave the rest empty to keep the band's own.</li>
+        <li>Press <span class="ui">Done</span>. The exception shows as one line, e.g. <i>Brand BMW · all bands → Rate 9%</i>. Use <span class="ui">Edit</span> or the bin to change or remove it.</li>
+      </ol>
+      <div class="tip"><b>Which wins:</b> for each figure, a brand beats gas or electric, a fuel beats a category, and all of them beat the band's own row. The rows are the default: they price every car no exception covers, so gas is the default unless you add a Gas exception.</div>
+      <div class="note"><b>Not allowed:</b> a figure of 0, a band that overlaps the next, an open-ended band that isn't the last, and two lines setting the same figure for the same car on the same band.</div>
+    
+        </div>
+      </details>
+      <details class="sub-d" id="examples">
+        <summary>Examples (not real bank figures)<span class="sub">a bank's rule → what to enter on the card</span></summary>
+        <div class="body">
+      <p class="note"><b>These are examples only.</b> No bank uses these numbers. Each row shows one kind of rule a bank's sheet might state (left) and how to enter that kind of rule on the card (right). When you set up a real bank, keep the same steps and type that bank's own numbers.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>The bank says</th><th>On the card</th></tr></thead>
+        <tbody>
+          <tr><td>Rate 20% under 20% down, 18% from 20%, 15% from 50%</td><td>Bands 10–20 rate 20 · 20–50 rate 18 · 50 and above rate 15</td></tr>
+          <tr><td>Insurance required from 20% down</td><td>+ Insurance; type it on the 20–50 and 50+ rows (e.g. 1.5)</td></tr>
+          <tr><td>No interest for 2 years at 50% down</td><td>+ Interest-free years; type 2 on the 50+ row</td></tr>
+          <tr><td>Electric cars: 5 years at most</td><td>Exception → Electric · all bands → Longest term 5</td></tr>
+          <tr><td>Chinese cars: 5 years at most</td><td>Exception → Category Chinese · all bands → Longest term 5</td></tr>
+          <tr><td>BMW at a special rate</td><td>Exception → Brand BMW · all bands → Rate 9</td></tr>
+          <tr><td>Used cars at most 3 years old (Chinese)</td><td>A used-cars program · Exception → Category Chinese → Oldest car 3</td></tr>
+          <tr><td>All used cars at most 10 years old</td><td>+ Oldest car; type 10 on every row</td></tr>
+        </tbody>
+      </table></div>
+      <p>To see one built: <span class="ui">Banks → Bank NXT → Car pricing demo</span>, and <span class="ui">ADIB Egypt → Used Car</span> (Car Loan · used cars) for oldest car by category.</p>
+    
+        </div>
+      </details>
+    </div>
+  </details>
+
+
+  <p class="group">Both: rules and checks</p>
+
+  <details id="loan-engine">
+    <summary>Add a Loan Engine rule or condition<span class="sub">example: HSBC · European cars only</span></summary>
+    <div class="body">
+      <ol>
+        <li><span class="ui">Loan Engine</span> → question <b>What kind of car is it?</b>.</li>
+        <li>Find <b>HSBC Egypt · Used Car Loan</b> in the table → click its last cell (conditions) → <span class="ui">Add a condition</span>.</li>
+        <li>Question <i>What kind of car is it?</i> → answer <b>European</b> → <span class="ui">Save conditions</span>. HSBC now accepts European cars only.</li>
+        <li><b>Rate and Longest term</b> show <i>Set on the car pricing card</i> for a car program priced on the card. Set them there instead, e.g. BMW at most 36 months: on HSBC's card, <span class="ui">Add an exception</span> → <b>Brand</b> · <b>BMW</b> · Longest term <code>3</code> years.</li>
+        <li>Still set here: <b>financed share</b>, <b>smallest loan</b>, <b>shortest term</b>, <b>max loan</b> and <b>extra income</b> by any question's answer.</li>
+      </ol>
+      <div class="tip">Car programs: the card holds the rate and longest term (by down payment, category, brand, gas or electric). The Loan Engine holds conditions and the other figures. Personal, mortgage and business programs use the Loan Engine for every figure.</div>
+    </div>
+  </details>
+
+  <details id="simulator">
+    <summary>Check it in the simulator<span class="sub">one check per path</span></summary>
+    <div class="body">
+      <p>Both checks use programs that are already seeded (payslip: Bank NXT's Car pricing demo and ADIB's Used Car on Car Loan; no-payslip: the four Car Buyers programs), so you can run them now. Each lists the questions you will see with the answer to type, then the runs to compare.</p>
+
+      <details class="sub-d" id="sim-payslip">
+        <summary>Payslip<span class="sub">program Car Loan</span></summary>
+        <div class="body">
+          <details class="sub-d" id="sim-new">
+            <summary>New car<span class="sub">Bank NXT · Car pricing demo</span></summary>
+            <div class="body">
+              <p><b>Set up once:</b> <span class="ui">Matching simulator</span> → loan type <b>Car</b> → program <b>Car Loan</b> → age <code>35</code>.</p>
+              <p><b>The questions you will see, in order, and what to answer</b> (3 per step; press <span class="ui">Continue</span> between steps):</p>
+              <ol>
+                  <li><b>What is your monthly income after deductions?</b> → <code>60,000</code></li>
+                  <li><b>How many months to pay it back?</b> → <code>60</code> (or the term in the row below)</li>
+                  <li><b>How much do you need?</b> → car price − down payment, e.g. <code>650,000</code> for 350,000 down</li>
+                  <li><b>How long have you been in your current job?</b> → <code>36</code></li>
+                  <li><b>Can you transfer your salary to the bank…?</b> → <b>Yes</b></li>
+                  <li><b>Which governorate do you live in?</b> → <b>Cairo</b></li>
+                  <li><b>Which area do you live in?</b> → <code>Nasr City</code></li>
+                  <li><b>Do you get money from anywhere else?</b> → <b>No</b> (Yes would add a follow-up: the amount)</li>
+                  <li><b>Do you have a bank account statement?</b> → <b>Yes</b></li>
+                  <li><b>What matters most to you in a loan?</b> → <b>The smallest payment each month</b></li>
+                  <li><b>Do you have any loans or credit cards now?</b> → <b>None</b> (ticking a debt adds a follow-up for its amount)</li>
+                  <li><b>What is your I-Score rating?</b> → <b>Above 625</b></li>
+                  <li><b>Is the car new or used?</b> → <b>New</b></li>
+                  <li><b>What kind of car is it?</b> → from the row below, e.g. <b>Japanese</b></li>
+                  <li><b>What brand is the car?</b> → from the row below, e.g. <b>Toyota</b></li>
+                  <li><b>What does the car run on?</b> → from the row below, e.g. <b>Gas</b></li>
+                  <li><b>What is the car's price?</b> → <code>1,000,000</code></li>
+                  <li><b>How much is your down payment?</b> → from the row below, e.g. <code>300,000</code></li>
+              </ol>
+              <p>That is <b>18 questions</b> (the counter shows "of 18"). Then press <span class="ui">Run</span>. For each row below, change only the answers in that row (and "How much do you need?" to match), run again, and read Bank NXT's result.</p>
+              <div class="table-wrap"><table>
+                <thead><tr><th>Category · brand · fuel</th><th>Down payment</th><th>Term asked</th><th>Expected at Bank NXT</th><th>Why</th></tr></thead>
+                <tbody>
+                  <tr><td>Japanese · Toyota · Gas</td><td>300,000 (30%)</td><td>60</td><td><b>18%</b>, 60 months</td><td>the 20–50% band</td></tr>
+                  <tr><td>European · BMW · Gas</td><td>300,000</td><td>60</td><td><b>9%</b>, 60 months</td><td>BMW exception</td></tr>
+                  <tr><td>Japanese · Toyota · Gas</td><td>600,000 (60%)</td><td>24</td><td><b>0%</b>, 24 months</td><td>2 interest-free years on the 50%+ band</td></tr>
+                  <tr><td>Japanese · Toyota · Gas</td><td>600,000</td><td>30</td><td><b>15%</b>, 30 months</td><td>longer than 2 years → the band rate</td></tr>
+                  <tr><td>Chinese · BYD · Electric</td><td>300,000</td><td>84</td><td>18%, <b>60 months</b></td><td>electric: 5 years at most</td></tr>
+                  <tr><td>European · Volkswagen · Gas</td><td>300,000</td><td>96</td><td>18%, <b>84 months</b></td><td>European: 7 years at most</td></tr>
+                  <tr><td>Japanese · Toyota · Gas</td><td>50,000 (5%)</td><td>60</td><td><b>Hidden</b> (NO_RATE_FOR_ANSWER)</td><td>no band under 10%</td></tr>
+                </tbody>
+              </table></div>
+            </div>
+          </details>
+          <details class="sub-d" id="sim-used">
+            <summary>Used car<span class="sub">ADIB Egypt · Used Car</span></summary>
+            <div class="body">
+              <p><b>Set up once:</b> <span class="ui">Matching simulator</span> → loan type <b>Car</b> → program <b>Car Loan</b> → age <code>35</code>.</p>
+              <p><b>The questions you will see, in order, and what to answer</b> (3 per step; press <span class="ui">Continue</span> between steps):</p>
+              <ol>
+                  <li><b>What is your monthly income after deductions?</b> → <code>60,000</code></li>
+                  <li><b>How many months to pay it back?</b> → <code>60</code> (or the term in the row below)</li>
+                  <li><b>How much do you need?</b> → car price − down payment, e.g. <code>650,000</code> for 350,000 down</li>
+                  <li><b>How long have you been in your current job?</b> → <code>36</code></li>
+                  <li><b>Can you transfer your salary to the bank…?</b> → <b>Yes</b></li>
+                  <li><b>Which governorate do you live in?</b> → <b>Cairo</b></li>
+                  <li><b>Which area do you live in?</b> → <code>Nasr City</code></li>
+                  <li><b>Do you get money from anywhere else?</b> → <b>No</b> (Yes would add a follow-up: the amount)</li>
+                  <li><b>Do you have a bank account statement?</b> → <b>Yes</b></li>
+                  <li><b>What matters most to you in a loan?</b> → <b>The smallest payment each month</b></li>
+                  <li><b>Do you have any loans or credit cards now?</b> → <b>None</b> (ticking a debt adds a follow-up for its amount)</li>
+                  <li><b>What is your I-Score rating?</b> → <b>Above 625</b></li>
+                  <li><b>Is the car new or used?</b> → <b>Used</b></li>
+                  <li><b>What kind of car is it?</b> → from the row below, e.g. <b>Japanese</b></li>
+                  <li><b>What brand is the car?</b> → from the row below, e.g. <b>Toyota</b></li>
+                  <li><b>What is the car's model year?</b> → from the row below, e.g. <code>2022</code></li>
+                  <li><b>What is the car's price?</b> → <code>1,000,000</code></li>
+                  <li><b>How much is your down payment?</b> → from the row below, e.g. <code>350,000</code></li>
+              </ol>
+              <p>That is <b>18 questions</b> (the counter shows "of 18"). Then press <span class="ui">Run</span>. For each row below, change only the answers in that row (and "How much do you need?" to match), run again, and read ADIB's result.</p>
+              <div class="table-wrap"><table>
+                <thead><tr><th>Category · brand</th><th>Model year</th><th>Down payment</th><th>Expected at ADIB</th><th>Why</th></tr></thead>
+                <tbody>
+                  <tr><td>Japanese · Toyota</td><td>2022</td><td>350,000 (35%)</td><td><b>14.96%</b></td><td>the 30–40% band</td></tr>
+                  <tr><td>Japanese · Toyota</td><td>2022</td><td>450,000 (45%)</td><td><b>13.46%</b></td><td>the 40–50% band</td></tr>
+                  <tr><td>Japanese · Toyota</td><td>2015</td><td>350,000</td><td><b>14.96%</b></td><td>11 years old: Japanese allows 11</td></tr>
+                  <tr><td>Japanese · Toyota</td><td>2014</td><td>350,000</td><td><b>Hidden</b> (VEHICLE_NOT_ELIGIBLE)</td><td>12 years old, over 11</td></tr>
+                  <tr><td>Chinese · BYD</td><td>2017</td><td>350,000</td><td><b>14.96%</b></td><td>9 years old: under the 10-year limit</td></tr>
+                  <tr><td>Chinese · BYD</td><td>2015</td><td>350,000</td><td><b>Hidden</b> (VEHICLE_NOT_ELIGIBLE)</td><td>11 years old, over 10</td></tr>
+                  <tr><td>Japanese · Toyota</td><td>2022</td><td>200,000 (20%)</td><td><b>Hidden</b> (NO_RATE_FOR_ANSWER)</td><td>ADIB's first band starts at 30%</td></tr>
+                </tbody>
+              </table></div>
+              <p>Answering <b>Used</b> asks the <b>model year</b> and never gas or electric; ADIB's new-car program and Bank NXT's demo are hidden (they finance new cars).</p>
+            </div>
+          </details>
+        </div>
+      </details>
+      <details class="sub-d" id="sim-nopay">
+        <summary>No payslip<span class="sub">program Car Buyers Program</span></summary>
+        <div class="body">
+          <details class="sub-d" id="sim-nopay-new">
+            <summary>New car<span class="sub">Car Buyers Program · 4 banks</span></summary>
+            <div class="body">
+              <p><b>Set up once:</b> <span class="ui">Matching simulator</span> → loan type <b>Car</b> → program <b>Car Buyers Program</b> → age <code>35</code>.</p>
+              <p><b>The questions you will see, in order, and what to answer</b> (no salary is asked; the down payment works the income out):</p>
+              <ol>
+                  <li><b>How many months to pay it back?</b> → <code>60</code></li>
+                  <li><b>How long have you been in your current job?</b> → <code>36</code></li>
+                  <li><b>Which governorate do you live in?</b> → <b>Cairo</b></li>
+                  <li><b>Which area do you live in?</b> → <code>Nasr City</code></li>
+                  <li><b>What matters most to you in a loan?</b> → <b>The smallest payment each month</b></li>
+                  <li><b>Do you have any loans or credit cards now?</b> → <b>None</b></li>
+                  <li><b>What is your I-Score rating?</b> → <b>Above 625</b></li>
+                  <li><b>Is the car new or used?</b> → <b>New</b></li>
+                  <li><b>What kind of car is it?</b> → from the row below, e.g. <b>Japanese</b></li>
+                  <li><b>How much have you saved in total?</b> → <code>0</code></li>
+                  <li><b>Are you paying in instalments or in cash?</b> → <b>Paying in instalments</b></li>
+                  <li><b>What brand is the car?</b> → from the row below, e.g. <b>Toyota</b></li>
+                  <li><b>Do you own the home you live in, or does a close relative?</b> → <b>I own it</b></li>
+                  <li><b>What does the car run on?</b> → from the row below</li>
+                  <li><b>What is the car's price?</b> → <code>1,000,000</code></li>
+                  <li><b>How much is your down payment?</b> → from the row below, e.g. <code>300,000</code></li>
+              </ol>
+              <p>That is <b>16 questions</b>. All four programs finance new and used cars (Finances: Both).</p>
+              <div class="table-wrap"><table>
+                <thead><tr><th>Car</th><th>Down payment</th><th>Expected</th><th>Why</th></tr></thead>
+                <tbody>
+                  <tr><td>New · Japanese · Toyota · Gas</td><td>300,000 (30%)</td><td><b>9%</b> at NBE, Crédit Agricole, Banque Misr</td><td>the 30–40% band</td></tr>
+                  <tr><td>New · Chinese · BYD · Gas</td><td>300,000</td><td><b>11%</b> at the same three</td><td>Chinese exception</td></tr>
+                  <tr><td>New · Japanese · Toyota · Electric</td><td>300,000</td><td><b>8%</b> at the same three</td><td>electric exception</td></tr>
+                  <tr><td>New · Japanese · Toyota · Gas</td><td>150,000 (15%)</td><td>NBE <b>11%</b>; the other three hidden (NO_RATE_FOR_ANSWER)</td><td>only NBE has a band under 20%</td></tr>
+                </tbody>
+              </table></div>
+              <p>NXT Car is listed as hidden (NO_RECOGNISED_INCOME) with these answers: its own way of working out the income needs different answers.</p>
+            </div>
+          </details>
+          <details class="sub-d" id="sim-nopay-used">
+            <summary>Used car<span class="sub">Car Buyers Program · 4 banks</span></summary>
+            <div class="body">
+              <p><b>Set up once:</b> <span class="ui">Matching simulator</span> → loan type <b>Car</b> → program <b>Car Buyers Program</b> → age <code>35</code>.</p>
+              <p><b>The questions you will see, in order, and what to answer</b> (no salary is asked; the down payment works the income out):</p>
+              <ol>
+                  <li><b>How many months to pay it back?</b> → <code>60</code></li>
+                  <li><b>How long have you been in your current job?</b> → <code>36</code></li>
+                  <li><b>Which governorate do you live in?</b> → <b>Cairo</b></li>
+                  <li><b>Which area do you live in?</b> → <code>Nasr City</code></li>
+                  <li><b>What matters most to you in a loan?</b> → <b>The smallest payment each month</b></li>
+                  <li><b>Do you have any loans or credit cards now?</b> → <b>None</b></li>
+                  <li><b>What is your I-Score rating?</b> → <b>Above 625</b></li>
+                  <li><b>Is the car new or used?</b> → <b>Used</b></li>
+                  <li><b>What kind of car is it?</b> → from the row below, e.g. <b>Japanese</b></li>
+                  <li><b>How much have you saved in total?</b> → <code>0</code></li>
+                  <li><b>Are you paying in instalments or in cash?</b> → <b>Paying in instalments</b></li>
+                  <li><b>What brand is the car?</b> → from the row below, e.g. <b>Toyota</b></li>
+                  <li><b>Do you own the home you live in, or does a close relative?</b> → <b>I own it</b></li>
+                  <li><b>What is the car's model year?</b> → from the row below</li>
+                  <li><b>What is the car's price?</b> → <code>1,000,000</code></li>
+                  <li><b>How much is your down payment?</b> → from the row below, e.g. <code>300,000</code></li>
+              </ol>
+              <p>That is <b>16 questions</b>. All four programs finance new and used cars (Finances: Both); a used car is asked its model year instead of the fuel.</p>
+              <div class="table-wrap"><table>
+                <thead><tr><th>Car</th><th>Down payment</th><th>Expected</th><th>Why</th></tr></thead>
+                <tbody>
+                  <tr><td>Used · Japanese · Toyota · 2022</td><td>300,000</td><td><b>9%</b> at the same three</td><td>same band; no fuel asked</td></tr>
+                  <tr><td>Used · Japanese · Toyota · 2022</td><td>500,000 (50%)</td><td><b>7%</b> at the same three</td><td>the 50–60% band</td></tr>
+                </tbody>
+              </table></div>
+              <p>NXT Car is listed as hidden (NO_RECOGNISED_INCOME) with these answers: its own way of working out the income needs different answers.</p>
+            </div>
+          </details>
+        </div>
+      </details>
+      <p class="tip">Built your own program from this guide (HSBC or EG Bank)? Run the same way on its path; its figures are the ones you typed on its card.</p>
+    </div>
+  </details>
+
+  <details id="edit">
+    <summary>Edit an existing car program<span class="sub">and the older editors</span></summary>
+    <div class="body">
+      <ol>
+        <li>Open the program → <span class="ui">Edit</span> → <b>Money</b>. Change the card.</li>
+        <li>Go to <b>Review</b> → <span class="ui">Save changes</span>.</li>
+        <li>The program page shows <b>Pricing by down payment</b>: the bands as a table and the exceptions as sentences. The headline rate is the card's range.</li>
+      </ol>
+      <div class="note"><b>"This program's tables are not in this card's shape…"</b> means its tables use something the card cannot show (for example a rate by term). They are kept as they are, and the older editors are shown instead of the card.</div>
+      <div class="note"><b>Cases</b> left on a program still change its price. While a card program has any, the Cases section stays on screen so you can remove them.</div>
+    </div>
+  </details>
+
+  <details id="messages">
+    <summary>Messages and what to do<span class="sub">troubleshooting</span></summary>
+    <div class="body">
+      <div class="table-wrap"><table>
+        <thead><tr><th>Message</th><th>What to do</th></tr></thead>
+        <tbody>
+          <tr><td>Type a rate for this band.</td><td>Every band needs a rate.</td></tr>
+          <tr><td>Only the last band can be open-ended…</td><td>Type where this band ends.</td></tr>
+          <tr><td>This band overlaps the next one.</td><td>Make the band end where the next one starts.</td></tr>
+          <tr><td>A figure here is not a number…</td><td>Use a number above 0. Years must come to whole months (e.g. 2.5 is fine).</td></tr>
+          <tr><td>Another line already sets this figure…</td><td>Remove one of the two exceptions, or set different figures or bands.</td></tr>
+          <tr><td>Pick the brand / Pick the category / Pick at least one band.</td><td>Finish the exception's choices.</td></tr>
+          <tr><td>Simulator: NO_RATE_FOR_ANSWER</td><td>The down payment is outside every band. Add a band or lower the lowest start.</td></tr>
+          <tr><td>Simulator: VEHICLE_NOT_ELIGIBLE</td><td>The car is older than the Oldest car figure.</td></tr>
+          <tr><td>Simulator: PRODUCT_RULE_GATE_FAILED</td><td>A Loan Engine condition refused the answers.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </details>
+</div>
+
+<script>
+  document.getElementById('openAll').addEventListener('click', () => document.querySelectorAll('details').forEach((d) => (d.open = true)));
+  document.getElementById('closeAll').addEventListener('click', () => document.querySelectorAll('details').forEach((d) => (d.open = false)));
+</script>

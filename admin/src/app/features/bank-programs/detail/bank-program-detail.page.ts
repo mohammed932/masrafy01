@@ -307,6 +307,12 @@ import { CAR_FIGURE_LABEL, CAR_FIGURE_UNIT, carBandText, carExceptionSentence } 
                 Who the bank will lend to
               </h2>
               <dl class="kv">
+                @if (p.productCategory === 'car') {
+                  <div class="row">
+                    <dt i18n="@@bank_programs.field.car_condition">Finances</dt>
+                    <dd>{{ carConditionLabel(p.carCondition) }}</dd>
+                  </div>
+                }
                 <div class="row">
                   <dt i18n="@@bank_programs.field.accepted_employment_types">Employment</dt>
                   <dd class="chips">
@@ -1285,6 +1291,13 @@ export class BankProgramDetailPage {
   }
 
   protected readonly carFigureLabel = CAR_FIGURE_LABEL;
+
+  /** v37.1.0 — what a car program finances, in words. */
+  protected carConditionLabel(v: string | null | undefined): string {
+    if (v === 'new') return $localize`:@@bank_programs.car_condition.new:New cars`;
+    if (v === 'used') return $localize`:@@bank_programs.car_condition.used:Used cars`;
+    return $localize`:@@bank_programs.car_condition.any:Both`;
+  }
   protected readonly carBandText = carBandText;
 
   /** A cell of the pricing table: the figure and its unit ("9%", "5 years"). */

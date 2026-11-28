@@ -17,7 +17,7 @@ async function call(request: APIRequestContext, auth: Record<string, string>, me
   return (await res.json()) as { success: boolean; data: Json & Json[] };
 }
 
-function programBody(template: Json, bankName: string, bankId: string, nameKey: string, friendly: string): Json {
+function programBody(template: Json, bankName: string, bankId: string, nameKey: string, friendly: string, carCondition = 'any'): Json {
   const { dbrBands: _bands, ...eligibility } = template['eligibility'] as Json;
   void _bands;
   return {
@@ -26,6 +26,7 @@ function programBody(template: Json, bankName: string, bankId: string, nameKey: 
     friendlyName: friendly,
     friendlyNameAr: friendly,
     programNameKey: nameKey,
+    carCondition,
     programType: 'income_proof',
     productCategory: 'car',
     isShariaCompliant: false,
@@ -70,7 +71,7 @@ function answers(over: Record<string, string>): Json[] {
     car_model_year: String(year - 1),
     ...over,
   };
-  const choice = new Set(['car_category', 'what_brand_is_the_car', 'car_fuel_type', 'can_transfer_salary']);
+  const choice = new Set(['car_condition', 'car_category', 'what_brand_is_the_car', 'car_fuel_type', 'can_transfer_salary']);
   const out: Json[] = Object.entries(base).map(([questionCode, v]) =>
     choice.has(questionCode) ? { questionCode, optionCode: v } : { questionCode, numericValue: v },
   );
@@ -112,7 +113,7 @@ test('car pricing card: bands, brand and category exceptions, a band deleted, qu
   const bankId = String(bank!['id']);
   const template = (await call(request, auth, 'GET', '/bank-programs/NXT-CAR-USED_CAR')).data;
   try {
-    const usedMade = await call(request, auth, 'POST', '/bank-programs', { ...programBody(template, bankName, bankId, 'used_car', 'TESTING Used'), programCode: USED });
+    const usedMade = await call(request, auth, 'POST', '/bank-programs', { ...programBody(template, bankName, bankId, 'car_loan', 'TESTING Used', 'used'), programCode: USED });
     expect(usedMade.success, JSON.stringify(usedMade)).toBeTruthy();
     // The new-car program states its card through the API: one band, and electric → 5 years.
     const axes = [
@@ -122,7 +123,7 @@ test('car pricing card: bands, brand and category exceptions, a band deleted, qu
       { factKey: 'what_brand_is_the_car', via: 'parentClass' },
     ];
     const created = await call(request, auth, 'POST', '/bank-programs', {
-      ...programBody(template, bankName, bankId, 'new_car', 'TESTING New'),
+      ...programBody(template, bankName, bankId, 'car_loan', 'TESTING New', 'new'),
       programCode: NEW,
       pricing: { isVariableRate: false, baseRatePercent: '25', rateBasis: 'reducing', rateByFact: { axes, cells: [{ keys: [{ fromInclusive: '10' }, null, null, null], value: '17' }, { keys: [{ fromInclusive: '10' }, null, { key: 'petrol_diesel' }, null], value: '16' }], onNoMatch: 'reject' } },
       tenor: { minMonths: 12, maxMonths: 96, maxMonthsByFact: { axes, cells: [{ keys: [{ fromInclusive: '10' }, null, { key: 'electric' }, null], value: '60' }], onNoMatch: 'useFallback' } },
@@ -186,21 +187,21 @@ test('car pricing card: bands, brand and category exceptions, a band deleted, qu
     expect(cells.map((c) => c.value).sort()).toEqual(['16', '9']);
 
     // ── The simulator quotes what the card says ──
-    const toyota = await quote(request, auth, 'used_car', USED, { car_category: 'japanese', what_brand_is_the_car: 'toyota' });
+    const toyota = await quote(request, auth, 'car_loan', USED, { car_condition: 'used', car_category: 'japanese', what_brand_is_the_car: 'toyota' });
     expect(Number(toyota.shown?.['effectiveRatePercent']), JSON.stringify(toyota.hidden ?? null)).toBe(16);
-    const bmw = await quote(request, auth, 'used_car', USED, { car_category: 'european', what_brand_is_the_car: 'bmw' });
+    const bmw = await quote(request, auth, 'car_loan', USED, { car_condition: 'used', car_category: 'european', what_brand_is_the_car: 'bmw' });
     expect(Number(bmw.shown?.['effectiveRatePercent'])).toBe(9);
-    const oldByd = await quote(request, auth, 'used_car', USED, { car_category: 'chinese', what_brand_is_the_car: 'byd', car_model_year: String(year - 4) });
+    const oldByd = await quote(request, auth, 'car_loan', USED, { car_condition: 'used', car_category: 'chinese', what_brand_is_the_car: 'byd', car_model_year: String(year - 4) });
     expect(oldByd.shown).toBeUndefined();
     expect(oldByd.hidden?.['reason']).toBe('VEHICLE_NOT_ELIGIBLE');
-    const youngByd = await quote(request, auth, 'used_car', USED, { car_category: 'chinese', what_brand_is_the_car: 'byd', car_model_year: String(year - 2) });
+    const youngByd = await quote(request, auth, 'car_loan', USED, { car_condition: 'used', car_category: 'chinese', what_brand_is_the_car: 'byd', car_model_year: String(year - 2) });
     expect(Number(youngByd.shown?.['effectiveRatePercent'])).toBe(16);
 
     // ── New car: electric is capped at five years ──
-    const ev = await quote(request, auth, 'new_car', NEW, { car_category: 'chinese', what_brand_is_the_car: 'byd', car_fuel_type: 'electric', repayment_period_months: '84' });
+    const ev = await quote(request, auth, 'car_loan', NEW, { car_condition: 'new', car_category: 'chinese', what_brand_is_the_car: 'byd', car_fuel_type: 'electric', repayment_period_months: '84' });
     const term = (m: Json | undefined) => Number((m?.['figures'] as Json | undefined)?.['effectiveTenorMonths'] ?? m?.['effectiveTenorMonths']);
     expect(term(ev.shown), JSON.stringify(ev.shown ?? ev.hidden ?? null).slice(0, 400)).toBe(60);
-    const gas = await quote(request, auth, 'new_car', NEW, { car_category: 'chinese', what_brand_is_the_car: 'byd', car_fuel_type: 'petrol_diesel', repayment_period_months: '84' });
+    const gas = await quote(request, auth, 'car_loan', NEW, { car_condition: 'new', car_category: 'chinese', what_brand_is_the_car: 'byd', car_fuel_type: 'petrol_diesel', repayment_period_months: '84' });
     expect(term(gas.shown)).toBe(84);
     // Gas and electric are equal exceptions; the row (17%) prices what neither covers.
     expect(Number(gas.shown?.['effectiveRatePercent'])).toBe(16);
@@ -215,12 +216,24 @@ test('car pricing card: bands, brand and category exceptions, a band deleted, qu
       const car = (r.data as Json[]).find((d) => d['category'] === 'car')!;
       return (car['servedQuestionCodes'] as string[]).filter((c) => c.startsWith('car_') || c === 'what_brand_is_the_car');
     };
-    const used = await served('used_car');
-    expect(used.slice(0, 3)).toEqual(['car_category', 'what_brand_is_the_car', 'car_model_year']);
-    expect(used).not.toContain('car_fuel_type');
-    const fresh = await served('new_car');
-    expect(fresh.slice(0, 3)).toEqual(['car_category', 'what_brand_is_the_car', 'car_fuel_type']);
-    expect(fresh).not.toContain('car_model_year');
+    // One name for payslip car loans; "new or used?" first, and it opens fuel (new) or model year (used).
+    const asked = await served('car_loan');
+    expect(asked.slice(0, 3)).toEqual(['car_condition', 'car_category', 'what_brand_is_the_car']);
+    const gateOf = async (code: string) => {
+      const r = await call(request, auth, 'GET', '/questionnaire/served?category=car&programNameKey=car_loan');
+      const car = (r.data as Json[]).find((d) => d['category'] === 'car')!;
+      const q = ((car['pages'] as Json[]).flatMap((pg) => pg['questions'] as Json[])).find((x) => x['code'] === code);
+      return q?.['enabledWhen'] as Json | undefined;
+    };
+    expect(await gateOf('car_fuel_type')).toMatchObject({ questionCode: 'car_condition', optionCode: 'new' });
+    expect(await gateOf('car_model_year')).toMatchObject({ questionCode: 'car_condition', optionCode: 'used' });
+    // The two programs share the name; each is hidden from the other kind of car.
+    const usedAsked = await quote(request, auth, 'car_loan', NEW, { car_condition: 'used', car_category: 'japanese', what_brand_is_the_car: 'toyota' });
+    expect(usedAsked.shown).toBeUndefined();
+    expect(usedAsked.hidden?.['failedRules']).toEqual(['car_condition']);
+    // The program page says what it finances.
+    await page.goto(`/banks/programs/${NEW}/edit`);
+    await expect(page.locator('nz-radio-group#carCondition label.ant-radio-button-wrapper-checked')).toHaveText(/New cars/);
 
     // ── The detail page reads the card back ──
     await page.goto(`/banks/programs/${USED}`);

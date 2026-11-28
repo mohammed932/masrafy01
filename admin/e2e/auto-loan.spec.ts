@@ -51,6 +51,7 @@ const carAnswers = (price: number, down: number, more: Record<string, string | n
   repayment_period_months: 60,
   current_loans: ['none'],
   car_model_year: new Date().getFullYear() - 2,
+  car_condition: 'used',
   car_category: 'european',
   what_brand_is_the_car: 'volkswagen',
   car_fuel_type: 'petrol_diesel',
@@ -240,7 +241,8 @@ test('the Loan Engine: a rule and a condition on a car program, read by the simu
   }
   Object.assign(body, {
     friendlyName: `TESTING e2e loan engine ${run}`,
-    programNameKey: 'used_car',
+    programNameKey: 'car_loan',
+    carCondition: 'used',
     bankId: HDB,
     bankName: 'Housing & Development Bank',
     tenor: { minMonths: 12, maxMonths: 84 },
@@ -285,7 +287,7 @@ test('the Loan Engine: a rule and a condition on a car program, read by the simu
     expect(errors).toEqual([]);
 
     const ask = (category: string, brand: string) =>
-      simulate(request, 'used_car', carAnswers(1000000, 450000, { monthly_income: 80000, repayment_period_months: 84,
+      simulate(request, 'car_loan', carAnswers(1000000, 450000, { monthly_income: 80000, repayment_period_months: 84,
         car_category: category, what_brand_is_the_car: brand }));
     const vw = (await ask('european', 'volkswagen')).matches.find((m) => m['programCode'] === code);
     expect((vw?.['figures'] as Record<string, unknown>)['effectiveTenorMonths']).toBe(84);
@@ -313,7 +315,7 @@ test("ADIB's used car reads back on the card, and the simulator quotes every dep
   expect(await overflowX(page)).toBe(0);
   expect(errors).toEqual([]);
 
-  const run = await simulate(request, 'used_car', carAnswers(1000000, 450000, { monthly_income: 80000,
+  const run = await simulate(request, 'car_loan', carAnswers(1000000, 450000, { monthly_income: 80000,
     car_category: 'japanese', what_brand_is_the_car: 'toyota' }));
   const adib = run.matches.find((m) => m['programCode'] === 'ADIB-CAR-6681');
   const rows = (adib?.['depositRows'] as { fromPercent: string; current: boolean; effectiveRatePercent: string | null }[]) ?? [];
@@ -348,7 +350,7 @@ test('an operator adds a new question, and a bank prices on its answer', async (
     'loanLimits', 'pricing', 'eligibility', 'incomeAssumption', 'fees']) {
     if (src[k] !== null && src[k] !== undefined) body[k] = src[k];
   }
-  Object.assign(body, { friendlyName: `TESTING e2e new question ${run}`, programNameKey: 'used_car', bankId: HDB,
+  Object.assign(body, { friendlyName: `TESTING e2e new question ${run}`, programNameKey: 'car_loan', carCondition: 'used', bankId: HDB,
     bankName: 'Housing & Development Bank', tenor: { minMonths: 12, maxMonths: 84 } });
   const listed = (await (await request.get(`${API}/bank-programs?pageSize=100`, { headers })).json()) as {
     data: { programCode: string; friendlyName: string }[];
@@ -399,7 +401,7 @@ test('an operator adds a new question, and a bank prices on its answer', async (
 
     // 3 — the simulator: a red car at 11%, any other colour at the program's own rate.
     const ask = (answer: string) =>
-      simulate(request, 'used_car', carAnswers(1000000, 450000, { monthly_income: 80000, [questionCode!]: answer }));
+      simulate(request, 'car_loan', carAnswers(1000000, 450000, { monthly_income: 80000, [questionCode!]: answer }));
     const red = (await ask('red')).matches.find((m) => m['programCode'] === code);
     expect(Number(red?.['effectiveRatePercent'])).toBe(11);
     const other = (await ask('another_colour')).matches.find((m) => m['programCode'] === code);

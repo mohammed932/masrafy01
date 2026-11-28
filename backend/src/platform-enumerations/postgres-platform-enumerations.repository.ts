@@ -1,3 +1,4 @@
+import { CAR_QUESTION_CODES } from '@/questionnaire/car-questions';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { asProgramConditions, factsReadByConditions } from '@/matching/pipeline/program-conditions';
 import { asProgramCases, factsReadByCases } from '@/matching/pipeline/program-cases';
@@ -2709,6 +2710,7 @@ export class PostgresPlatformEnumerationsRepository
           : undefined,
       },
     });
+    if (input.categories?.includes('car' as LoanCategory)) await tickCarQuestions(this.prisma, [row.id]);
     return toEnumerationRow(row);
   }
 
@@ -2916,6 +2918,9 @@ export class PostgresPlatformEnumerationsRepository
           ...bornBasisFlags(kept, category, linked),
         })),
       });
+      if (categories.includes('car' as LoanCategory) && !kept.has('car' as LoanCategory)) {
+        await tickCarQuestions(tx, [enumerationId]);
+      }
     });
   }
 
@@ -3000,6 +3005,9 @@ export class PostgresPlatformEnumerationsRepository
             ...bornBasisFlags(kept, category, linked.has(a.enumerationId)),
           })),
         });
+        if (a.categories.includes('car' as LoanCategory) && !kept.has('car' as LoanCategory)) {
+          await tickCarQuestions(tx, [a.enumerationId]);
+        }
       }
     });
   }
@@ -3570,4 +3578,26 @@ function incomeBasesOfRows(
     out[row.category] = basesOfFlags({ payslip: row.payslip, noPayslip: row.noPayslip });
   }
   return out;
+}
+
+/**
+ * A name newly offered under car asks the car questions (v37.1.0) — "new or used?" and what it
+ * opens, the category, brand, price and down payment — as ticks, whichever screen gave it the
+ * loan type. Insert-only: an operator's own later untick is theirs.
+ */
+async function tickCarQuestions(
+  db: Pick<Prisma.TransactionClient, 'question' | 'programNameQuestionAddition'>,
+  enumerationIds: readonly string[],
+): Promise<void> {
+  const questions = await db.question.findMany({
+    where: { code: { in: [...CAR_QUESTION_CODES] }, isActive: true },
+    select: { id: true },
+  });
+  if (questions.length === 0) return;
+  await db.programNameQuestionAddition.createMany({
+    data: enumerationIds.flatMap((enumerationId) =>
+      questions.map((q) => ({ enumerationId, category: 'car' as LoanCategory, questionId: q.id })),
+    ),
+    skipDuplicates: true,
+  });
 }

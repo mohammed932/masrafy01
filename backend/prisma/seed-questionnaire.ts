@@ -521,8 +521,24 @@ const CAR_DOWN_PAYMENT_Q: SeedQuestion = {
  * Option codes are STATED, not slugged from the labels: they are the keys a bank's grid is
  * written against, and a reworded label must never move a column.
  */
+/** "Is the car new or used?" (v37.1.0) — every car loan; it decides the fuel / model-year question. */
+const CAR_CONDITION_Q: SeedQuestion = {
+  code: 'car_condition',
+  isRequired: true,
+  questionEn: 'Is the car new or used?',
+  questionAr: 'هل السيارة جديدة أم مستعملة؟',
+  helperTextEn: 'A new car is asked what it runs on; a used one its model year.',
+  helperTextAr: 'السيارة الجديدة يُسأل عن وقودها، والمستعملة عن سنة الموديل.',
+  options: [
+    { code: 'new', labelEn: 'New', labelAr: 'جديدة' },
+    { code: 'used', labelEn: 'Used', labelAr: 'مستعملة' },
+  ],
+};
+
 const CAR_FUEL_TYPE_Q: SeedQuestion = {
   code: 'car_fuel_type',
+  // A new car only (v37.1.0).
+  enabledWhen: { questionCode: 'car_condition', operator: 'equals', optionCode: 'new' },
   // Required since v31.0.0: a fixed question for car loans (operator decision), asked of every
   // car applicant. Only the first run writes it — the admin owns a fixed question after.
   isRequired: true,
@@ -577,6 +593,8 @@ const CAR_BRAND_Q: SeedQuestion = {
  */
 const CAR_MODEL_YEAR_Q: SeedQuestion = {
   code: 'car_model_year',
+  // A used car only (v37.1.0).
+  enabledWhen: { questionCode: 'car_condition', operator: 'equals', optionCode: 'used' },
   // Required since v31.0.0: a fixed question for car loans (operator decision), asked of every
   // car applicant. Only the first run writes it — the admin owns a fixed question after.
   isRequired: true,
@@ -1519,10 +1537,12 @@ const CAR: CategoryConfig = {
         // seed deactivates every question outside its own pool. The buckets were a clock in
         // disguise — they mean a different year every January — so they could never key a
         // bank's table, which prints "from model 2015". Nothing read it.
-        CAR_MODEL_YEAR_Q,
-        CAR_FUEL_TYPE_Q,
+        // v37.1.0 — new or used first; it opens the fuel (new) or the model year (used).
+        CAR_CONDITION_Q,
         CAR_CATEGORY_Q,
         CAR_BRAND_Q,
+        CAR_MODEL_YEAR_Q,
+        CAR_FUEL_TYPE_Q,
         CAR_PRICE_Q,
         // Right after the price it is a share of (the client's order, 2026-10-13) — it used to
         // open the financing step, three steps before the price.
@@ -2249,7 +2269,10 @@ const CAR_LIST_LEVELS = [
  */
 async function tickCarFlowQuestions(): Promise<void> {
   const questions = await prisma.question.findMany({
-    where: { code: { in: ['car_category', 'what_brand_is_the_car'] }, isActive: true },
+    where: {
+      code: { in: ['car_condition', 'car_category', 'what_brand_is_the_car', 'car_fuel_type', 'car_model_year'] },
+      isActive: true,
+    },
     select: { id: true },
   });
   const names = await prisma.platformEnumerationLoanCategory.findMany({
@@ -2392,6 +2415,12 @@ async function upsertCarFacts(): Promise<void> {
       labelEn: 'What the car runs on',
       labelAr: 'نوع وقود السيارة',
       sortOrder: 126,
+    },
+    {
+      key: 'car_condition',
+      labelEn: 'New or used',
+      labelAr: 'جديدة أم مستعملة',
+      sortOrder: 140,
     },
     {
       key: 'car_category',

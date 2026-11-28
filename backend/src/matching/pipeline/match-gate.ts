@@ -37,6 +37,7 @@ export const ENFORCED_ELIGIBILITY_CHECKS = [
   'monthly_income',
   'months_in_job',
   'salary_transfer',
+  'car_condition',
 ] as const;
 export type EnforcedEligibilityCheck = (typeof ENFORCED_ELIGIBILITY_CHECKS)[number];
 
@@ -49,6 +50,9 @@ export const PENDING_REASONS: ReadonlySet<string> = new Set<
 export function hidesProgram(reason: string): boolean {
   return !PENDING_REASONS.has(reason);
 }
+
+/** The fact the "Is the car new or used?" answer arrives as (v37.1.0). */
+export const CAR_CONDITION_FACT_KEY = 'car_condition';
 
 /** A transfer the bank counts — any of these on the program's list is met by a "yes". */
 const TRANSFER_KINDS = ['payroll', 'salary_transfer_letter', 'income_transfer_letter'];
@@ -107,6 +111,16 @@ export function failedMatchRules(
       accepted.length === 0 ||
       (canTransfer ? accepted.some((t) => TRANSFER_KINDS.includes(t)) : accepted.includes('none'));
     if (!met) failed.push('salary_transfer');
+  }
+  // v37.1.0 — a car program that finances only new (or only used) cars, and a customer who
+  // said the other. Unanswered hides nothing, as for the rules above.
+  const kind = profile.surrogateFacts?.[CAR_CONDITION_FACT_KEY];
+  if (
+    kind?.kind === 'choice' &&
+    (program.carCondition === 'new' || program.carCondition === 'used') &&
+    kind.optionCode !== program.carCondition
+  ) {
+    failed.push('car_condition');
   }
   return failed;
 }

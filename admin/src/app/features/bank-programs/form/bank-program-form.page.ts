@@ -100,6 +100,7 @@ import {
   type RuleStep,
   type StepFigures,
   registryFacts,
+  type CarCondition,
 } from '../bank-programs.types';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import {
@@ -151,6 +152,7 @@ import {
 import { BanksApiService } from '../../banks/banks.api.service';
 import { followsCatalogName, type PickedNameLabels } from './friendly-name-seed';
 import { newProgramDefaults } from './new-program-defaults';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { CarPricingCardComponent } from '@shared/ui/car-pricing/car-pricing-card.component';
 import {
   carPricingFromGrids,
@@ -445,6 +447,7 @@ function keyedByDeposit(grid: FactGridConfig): boolean {
     PlanRowsEditorComponent,
     ProgramCasesEditorComponent,
     CarPricingCardComponent,
+    NzRadioModule,
     MoneyInputDirective,
     WizardStepsComponent,
   ],
@@ -927,6 +930,21 @@ function keyedByDeposit(grid: FactGridConfig): boolean {
                       Filled in from the catalog. Change it to what this bank calls the program;
                       customers see it on their offers.
                     </p>
+                  }
+                  <!-- v37.1.0 — what kind of car this program finances. Customers answer "new or
+                       used?" and only see programs that finance that kind. -->
+                  @if (isAutoLoan()) {
+                    <nz-form-item class="span-2">
+                      <nz-form-label i18n="@@bank_programs.field.car_condition">Finances</nz-form-label>
+                      <nz-form-control>
+                        <nz-radio-group formControlName="carCondition" nzButtonStyle="solid" id="carCondition">
+                          <label nz-radio-button nzValue="new" i18n="@@bank_programs.car_condition.new">New cars</label>
+                          <label nz-radio-button nzValue="used" i18n="@@bank_programs.car_condition.used">Used cars</label>
+                          <label nz-radio-button nzValue="any" i18n="@@bank_programs.car_condition.any">Both</label>
+                        </nz-radio-group>
+                      </nz-form-control>
+                    </nz-form-item>
+                    <p class="field-hint span-2" i18n="@@bank_programs.field.car_condition_hint">Customers who say the other kind don't see this program. A bank can keep one new-car and one used-car program under the same name.</p>
                   }
                 </div>
               </section>
@@ -4981,6 +4999,7 @@ export class BankProgramFormPage implements OnInit {
        * the API field, the DB column and the offer snapshot.)
        */
       isShariaCompliant: new FormControl(false, { nonNullable: true }),
+      carCondition: new FormControl<CarCondition>('any', { nonNullable: true }),
     }),
     // NOT `Validators.required`, and not `nonNullable`, on the two months. Blank is a real
     // answer now — it means "read the surrogate product's duration" — and a required control
@@ -8718,6 +8737,7 @@ export class BankProgramFormPage implements OnInit {
       programType: id.programType,
       productCategory: id.productCategory,
       isShariaCompliant: id.isShariaCompliant,
+      ...(id.productCategory === 'car' ? { carCondition: id.carCondition } : {}),
       // Stated on every save. Omitting it would read as "this bank's own" on a
       // full-replacement PUT — right for a program that states its own tables, and WRONG for
       // one the operator has just put on the product's.
@@ -8926,6 +8946,7 @@ export class BankProgramFormPage implements OnInit {
       programType: initial.programType,
       productCategory: initial.productCategory,
       isShariaCompliant: initial.isShariaCompliant === true,
+      carCondition: initial.carCondition ?? 'any',
     });
     // The baseline for a later re-pick: which catalog name these display fields were last
     // seeded from. Stated here rather than left to the picker's subscription, which fires

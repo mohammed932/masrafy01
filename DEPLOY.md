@@ -47,6 +47,13 @@ After the first boot, set `SEED_ON_START=false` in `.env` (or just run
 `docker compose up -d` again — seed is idempotent anyway).
 
 - DB migrations (`prisma migrate deploy`) run automatically on every container start.
+- **Releases that change questions (v37.0.0, v37.1.0): republish the questionnaire once after the
+  container is up.** Customers are served the last *published* questionnaire, and a migration does
+  not publish — until this runs, the app keeps the old car questions (no "new or used?", fuel and
+  model year both asked):
+  `docker compose exec backend npm run seed:questionnaire`
+  (insert-only for existing questions; it adds what is missing and publishes a new version). Then
+  `docker compose exec backend npm run seed:sheet-figures` to re-key the seeded car programs.
 - Manual seed instead of `SEED_ON_START`:
   `docker compose exec backend npx prisma db seed`
 

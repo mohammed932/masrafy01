@@ -27,6 +27,10 @@ import { ProgramCaseDto } from './program-case.dto';
 const PROGRAM_TYPES = ['income_proof', 'income_surrogate'] as const;
 export type ProgramType = (typeof PROGRAM_TYPES)[number];
 
+/** v37.1.0 — what a car program finances. */
+export const CAR_CONDITIONS = ['new', 'used', 'any'] as const;
+export type CarCondition = (typeof CAR_CONDITIONS)[number];
+
 export class CreateBankProgramDto {
   /**
    * Optional — auto-generated server-side from bank + category when omitted
@@ -71,6 +75,8 @@ export class CreateBankProgramDto {
    * the save is a full replacement and absent already IS `'own'`.
    */
   @IsOptional() @IsIn(PLANS_SOURCES) plansSource?: PlansSource;
+  /** v37.1.0 — car programs only: the kind of car financed. Absent on a car program = `any`. */
+  @IsOptional() @IsIn(CAR_CONDITIONS) carCondition?: CarCondition;
 
   /**
    * v36.4.0 — the bank's CASES: combinations of answers that replace a figure or refuse,

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { API, apiToken, overflowX, signIn, watchErrors } from './support';
 
 /**
@@ -8,54 +8,8 @@ import { API, apiToken, overflowX, signIn, watchErrors } from './support';
 
 const PRODUCT = 'down_payment_income';
 
-async function openDepositSteps(page: Page): Promise<void> {
-  await page.goto(`/program-catalog/products/${PRODUCT}?step=4`);
-  await page.getByRole('tab', { name: /Deposit steps/ }).click();
-  await expect(page.locator('#plan-band-1')).toBeVisible();
-}
-
-const bands = (page: Page) =>
-  page
-    .locator('.prt__band')
-    .evaluateAll((els) =>
-      els.map((e) => `${(e.querySelector('input') as HTMLInputElement).value} ${e.textContent}`),
-    );
-
-test.describe('deposit steps', () => {
-  test('a two-digit edge lands whole, and one past its neighbour is put back', async ({ page }) => {
-    const errors = watchErrors(page);
-    await signIn(page);
-    await openDepositSteps(page);
-    const before = await bands(page);
-    const edge = page.locator('#plan-band-1');
-
-    // Typed key by key: "2" alone sits below the band before it, which used to re-sort the
-    // rows under the caret and send the "5" to another row.
-    await edge.click();
-    await edge.press('Control+a');
-    await page.keyboard.type('25', { delay: 80 });
-    await expect(edge).toBeFocused();
-    await expect(edge).toHaveValue('25');
-    await page.keyboard.press('Tab');
-    await expect(page.locator('#plan-band-1')).toHaveValue('25');
-    const after = await bands(page);
-    expect(after).toHaveLength(before.length);
-    // The row kept its own figures — only its start moved.
-    expect(after[1]?.replace(/^\S+/, '')).toContain(
-      before[1]?.split('·')[0]?.split('%').pop()?.trim() ?? '',
-    );
-
-    // 45 is past the next band's start (40): refused, said, put back.
-    await edge.click();
-    await edge.press('Control+a');
-    await page.keyboard.type('45');
-    await page.keyboard.press('Enter');
-    await expect(page.locator('.prt__note[role=alert]')).toContainText('It was put back');
-    await expect(page.locator('#plan-band-1')).toHaveValue('25');
-    expect(errors).toEqual([]);
-    // Nothing is saved: the product page saves only on "Save changes".
-  });
-});
+// The deposit-steps editor this block drove was replaced by the car pricing card (v37.0.0);
+// bands are covered by `car-pricing.spec.ts`.
 
 test.describe('no-payslip product page', () => {
   test('asks its questions in the income-proof page layout, and adds one from the side sheet', async ({
@@ -115,12 +69,12 @@ test.describe('copy a program name', () => {
       ).data.addedByCategory;
 
     await signIn(page);
-    await page.goto('/program-catalog/used_car');
+    await page.goto('/program-catalog/car_loan');
     await page.getByRole('link', { name: 'Copy' }).click();
-    await expect(page).toHaveURL(/program-catalog\/new\?copy=used_car/);
+    await expect(page).toHaveURL(/program-catalog\/new\?copy=car_loan/);
     await expect(page.getByText(/A copy of/)).toBeVisible();
     const english = page.locator('input').first();
-    await expect(english).toHaveValue('Used Car (copy)');
+    await expect(english).toHaveValue('Car Loan (copy)');
     await english.fill('TESTING e2e copy');
 
     let createdKey: string | null = null;
@@ -135,7 +89,7 @@ test.describe('copy a program name', () => {
       await page.waitForURL((u) => !u.pathname.endsWith('/new'));
       createdKey = new URL(page.url()).pathname.split('/').pop() ?? null;
       expect(createdKey).toBeTruthy();
-      const source = await scopeOf('used_car');
+      const source = await scopeOf('car_loan');
       const copy = await scopeOf(createdKey!);
       for (const [category, ids] of Object.entries(source)) {
         expect([...(copy[category] ?? [])].sort()).toEqual([...ids].sort());
@@ -177,7 +131,8 @@ test.describe('copy a bank program', () => {
       .getByRole('button', { name: /Continue/ })
       .last()
       .click();
-    await expect(page.getByLabel('10% to under 20%, Rate', { exact: true })).toHaveValue('11');
+    // The copy's car pricing card holds the source's figures (10–20% band at 11%).
+    await expect(page.locator('app-car-pricing-card input[aria-label="Rate"]').first()).toHaveValue('11');
     expect(await overflowX(page)).toBe(0);
     expect(errors).toEqual([]);
   });

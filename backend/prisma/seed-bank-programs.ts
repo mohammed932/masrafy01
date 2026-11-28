@@ -66,6 +66,19 @@ interface CategorySkeleton {
   minMonthsInJob: number;
 }
 
+/**
+ * v37.1.0 — the matrix still names the two old car names (their figures and program codes are
+ * keyed on them); the programs file under Car Loan and keep the kind as `carCondition`.
+ */
+const CAR_KIND_BY_OLD_NAME: Readonly<Record<string, 'new' | 'used'>> = { new_car: 'new', used_car: 'used' };
+function nameKeyOf(catalogKey: string): string {
+  return CAR_KIND_BY_OLD_NAME[catalogKey] !== undefined ? 'car_loan' : catalogKey;
+}
+function carConditionOf(catalogKey: string, category: string): { carCondition?: string } {
+  if (category !== 'car') return {};
+  return { carCondition: CAR_KIND_BY_OLD_NAME[catalogKey] ?? 'any' };
+}
+
 function skeletonFor(catalogKey: string, category: string): CategorySkeleton {
   if (category === 'business') {
     return {
@@ -215,7 +228,8 @@ function compose(args: {
     bankId,
     friendlyName: labelEn,
     friendlyNameAr: labelAr,
-    programNameKey: offering.catalogKey,
+    programNameKey: nameKeyOf(offering.catalogKey),
+    ...carConditionOf(offering.catalogKey, offering.category),
     programType: skeleton.programType,
     productCategory: offering.category,
     active: true,
@@ -277,7 +291,7 @@ function compose(args: {
     bankId,
     friendlyName: labelEn,
     friendlyNameAr: labelAr,
-    programNameKey: offering.catalogKey,
+    programNameKey: nameKeyOf(offering.catalogKey),
     productCategory: offering.category,
     data,
   };
@@ -343,7 +357,8 @@ export async function seedBankPrograms(actorStaffId?: string): Promise<void> {
     }
 
     for (const offering of offerings) {
-      const member = memberByKey.get(offering.catalogKey);
+      // The name the program files under (v37.1.0: the two old car names → Car Loan).
+      const member = memberByKey.get(nameKeyOf(offering.catalogKey));
       if (!member) {
         problems.push(`program_name '${offering.catalogKey}' not in the catalog — skipped`);
         continue;
@@ -413,7 +428,8 @@ export async function seedBankPrograms(actorStaffId?: string): Promise<void> {
 const CAR_PRICING_DEMO = {
   programCode: 'NXT-CAR-NEW_CAR',
   copyFrom: 'NXT-CAR-USED_CAR',
-  programNameKey: 'new_car',
+  programNameKey: 'car_loan',
+  carCondition: 'new',
   friendlyName: 'Car pricing demo',
   friendlyNameAr: 'عرض تسعير السيارات',
   maxMonths: 96,
@@ -463,6 +479,7 @@ async function seedCarPricingDemo(): Promise<void> {
       incomeAssumption: json(source.incomeAssumption),
       fees: json(source.fees),
       plansSource: 'own',
+      carCondition: demo.carCondition,
       cases: [],
       createdBy: actor,
       updatedBy: actor,
