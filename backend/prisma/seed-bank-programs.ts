@@ -400,6 +400,98 @@ export async function seedBankPrograms(actorStaffId?: string): Promise<void> {
   console.log(
     `[seed-bank-programs] ${created} created, ${updated} updated, ${skipped} left untouched.`,
   );
+  await seedNestedCarDemo();
+}
+
+/**
+ * A demo car program that prices on the car list's nested answers (v36.6.1), so a fresh machine
+ * shows what Cases do: Bank NXT's "New Car", its figures copied from the bank's used-car
+ * program, five cases read top to bottom. Created once; after that it is the operator's.
+ */
+const NESTED_CAR_DEMO = {
+  programCode: 'NXT-CAR-NEW_CAR',
+  copyFrom: 'NXT-CAR-USED_CAR',
+  programNameKey: 'new_car',
+  friendlyName: 'Nested car demo',
+  friendlyNameAr: 'عرض السيارات المتداخل',
+  cases: [
+    {
+      id: 'case_1',
+      allOf: [
+        { factKey: 'what_brand_is_the_car', key: { key: 'mercedes_benz' } },
+        { factKey: 'what_model_is_the_car', key: { key: 'mercedes_benz_c_200' } },
+      ],
+      effects: { ratePercent: '11' },
+    },
+    {
+      id: 'case_2',
+      allOf: [{ factKey: 'what_brand_is_the_car', key: { key: 'mercedes_benz' } }],
+      effects: { ratePercent: '13' },
+    },
+    {
+      id: 'case_3',
+      allOf: [{ factKey: 'car_origin', key: { key: 'germany' } }],
+      effects: { ratePercent: '15', maxMonths: 72 },
+    },
+    {
+      id: 'case_4',
+      allOf: [
+        { factKey: 'car_origin', key: { key: 'china' } },
+        { factKey: 'car_model_year', key: { toExclusive: '2022' } },
+      ],
+      effects: { ltvCeilingPercent: '50', maxMonths: 48 },
+    },
+    {
+      id: 'case_5',
+      allOf: [{ factKey: 'what_brand_is_the_car', key: { key: 'chery' } }],
+      effects: {},
+      refuse: true,
+    },
+  ],
+} as const;
+
+async function seedNestedCarDemo(): Promise<void> {
+  const demo = NESTED_CAR_DEMO;
+  if (await prisma.bankProgram.findUnique({ where: { programCode: demo.programCode }, select: { id: true } })) {
+    return;
+  }
+  const source = await prisma.bankProgram.findUnique({ where: { programCode: demo.copyFrom } });
+  if (source === null) {
+    console.warn(`[seed-bank-programs] ! ${demo.copyFrom} is not seeded — no ${demo.programCode} demo.`);
+    return;
+  }
+  const actor = (await resolveSeedActor()) ?? 'seed-system';
+  const json = (v: Prisma.JsonValue) => v as Prisma.InputJsonValue;
+  await prisma.bankProgram.create({
+    data: {
+      programCode: demo.programCode,
+      bankName: source.bankName,
+      bankId: source.bankId,
+      friendlyName: demo.friendlyName,
+      friendlyNameAr: demo.friendlyNameAr,
+      programNameKey: demo.programNameKey,
+      programType: source.programType,
+      productCategory: source.productCategory,
+      active: true,
+      isShariaCompliant: source.isShariaCompliant,
+      requiredDocuments: source.requiredDocuments,
+      operatorTips: [],
+      tenor: json(source.tenor),
+      loanLimits: json(source.loanLimits),
+      pricing: json(source.pricing),
+      eligibility: json(source.eligibility),
+      ...(source.performanceCriteria !== null
+        ? { performanceCriteria: json(source.performanceCriteria) }
+        : {}),
+      incomeAssumption: json(source.incomeAssumption),
+      fees: json(source.fees),
+      plansSource: source.plansSource,
+      cases: demo.cases as unknown as Prisma.InputJsonValue,
+      createdBy: actor,
+      updatedBy: actor,
+    },
+  });
+  console.log(`[seed-bank-programs] demo ${demo.programCode} (Nested car demo) created.`);
 }
 
 async function resolveSeedActor(): Promise<string | null> {

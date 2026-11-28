@@ -21,6 +21,7 @@ import {
   TRANSFER_ANSWERS,
 } from '../src/matching/pipeline/base-question-set';
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
+import { CAR_BRANDS, CAR_COUNTRIES, CAR_MODELS } from './data/car-list.data';
 import { CAR_QUESTION_CODES } from '../src/questionnaire/car-questions';
 import { bankSlug } from '../src/matching/pipeline/bank-relationship';
 import {
@@ -557,19 +558,9 @@ const CAR_ORIGIN_Q: SeedQuestion = {
   questionAr: 'أين صُنعت السيارة؟',
   helperTextEn: 'Some banks finance a car for longer, or at a better rate, depending on where it was made.',
   helperTextAr: 'بعض البنوك تموّل السيارة لمدة أطول أو بسعر أفضل حسب بلد الصنع.',
-  options: [
-    { code: 'germany', labelEn: 'Germany', labelAr: 'ألمانيا' },
-    { code: 'japan', labelEn: 'Japan', labelAr: 'اليابان' },
-    { code: 'usa', labelEn: 'United States', labelAr: 'الولايات المتحدة' },
-    { code: 'korea', labelEn: 'South Korea', labelAr: 'كوريا الجنوبية' },
-    { code: 'france', labelEn: 'France', labelAr: 'فرنسا' },
-    { code: 'italy', labelEn: 'Italy', labelAr: 'إيطاليا' },
-    { code: 'spain', labelEn: 'Spain', labelAr: 'إسبانيا' },
-    { code: 'czechia', labelEn: 'Czech Republic', labelAr: 'التشيك' },
-    { code: 'china', labelEn: 'China', labelAr: 'الصين' },
-    { code: 'egypt', labelEn: 'Assembled in Egypt', labelAr: 'مجمّعة في مصر' },
-    { code: 'other_origin', labelEn: 'Somewhere else', labelAr: 'بلد آخر' },
-  ],
+  // The car list's countries (v36.7.0): the list is the authority, the question mirrors it.
+  optionsFromEnum: 'car_country',
+  options: [],
 };
 
 /**
@@ -703,6 +694,7 @@ const CAR_KM_PER_YEAR_Q: SeedQuestion = {
   numeric: { minValue: '0', maxValue: '500000', step: '1', unitEn: 'km', unitAr: 'كم' },
   questionEn: 'How many kilometres does the car drive a year?',
   questionAr: 'كم كيلومترًا تسير السيارة في السنة؟',
+  options: [],
 };
 
 /**
@@ -717,28 +709,19 @@ const CAR_BRAND_Q: SeedQuestion = {
   isRequired: false,
   questionEn: 'What brand is the car?',
   questionAr: 'ما ماركة السيارة؟',
-  options: [
-    { code: 'toyota', labelEn: 'Toyota', labelAr: 'تويوتا' },
-    { code: 'hyundai', labelEn: 'Hyundai', labelAr: 'هيونداي' },
-    { code: 'kia', labelEn: 'Kia', labelAr: 'كيا' },
-    { code: 'nissan', labelEn: 'Nissan', labelAr: 'نيسان' },
-    { code: 'chevrolet', labelEn: 'Chevrolet', labelAr: 'شيفروليه' },
-    { code: 'mg', labelEn: 'MG', labelAr: 'إم جي' },
-    { code: 'chery', labelEn: 'Chery', labelAr: 'شيري' },
-    { code: 'byd', labelEn: 'BYD', labelAr: 'بي واي دي' },
-    { code: 'geely', labelEn: 'Geely', labelAr: 'جيلي' },
-    { code: 'peugeot', labelEn: 'Peugeot', labelAr: 'بيجو' },
-    { code: 'renault', labelEn: 'Renault', labelAr: 'رينو' },
-    { code: 'skoda', labelEn: 'Skoda', labelAr: 'سكودا' },
-    { code: 'volkswagen', labelEn: 'Volkswagen', labelAr: 'فولكس فاجن' },
-    { code: 'mitsubishi', labelEn: 'Mitsubishi', labelAr: 'ميتسوبيشي' },
-    { code: 'suzuki', labelEn: 'Suzuki', labelAr: 'سوزوكي' },
-    { code: 'jeep', labelEn: 'Jeep', labelAr: 'جيب' },
-    { code: 'mercedes_benz', labelEn: 'Mercedes-Benz', labelAr: 'مرسيدس بنز' },
-    { code: 'bmw', labelEn: 'BMW', labelAr: 'بي إم دبليو' },
-    { code: 'audi', labelEn: 'Audi', labelAr: 'أودي' },
-    { code: 'another_brand', labelEn: 'Another brand', labelAr: 'ماركة أخرى' },
-  ],
+  // The car list's brands, each filed under its country (v36.7.0).
+  optionsFromEnum: 'car_brand',
+  options: [],
+};
+
+/** The car list's models, each filed under its brand (v36.7.0). */
+const CAR_MODEL_Q: SeedQuestion = {
+  code: 'what_model_is_the_car',
+  isRequired: false,
+  questionEn: 'What model is the car?',
+  questionAr: 'ما طراز السيارة؟',
+  optionsFromEnum: 'car_model',
+  options: [],
 };
 
 const CAR_ASSEMBLY_Q: SeedQuestion = {
@@ -759,6 +742,7 @@ const CAR_ENGINE_CC_Q: SeedQuestion = {
   numeric: { minValue: '600', maxValue: '8000', step: '1', unitEn: 'cc', unitAr: 'سي سي' },
   questionEn: 'What is the engine size?',
   questionAr: 'ما سعة المحرك؟',
+  options: [],
 };
 
 const CAR_USE_Q: SeedQuestion = {
@@ -780,6 +764,7 @@ const CAR_TOTAL_KM_Q: SeedQuestion = {
   numeric: { minValue: '0', maxValue: '1000000', step: '1', unitEn: 'km', unitAr: 'كم' },
   questionEn: 'How many kilometres has the car been driven?',
   questionAr: 'كم كيلومترًا قطعت السيارة؟',
+  options: [],
 };
 
 const GUARANTOR_Q: SeedQuestion = {
@@ -1757,6 +1742,7 @@ const CAR: CategoryConfig = {
         JOB_ON_ID_Q,
         CAR_KM_PER_YEAR_Q,
         CAR_BRAND_Q,
+        CAR_MODEL_Q,
         CAR_ASSEMBLY_Q,
         CAR_ENGINE_CC_Q,
         CAR_USE_Q,
@@ -2143,6 +2129,8 @@ export async function mergeSeedPool(client: PrismaClient = prisma): Promise<Seed
 }
 
 export async function seedQuestionnaire(): Promise<void> {
+  // The car list first: the country, brand and model questions take their answers from it.
+  await seedCarList();
   const pool = await mergeSeedPool(prisma);
   const { groupOrder, groupByCode, questionOrder, questionByCode } = pool;
 
@@ -2301,6 +2289,7 @@ export async function seedQuestionnaire(): Promise<void> {
   await upsertAdditionalIncomeFacts();
   await upsertCarFacts();
   await bindSystemFacts();
+  await linkCarListQuestions();
 
   // ---- 3. Publish ONE global snapshot ---------------------------------------
   await publishVersion();
@@ -2463,6 +2452,117 @@ async function upsertBaseFacts(): Promise<void> {
  * Idempotent like its neighbours: re-running re-points the binding at the question's current
  * id, which is what makes it survive a question being recreated.
  */
+// ---- The car list (v36.7.0) -------------------------------------------------
+//
+// Three lists, each filed under the one before: country → brand → model. Each IS the answers of
+// its question (`mirrorQuestionId`), so the Car list page edits the answers, and the served
+// questionnaire shows a level's answers filed under the pick one level up. The seed only ADDS
+// what is missing — a value, a kind or a link the operator changed is left as it is.
+
+const CAR_LIST_LEVELS = [
+  { key: 'car_country', labelEn: 'Country', labelAr: 'البلد', parent: null, question: 'car_origin', rows: CAR_COUNTRIES },
+  { key: 'car_brand', labelEn: 'Brand', labelAr: 'الماركة', parent: 'car_country', question: 'what_brand_is_the_car', rows: CAR_BRANDS },
+  { key: 'car_model', labelEn: 'Model', labelAr: 'الطراز', parent: 'car_brand', question: 'what_model_is_the_car', rows: CAR_MODELS },
+] as const;
+
+async function seedCarList(): Promise<void> {
+  let added = 0;
+  for (const level of CAR_LIST_LEVELS) {
+    await prisma.enumerationTypeDef.upsert({
+      where: { key: level.key },
+      update: {},
+      create: {
+        key: level.key,
+        labelEn: level.labelEn,
+        labelAr: level.labelAr,
+        parentTypeKey: level.parent,
+        // A brand or a model may be removed on the Car list page; a country may not — bank
+        // tables are keyed on `car_origin`'s answers.
+        deletable: level.key !== 'car_country',
+        // The Car list page is its screen.
+        onValuesRail: false,
+      },
+    });
+    const have = new Set(
+      (await prisma.platformEnumeration.findMany({ where: { type: level.key }, select: { key: true } })).map(
+        (r) => r.key,
+      ),
+    );
+    const missing = level.rows
+      .map((row, i) => ({ row, sortOrder: i + 1 }))
+      .filter(({ row }) => !have.has(row.key));
+    if (missing.length > 0) {
+      await prisma.platformEnumeration.createMany({
+        data: missing.map(({ row, sortOrder }) => ({
+          type: level.key,
+          key: row.key,
+          labelEn: row.labelEn,
+          labelAr: row.labelAr,
+          sortOrder,
+          ...(row.parentKey !== undefined ? { parentKey: row.parentKey } : {}),
+          createdBy: SEED_ACTOR,
+          updatedBy: SEED_ACTOR,
+        })),
+        skipDuplicates: true,
+      });
+      added += missing.length;
+    }
+  }
+  if (added > 0) console.log(`seed-questionnaire: car list — ${added} value(s) added.`);
+}
+
+/**
+ * Point each car-list level at its question and bring the question's answers in step with the
+ * list — what `QuestionnaireService.syncMirroredOptions` does after an edit on the Car list page.
+ * Runs on every seed, so values this seed added reach a question an earlier run created.
+ */
+async function linkCarListQuestions(): Promise<void> {
+  for (const level of CAR_LIST_LEVELS) {
+    const question = await prisma.question.findUnique({
+      where: { code: level.question },
+      select: { id: true },
+    });
+    if (!question) continue;
+    const def = await prisma.enumerationTypeDef.findUnique({
+      where: { key: level.key },
+      select: { mirrorQuestionId: true },
+    });
+    if (def !== null && def.mirrorQuestionId === null) {
+      await prisma.enumerationTypeDef.update({
+        where: { key: level.key },
+        data: { mirrorQuestionId: question.id },
+      });
+    }
+    const members = await prisma.platformEnumeration.findMany({
+      where: { type: level.key, active: true },
+      orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+      select: { key: true, labelEn: true, labelAr: true },
+    });
+    const options = await prisma.questionOption.findMany({
+      where: { questionId: question.id },
+      select: { code: true, labelEn: true, labelAr: true, displayOrder: true, isActive: true },
+    });
+    const byCode = new Map(options.map((o) => [o.code, o]));
+    const create: Prisma.QuestionOptionCreateManyInput[] = [];
+    for (const [i, m] of members.entries()) {
+      const o = byCode.get(m.key);
+      if (o === undefined) {
+        create.push({ questionId: question.id, code: m.key, labelEn: m.labelEn, labelAr: m.labelAr, displayOrder: i + 1 });
+      } else if (o.labelEn !== m.labelEn || o.labelAr !== m.labelAr || o.displayOrder !== i + 1 || !o.isActive) {
+        await prisma.questionOption.update({
+          where: { uniq_question_option_question_code: { questionId: question.id, code: m.key } },
+          data: { labelEn: m.labelEn, labelAr: m.labelAr, displayOrder: i + 1, isActive: true },
+        });
+      }
+    }
+    if (create.length > 0) await prisma.questionOption.createMany({ data: create, skipDuplicates: true });
+    await prisma.questionOption.updateMany({
+      where: { questionId: question.id, code: { notIn: members.map((m) => m.key) }, isActive: true },
+      data: { isActive: false },
+    });
+  }
+}
+
 async function upsertCarFacts(): Promise<void> {
   const facts = [
     { key: 'car_price', labelEn: 'Car price', labelAr: 'سعر السيارة', sortOrder: 120 },
@@ -2526,6 +2626,12 @@ async function upsertCarFacts(): Promise<void> {
       labelEn: 'Car brand',
       labelAr: 'ماركة السيارة',
       sortOrder: 132,
+    },
+    {
+      key: 'what_model_is_the_car',
+      labelEn: 'Car model',
+      labelAr: 'طراز السيارة',
+      sortOrder: 138,
     },
     {
       key: 'is_the_car_assembled_in_egypt_or_imported',

@@ -30,7 +30,6 @@
     "seed:blueprints": "node dist/bank-programs/blueprints/blueprint-seed.command.js",
     "seed:catalog": "tsx prisma/seed-program-catalog.ts",
     "seed:sheet-figures": "node dist/bank-programs/demo-figures/sheet-figures.command.js",
-    "seed:car-list": "node dist/platform-enumerations/car-list/car-list-seed.command.js",
     "seed:customers": "tsx prisma/seed-customers.ts",
     "check:codes": "tsx scripts/check-error-codes-parity.ts",
     "seed:surrogate:demo": "tsx prisma/seed-surrogate-demo.ts",
