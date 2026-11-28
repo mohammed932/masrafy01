@@ -734,6 +734,7 @@ export class BankProgramsService {
     const gridRegistry = await this.enums.surrogateFactRegistry();
     const grids = [
       [dto.pricing?.rateByFact, 'pricing.rateByFact', 'ratePercent'],
+      [dto.pricing?.interestFreeYearsByFact, 'pricing.interestFreeYearsByFact', 'years'],
       [dto.tenor?.maxMonthsByFact, 'tenor.maxMonthsByFact', 'months'],
       [dto.tenor?.minMonthsByFact, 'tenor.minMonthsByFact', 'months'],
       [dto.tenor?.maxVehicleAgeYearsByFact, 'tenor.maxVehicleAgeYearsByFact', 'years'],
@@ -2835,6 +2836,8 @@ export class BankProgramsService {
         ['minAmountByFact', 'amountEGP'],
         ['carInsuranceRateByFact', 'sharePercent'],
         ['maxCarAgeAtEndYearsByFact', 'years'],
+        ['interestFreeYearsByFact', 'years'],
+        ['maxVehicleAgeYearsByFact', 'years'],
       ] as const;
       const optionCodes: Record<string, readonly string[]> = {};
       for (const [slot] of slots) {

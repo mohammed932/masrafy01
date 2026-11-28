@@ -132,9 +132,12 @@ export function validateFactGrid(args: {
       return fail('axis_fact_unavailable', { availableFacts: registry.map((f) => f.key) });
     }
     // Two axes on one fact is a table an operator cannot read back: both would resolve to
-    // the same answer and the second would only ever narrow the first.
-    if (seen.has(factKey)) return fail('axis_duplicate', { factKey });
-    seen.add(factKey);
+    // the same answer and the second would only ever narrow the first. One read directly and
+    // one read through its parent (`via: 'parentClass'`, brand and its category) are two
+    // different keys, which is how the car pricing card ranks a brand above its category.
+    const axisId = `${factKey}|${axis.via === 'parentClass' ? 'parent' : ''}`;
+    if (seen.has(axisId)) return fail('axis_duplicate', { factKey });
+    seen.add(axisId);
 
     // A tenor ceiling keyed on the term computes the thing it is deciding.
     if (valueKind === 'months' && factKey === TENOR_MONTHS_FACT_KEY) {

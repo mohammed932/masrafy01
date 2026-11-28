@@ -60,7 +60,24 @@ export interface PlanDefaults {
   readonly carInsuranceRateByFact?: FactGridConfig;
   /** The car's age at the end of the loan, in years (2026-11-20) — a term cap. */
   readonly maxCarAgeAtEndYearsByFact?: FactGridConfig;
+  /** Interest-free years (v37.0.0) — a term inside them is priced at 0%. */
+  readonly interestFreeYearsByFact?: FactGridConfig;
+  /** The oldest the car may be today, in years (v37.0.0) — older is refused. */
+  readonly maxVehicleAgeYearsByFact?: FactGridConfig;
 }
+
+/**
+ * The car pricing card's axes, in the order the grid ranks them (v37.0.0): the deposit band,
+ * then a brand, then the fuel, then the brand's category. An earlier axis outranks every later
+ * one together, so a brand exception beats electric, electric beats a category, and all three
+ * beat the plain row.
+ */
+export const CAR_PRICING_AXES = [
+  { factKey: 'car_down_payment_percent' },
+  { factKey: 'what_brand_is_the_car' },
+  { factKey: 'car_fuel_type' },
+  { factKey: 'what_brand_is_the_car', via: 'parentClass' },
+] as const;
 
 export const PLANS_SOURCES = ['product', 'own'] as const;
 export type PlansSource = (typeof PLANS_SOURCES)[number];
@@ -74,6 +91,8 @@ const PLAN_SLOTS = [
   'minAmountByFact',
   'carInsuranceRateByFact',
   'maxCarAgeAtEndYearsByFact',
+  'interestFreeYearsByFact',
+  'maxVehicleAgeYearsByFact',
 ] as const satisfies ReadonlyArray<keyof PlanDefaults>;
 
 /**
@@ -137,9 +156,15 @@ export function effectivePlanPricing(
   source: unknown,
   defaults: PlanDefaults | undefined,
 ): PricingConfig {
-  if (!inheritsProductPlans(source) || defaults?.rateByFact === undefined) return pricing;
-  if (pricing.rateByFact !== undefined) return pricing;
-  return { ...pricing, rateByFact: defaults.rateByFact };
+  if (!inheritsProductPlans(source) || defaults === undefined) return pricing;
+  const rate = pricing.rateByFact ?? defaults.rateByFact;
+  const free = pricing.interestFreeYearsByFact ?? defaults.interestFreeYearsByFact;
+  if (rate === pricing.rateByFact && free === pricing.interestFreeYearsByFact) return pricing;
+  return {
+    ...pricing,
+    ...(rate !== undefined ? { rateByFact: rate } : {}),
+    ...(free !== undefined ? { interestFreeYearsByFact: free } : {}),
+  };
 }
 
 export function effectivePlanTenor(
@@ -151,10 +176,12 @@ export function effectivePlanTenor(
   const max = tenor.maxMonthsByFact ?? defaults.maxMonthsByFact;
   const min = tenor.minMonthsByFact ?? defaults.minMonthsByFact;
   const ageAtEnd = tenor.maxCarAgeAtEndYearsByFact ?? defaults.maxCarAgeAtEndYearsByFact;
+  const ageNow = tenor.maxVehicleAgeYearsByFact ?? defaults.maxVehicleAgeYearsByFact;
   if (
     max === tenor.maxMonthsByFact &&
     min === tenor.minMonthsByFact &&
-    ageAtEnd === tenor.maxCarAgeAtEndYearsByFact
+    ageAtEnd === tenor.maxCarAgeAtEndYearsByFact &&
+    ageNow === tenor.maxVehicleAgeYearsByFact
   ) {
     return tenor;
   }
@@ -163,6 +190,7 @@ export function effectivePlanTenor(
     ...(max !== undefined ? { maxMonthsByFact: max } : {}),
     ...(min !== undefined ? { minMonthsByFact: min } : {}),
     ...(ageAtEnd !== undefined ? { maxCarAgeAtEndYearsByFact: ageAtEnd } : {}),
+    ...(ageNow !== undefined ? { maxVehicleAgeYearsByFact: ageNow } : {}),
   };
 }
 

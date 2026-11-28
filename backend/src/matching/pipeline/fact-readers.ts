@@ -247,7 +247,9 @@ export function factsReadByLoanLimits(raw: unknown): Set<string> {
  */
 export function factsReadByPricing(raw: unknown): Set<string> {
   if (!isRecord(raw)) return new Set<string>();
-  return gridAxisKeys(raw.rateByFact);
+  const keys = gridAxisKeys(raw.rateByFact);
+  for (const key of gridAxisKeys(raw.interestFreeYearsByFact)) keys.add(key);
+  return keys;
 }
 
 /** Every fact key a bank program's TENOR ceiling, floor and vehicle-age refusal read. */
@@ -428,7 +430,10 @@ export function factSurfacesOfProgram(row: FactReaderProgramRow): Map<string, Fa
     }
     grid(limits.minAmountByFact, 'min_amount');
   }
-  if (isRecord(row.pricing)) grid(row.pricing.rateByFact, 'rate_grid');
+  if (isRecord(row.pricing)) {
+    grid(row.pricing.rateByFact, 'rate_grid');
+    grid(row.pricing.interestFreeYearsByFact, 'rate_grid');
+  }
   if (isRecord(row.tenor)) {
     grid(row.tenor.maxMonthsByFact, 'max_term');
     grid(row.tenor.minMonthsByFact, 'min_term');

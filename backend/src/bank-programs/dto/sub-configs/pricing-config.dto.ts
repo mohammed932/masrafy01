@@ -86,6 +86,11 @@ export class PricingConfigDto {
   @ValidateNested()
   @Type(() => FactGridDto)
   rateByFact?: FactGridDto;
+  /** Interest-free years, keyed like `rateByFact` (v37.0.0). */
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  interestFreeYearsByFact?: FactGridDto;
   @IsOptional() @IsObject() rateByDownPaymentPercent?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByAssetValueBand?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByLoanAmountBand?: Record<string, RateBandLike>;

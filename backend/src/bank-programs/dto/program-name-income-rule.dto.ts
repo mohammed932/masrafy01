@@ -725,6 +725,18 @@ export class SurrogateProductPlansDto {
   @ValidateNested()
   @Type(() => FactGridDto)
   maxCarAgeAtEndYearsByFact?: FactGridDto;
+
+  @ApiPropertyOptional({ description: 'Interest-free years, by deposit (v37.0.0)' })
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  interestFreeYearsByFact?: FactGridDto;
+
+  @ApiPropertyOptional({ description: 'The oldest the car may be today, years (v37.0.0)' })
+  @ValidateIf((_, value) => value !== undefined)
+  @ValidateNested()
+  @Type(() => FactGridDto)
+  maxVehicleAgeYearsByFact?: FactGridDto;
 }
 
 /**

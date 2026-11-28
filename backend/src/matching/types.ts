@@ -193,6 +193,11 @@ export interface PricingConfig {
    * before it existed, so the cascade is unchanged for all of them.
    */
   rateByFact?: FactGridConfig;
+  /**
+   * Interest-free years (v37.0.0), keyed like `rateByFact`: when the loan's term fits inside
+   * the years matched, the whole loan is priced at 0%. A longer term pays the matched rate.
+   */
+  interestFreeYearsByFact?: FactGridConfig;
   rateByDownPaymentPercent?: RateBandMap;
   rateByAssetValueBand?: RateBandMap;
   rateByLoanAmountBand?: RateBandMap;
@@ -928,6 +933,8 @@ export interface CascadeTrace {
   appliedCaseId?: string;
   /** Its position in the bank's list, from 1, as the operator reads it. */
   appliedCaseNumber?: number;
+  /** True when the term fit inside the program's interest-free years and was priced at 0%. */
+  interestFree?: boolean;
 }
 
 export interface FeesBreakdown {

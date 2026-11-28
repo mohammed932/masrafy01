@@ -590,7 +590,28 @@ export function quoteProgram(raw: QuoteInput): QuoteOutcome {
   // The answers' rate points, added AFTER the misconfiguration check so a program the bank
   // never priced is still reported as such rather than priced at the points alone. Every
   // reader below — the ceiling conversion, the fees and the instalment — takes this rate.
-  const ratePercent = applyAnswerEffectsToRate(cascadeRatePercent, answerEffects);
+  //
+  // Interest-free years (v37.0.0): keyed like the rate table; when the term fits inside the
+  // years matched, the WHOLE loan is priced at 0% — no answer points on top of nothing.
+  const freeGrid = program.pricing?.interestFreeYearsByFact;
+  const freeHit =
+    freeGrid === undefined
+      ? undefined
+      : resolveFactGrid({
+          config: freeGrid,
+          facts: firstPass.ctx.facts ?? programFacts,
+          ...(input.parentKeyByValue !== undefined
+            ? { parentKeyByValue: input.parentKeyByValue }
+            : {}),
+        });
+  const interestFree =
+    freeHit !== undefined &&
+    freeHit.matched &&
+    freeHit.value.greaterThan(0) &&
+    new Decimal(tenorPlan.months).lessThanOrEqualTo(freeHit.value.times(12));
+  const ratePercent = interestFree
+    ? new Decimal(0)
+    : applyAnswerEffectsToRate(cascadeRatePercent, answerEffects);
 
   // ── 2. Income ───────────────────────────────────────────────────────────
   //
@@ -1277,6 +1298,7 @@ export function quoteProgram(raw: QuoteInput): QuoteOutcome {
       cascadeTrace: {
         ...buildCascadeTrace(cascade),
         ...(answerEffects.length > 0 ? { answerEffects } : {}),
+        ...(interestFree ? { interestFree: true } : {}),
       },
     },
   };
