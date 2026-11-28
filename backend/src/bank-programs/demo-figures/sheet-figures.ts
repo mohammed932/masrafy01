@@ -52,6 +52,7 @@
  * belongs to this decision rather than to the tables.
  */
 
+import { SCB_CARD } from './car-card-grids';
 import { LoanCategory } from '@prisma/client';
 
 /** A path into a program's or a product's config that is an estimate, not a published figure. */
@@ -262,28 +263,8 @@ export const SCB_AUTO_PLANS: Readonly<
     unknown
   >
 > = {
-  rateByFact: {
-    axes: [
-      { factKey: 'car_down_payment_percent' },
-      { factKey: 'car_origin' },
-      { factKey: 'car_fuel_type' },
-    ],
-    cells: [
-      [dpBand('20', '30'), '10', '12', '9'],
-      [dpBand('30', '40'), '9', '11', '8'],
-      [dpBand('40', '50'), '8', '10', '7'],
-      [dpBand('50', '60'), '7', '9', '6'],
-      [dpBand('60', null), '6', '8', '5'],
-    ].flatMap(([band, base, china, green]) => [
-      { keys: [band, null, null], value: base },
-      { keys: [band, { key: 'china' }, null], value: china },
-      { keys: [band, null, { key: 'electric' }], value: green },
-      { keys: [band, null, { key: 'hybrid' }], value: green },
-    ]),
-    // A deposit below the lowest tier is a loan this bank does not write, and a rate is the
-    // one figure there is no safe fallback for.
-    onNoMatch: 'reject',
-  },
+  // The car pricing card's axes (v37.0.0): rows by deposit, Chinese and electric as exceptions.
+  rateByFact: SCB_CARD.rateByFact,
 
   /**
    * The share financed, and the ONE place the 20% tier's home-ownership rule now lives.
@@ -308,17 +289,7 @@ export const SCB_AUTO_PLANS: Readonly<
   },
 
   /** App. §4.2 — 6–84 months across the card; the shortest tier is held to less. */
-  maxMonthsByFact: {
-    axes: [{ factKey: 'car_down_payment_percent' }],
-    cells: [
-      { keys: [dpBand('20', '30')], value: '60' },
-      { keys: [dpBand('30', '40')], value: '72' },
-      { keys: [dpBand('40', null)], value: '84' },
-    ],
-    // A term CEILING has a safe fallback and a rate does not: the programme's own 6–84 still
-    // applies, which is what every programme without a table does.
-    onNoMatch: 'useFallback',
-  },
+  maxMonthsByFact: SCB_CARD.maxMonthsByFact,
 
   /**
    * App. §4.2 — the 20% tier alone starts at a million; the rest start at 100,000.
@@ -352,18 +323,7 @@ export const SCB_AUTO_PLANS: Readonly<
    * and both cells are in `estimated` below, exactly as all twenty rate cells are. The band
    * EDGES are the sheet's own and are not marked.
    */
-  carInsuranceRateByFact: {
-    axes: [{ factKey: 'car_down_payment_percent' }],
-    cells: [
-      { keys: [dpBand('20', '30')], value: '1' },
-      { keys: [dpBand('30', '40')], value: '1' },
-    ],
-    // Stated because the shape demands one, and never read: `car-insurance.ts` treats every
-    // miss as "no cover required". `useFallback` is the honest spelling of that — a `reject`
-    // here would mean a table of COSTS refusing an applicant the rate and share tables have
-    // already priced.
-    onNoMatch: 'useFallback',
-  },
+  carInsuranceRateByFact: SCB_CARD.carInsuranceRateByFact,
 
   // `minMonthsByFact` is deliberately ABSENT. Every tier on this card starts at 6 months,
   // which is already the product's own `tenorDefaults.minMonths` — a table stating 6 five

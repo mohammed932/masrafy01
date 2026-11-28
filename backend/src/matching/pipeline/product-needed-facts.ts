@@ -173,6 +173,9 @@ function readGrid(grid: unknown, reader: NeededReader, out: Collector): void {
         banded = true;
       }
     }
+    // An axis no cell keys is never consulted, so it needs nothing (v37.0.0 — see
+    // `gridAxisKeys` in fact-readers.ts).
+    if (!banded && keys.length === 0) return;
     const seen: Seen | null = banded
       ? { kind: 'number' }
       : keys.length > 0

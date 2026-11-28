@@ -184,7 +184,7 @@ import { CAR_FIGURE_LABEL, CAR_FIGURE_UNIT, carBandText, carExceptionSentence } 
         <dl class="terms" aria-label="Key terms" i18n-aria-label="@@bpd.terms.aria">
           <div class="term">
             <dt i18n="@@bpd.term.rate">Rate</dt>
-            <dd class="numeric">{{ n(headlineRate(p)) }}<span class="unit">%</span></dd>
+            <dd class="numeric"><bdi dir="ltr">{{ headlineRate(p) }}</bdi><span class="unit">%</span></dd>
             <span class="term-hint">{{ rateBasisLabel(p) }}</span>
           </div>
           <div class="term">
@@ -1393,9 +1393,24 @@ export class BankProgramDetailPage {
 
   /** The one rate a desk quotes: the live one on a variable program, the base one otherwise. */
   protected headlineRate(p: BankProgramResponse): string {
+    // A car program on the pricing card is quoted at its bands' rates — "15–20", not the base.
+    const card = this.carPricingOf(p);
+    if (card !== null) {
+      const rates = [
+        ...card.pricing.rows.map((r) => r.rate),
+        ...card.pricing.exceptions.map((e) => e.figures.rate),
+      ]
+        .filter((r): r is string => r !== undefined && r !== '')
+        .map(Number);
+      if (rates.length > 0) {
+        const lo = this.n(String(Math.min(...rates)));
+        const hi = this.n(String(Math.max(...rates)));
+        return lo === hi ? lo : `${lo}–${hi}`;
+      }
+    }
     const q = this.quotedPricing(p);
     const rate = q.isVariableRate ? q.currentEffectiveRatePercent : q.baseRatePercent;
-    return rate ?? '—';
+    return this.n(rate ?? '—');
   }
 
   /**

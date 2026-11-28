@@ -512,8 +512,11 @@ function buildAnswers(spec: AppSpec): Record<string, AnswerValue> {
       numericValue:
         spec.category === 'car' ? byStrength('2024', '2021', '2016') : '2024',
     },
-    car_origin: {
-      optionCode: spec.category === 'car' ? byStrength('germany', 'japan', 'china') : 'germany',
+    car_category: {
+      optionCode: spec.category === 'car' ? byStrength('european', 'japanese', 'chinese') : 'european',
+    },
+    what_brand_is_the_car: {
+      optionCode: spec.category === 'car' ? byStrength('bmw', 'toyota', 'byd') : 'bmw',
     },
     car_insurance: {
       optionCode:

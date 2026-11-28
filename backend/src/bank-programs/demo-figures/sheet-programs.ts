@@ -22,6 +22,7 @@
  * a Major's 30,000 assumed income would stop implying the 15,000 capacity §13.5 asserts.
  */
 
+import { CAE_EV, CAE_NEW, CAE_USED } from './car-card-grids';
 import { PRODUCT_RULE_STRATEGY } from '@/matching/types';
 import type { CreateBankProgramDto } from '../dto/create-bank-program.dto';
 import type { FactGridDto } from '../dto/sub-configs/fact-grid.dto';
@@ -435,6 +436,11 @@ function banded(
  */
 const CAE_RATE = '19';
 const CAE_ADMIN_FEE = '1';
+/** The card's rate on every deposit band is the same placeholder as the base rate (v37.0.0). */
+const caeEstimated = (grids: { rateByFact?: { cells: readonly unknown[] } }): EstimatedPaths => [
+  ...CAE_ESTIMATED,
+  ...Array.from({ length: grids.rateByFact?.cells.length ?? 0 }, (_, i) => `pricing.rateByFact.cells.${i}.value`),
+];
 const CAE_ESTIMATED: EstimatedPaths = [
   'pricing.baseRatePercent',
   'pricing.rateByTransferType.none.value',
@@ -469,20 +475,16 @@ const CAE_ESTIMATED: EstimatedPaths = [
  * claims it: the eleven origins below are the two rows the question can actually answer.
  */
 const CAE_MAX_LOAN_BY_ORIGIN = {
-  factKey: 'car_origin',
+  // v37.0.0: keyed by the car's CATEGORY (the applicant answers it) — the guide's European,
+  // Japanese & Korean 7 MEGP, everything else 4 MEGP.
+  factKey: 'car_category',
   onNoMatch: 'reject' as const,
   rows: [
-    { rowKey: 'germany', maxAmountEGP: '7000000' },
-    { rowKey: 'japan', maxAmountEGP: '7000000' },
-    { rowKey: 'korea', maxAmountEGP: '7000000' },
-    { rowKey: 'france', maxAmountEGP: '7000000' },
-    { rowKey: 'italy', maxAmountEGP: '7000000' },
-    { rowKey: 'spain', maxAmountEGP: '7000000' },
-    { rowKey: 'czechia', maxAmountEGP: '7000000' },
-    { rowKey: 'usa', maxAmountEGP: '4000000' },
-    { rowKey: 'china', maxAmountEGP: '4000000' },
-    { rowKey: 'egypt', maxAmountEGP: '4000000' },
-    { rowKey: 'other_origin', maxAmountEGP: '4000000' },
+    { rowKey: 'european', maxAmountEGP: '7000000' },
+    { rowKey: 'japanese', maxAmountEGP: '7000000' },
+    { rowKey: 'korean', maxAmountEGP: '7000000' },
+    { rowKey: 'american', maxAmountEGP: '4000000' },
+    { rowKey: 'chinese', maxAmountEGP: '4000000' },
   ],
 };
 
@@ -1342,18 +1344,8 @@ const SPECS: readonly ProgramSpec[] = [
     // Keyed by the down payment first (2026-11-20) so the program page draws it in the one
     // plan table, from the band the financed-share table starts at; below it the program
     // refuses anyway.
-    maxMonthsByFact: {
-      axes: [
-        { factKey: 'car_down_payment_percent' },
-        { factKey: 'car_origin' },
-        { factKey: 'car_dealer' },
-      ],
-      cells: [
-        { keys: [dpBand('20', null), { key: 'china' }, null], value: '60' },
-        { keys: [dpBand('20', null), { key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
-      ],
-      onNoMatch: 'useFallback',
-    },
+    maxMonthsByFact: CAE_NEW.maxMonthsByFact,
+    rateByFact: CAE_NEW.rateByFact,
     maxLoanByFact: CAE_MAX_LOAN_BY_ORIGIN,
     ratePercent: CAE_RATE,
     adminFeePercent: CAE_ADMIN_FEE,
@@ -1363,7 +1355,7 @@ const SPECS: readonly ProgramSpec[] = [
     ageMaxSelfEmployed: 65,
     dbrCapPercent: '50',
     requiredDocuments: CAE_AUTO_DOCUMENTS,
-    estimated: CAE_ESTIMATED,
+    estimated: caeEstimated(CAE_NEW),
   }),
   program({
     programCode: 'CAE-CAR-USED_CAR',
@@ -1431,18 +1423,9 @@ const SPECS: readonly ProgramSpec[] = [
     // Keyed by the down payment first (2026-11-20) so the program page draws it in the one
     // plan table, from the band the financed-share table starts at; below it the program
     // refuses anyway.
-    maxMonthsByFact: {
-      axes: [
-        { factKey: 'car_down_payment_percent' },
-        { factKey: 'car_origin' },
-        { factKey: 'car_dealer' },
-      ],
-      cells: [
-        { keys: [dpBand('40', null), { key: 'china' }, null], value: '60' },
-        { keys: [dpBand('40', null), { key: 'china' }, { key: 'ghabbour_mansour' }], value: '84' },
-      ],
-      onNoMatch: 'useFallback',
-    },
+    maxMonthsByFact: CAE_USED.maxMonthsByFact,
+    rateByFact: CAE_USED.rateByFact,
+    maxVehicleAgeYearsByFact: CAE_USED.maxVehicleAgeYearsByFact,
     /**
      * The used-car age table — a REFUSAL, not a term. Same axes as the term grid above and
      * safely so: the applicant's age is compared OUTSIDE this grid (`quote.ts`), never as a
@@ -1459,47 +1442,15 @@ const SPECS: readonly ProgramSpec[] = [
      * `useFallback` here means "this table has nothing to say about this applicant" — an
      * unanswered origin or dealer is not refused, matching the optional questions it reads.
      */
-    maxVehicleAgeYearsByFact: {
-      axes: [{ factKey: 'car_origin' }, { factKey: 'car_dealer' }],
-      cells: [
-        { keys: [{ key: 'germany' }, null], value: '8' },
-        { keys: [{ key: 'japan' }, null], value: '8' },
-        { keys: [{ key: 'korea' }, null], value: '8' },
-        { keys: [{ key: 'france' }, null], value: '8' },
-        { keys: [{ key: 'italy' }, null], value: '8' },
-        { keys: [{ key: 'spain' }, null], value: '8' },
-        { keys: [{ key: 'czechia' }, null], value: '8' },
-        { keys: [{ key: 'usa' }, null], value: '8' },
-        { keys: [{ key: 'egypt' }, null], value: '8' },
-        { keys: [{ key: 'other_origin' }, null], value: '8' },
-        { keys: [{ key: 'china' }, null], value: '5' },
-        { keys: [{ key: 'china' }, { key: 'ghabbour_mansour' }], value: '8' },
-      ],
-      onNoMatch: 'useFallback',
-    },
     maxLoanByFact: CAE_MAX_LOAN_BY_ORIGIN,
     /**
      * The guide's mileage ceiling (p24), as two Loan Engine conditions: an economy car is
      * refused above 40,000 km a year, a luxury one above 100,000. "Economy, or a luxury car"
      * is the OR that lets a luxury car past the first; the second binds everyone.
      */
-    conditions: [
-      {
-        id: 'economy_km',
-        anyOf: [
-          { factKey: 'how_many_kilometres_does_the_car_drive_a_year', key: { toInclusive: '40000' } },
-          { factKey: 'what_kind_of_car_is_it', key: { key: 'luxury' } },
-        ],
-        reasonCode: 'GATE_NOT_MET',
-      },
-      {
-        id: 'luxury_km',
-        anyOf: [
-          { factKey: 'how_many_kilometres_does_the_car_drive_a_year', key: { toInclusive: '100000' } },
-        ],
-        reasonCode: 'GATE_NOT_MET',
-      },
-    ],
+    // The guide's mileage ceiling read the car class and kilometres a year, both retired
+    // with the car flow (v37.0.0) — written as no conditions so the seed clears them.
+    conditions: [],
     ratePercent: CAE_RATE,
     adminFeePercent: CAE_ADMIN_FEE,
     // The used-car pages raise the floor to 25. The new-car ones say 21.
@@ -1509,7 +1460,7 @@ const SPECS: readonly ProgramSpec[] = [
     ageMaxSelfEmployed: 65,
     dbrCapPercent: '50',
     requiredDocuments: CAE_AUTO_DOCUMENTS,
-    estimated: CAE_ESTIMATED,
+    estimated: caeEstimated(CAE_USED),
   }),
   program({
     programCode: 'CAE-CAR-EV',
@@ -1550,49 +1501,16 @@ const SPECS: readonly ProgramSpec[] = [
     // What makes this the EV programme. Rows for the two fuels it is sold against and none
     // for petrol, so `reject` refuses a petrol car HERE while the petrol card prices it
     // normally — the programme stays listed with a reason (Principle V / A33), never filtered.
-    maxMonthsByFact: {
-      // THREE axes, because this one table answers two questions at once: which fuels the
-      // programme is sold against at all, and how long a Chinese one is financed for.
-      //
-      // `specificity()` is a bitmask with axis 0 most significant, so the cells are tried
-      // 3-stated, then 2-stated, then 1-stated: a Chinese electric car from Ghabbour lands on
-      // 84, any other Chinese electric car on 60, and every other electric car on the
-      // programme's own 84. Stating the Chinese rows for BOTH fuels is not duplication — a
-      // wildcard on axis 0 would also match petrol, and petrol matching anything at all is
-      // what this grid exists to prevent.
-      // Down payment first (2026-11-20), from the 35% the financed-share table starts at.
-      axes: [
-        { factKey: 'car_down_payment_percent' },
-        { factKey: 'car_fuel_type' },
-        { factKey: 'car_origin' },
-        { factKey: 'car_dealer' },
-      ],
-      cells: [
-        { keys: [dpBand('35', null), { key: 'electric' }, null, null], value: '84' },
-        { keys: [dpBand('35', null), { key: 'hybrid' }, null, null], value: '84' },
-        { keys: [dpBand('35', null), { key: 'electric' }, { key: 'china' }, null], value: '60' },
-        { keys: [dpBand('35', null), { key: 'hybrid' }, { key: 'china' }, null], value: '60' },
-        {
-          keys: [
-            dpBand('35', null),
-            { key: 'electric' },
-            { key: 'china' },
-            { key: 'ghabbour_mansour' },
-          ],
-          value: '84',
-        },
-        {
-          keys: [
-            dpBand('35', null),
-            { key: 'hybrid' },
-            { key: 'china' },
-            { key: 'ghabbour_mansour' },
-          ],
-          value: '84',
-        },
-      ],
-      onNoMatch: 'reject',
-    },
+    maxMonthsByFact: CAE_EV.maxMonthsByFact,
+    rateByFact: CAE_EV.rateByFact,
+    // Sold against an electric car only — the card cannot refuse, so a condition does (v37.0.0).
+    conditions: [
+      {
+        id: 'electric_only',
+        anyOf: [{ factKey: 'car_fuel_type', key: { key: 'electric' } }],
+        reasonCode: 'GATE_NOT_MET',
+      },
+    ],
     maxLoanByFact: CAE_MAX_LOAN_BY_ORIGIN,
     ratePercent: CAE_RATE,
     adminFeePercent: CAE_ADMIN_FEE,
@@ -1602,7 +1520,7 @@ const SPECS: readonly ProgramSpec[] = [
     ageMaxSelfEmployed: 65,
     dbrCapPercent: '50',
     requiredDocuments: CAE_AUTO_DOCUMENTS,
-    estimated: CAE_ESTIMATED,
+    estimated: caeEstimated(CAE_EV),
   }),
 
   // -------------------------------------------------------------------------

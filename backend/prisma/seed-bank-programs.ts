@@ -36,6 +36,7 @@
  * DEV DATA: figures are plausible Egyptian-market placeholders, not contracted
  * terms.
  */
+import { CAR_PRICING_DEMO as CAR_PRICING_DEMO_GRIDS } from '../src/bank-programs/demo-figures/car-card-grids';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import {
@@ -400,58 +401,26 @@ export async function seedBankPrograms(actorStaffId?: string): Promise<void> {
   console.log(
     `[seed-bank-programs] ${created} created, ${updated} updated, ${skipped} left untouched.`,
   );
-  await seedNestedCarDemo();
+  await seedCarPricingDemo();
 }
 
 /**
- * A demo car program that prices on the car list's nested answers (v36.6.1), so a fresh machine
- * shows what Cases do: Bank NXT's "New Car", its figures copied from the bank's used-car
- * program, five cases read top to bottom. Created once; after that it is the operator's.
+ * A demo car program on the car pricing card (v37.0.0), so a fresh machine shows how a car loan
+ * is priced: Bank NXT's "New Car", its other figures copied from the bank's used-car program,
+ * rates by down payment, a brand rate, an electric and a European term and interest-free years
+ * on the top band (no oldest car: that is a used-car figure). Created once; after that it is the operator's.
  */
-const NESTED_CAR_DEMO = {
+const CAR_PRICING_DEMO = {
   programCode: 'NXT-CAR-NEW_CAR',
   copyFrom: 'NXT-CAR-USED_CAR',
   programNameKey: 'new_car',
-  friendlyName: 'Nested car demo',
-  friendlyNameAr: 'عرض السيارات المتداخل',
-  cases: [
-    {
-      id: 'case_1',
-      allOf: [
-        { factKey: 'what_brand_is_the_car', key: { key: 'mercedes_benz' } },
-        { factKey: 'what_model_is_the_car', key: { key: 'mercedes_benz_c_200' } },
-      ],
-      effects: { ratePercent: '11' },
-    },
-    {
-      id: 'case_2',
-      allOf: [{ factKey: 'what_brand_is_the_car', key: { key: 'mercedes_benz' } }],
-      effects: { ratePercent: '13' },
-    },
-    {
-      id: 'case_3',
-      allOf: [{ factKey: 'car_origin', key: { key: 'germany' } }],
-      effects: { ratePercent: '15', maxMonths: 72 },
-    },
-    {
-      id: 'case_4',
-      allOf: [
-        { factKey: 'car_origin', key: { key: 'china' } },
-        { factKey: 'car_model_year', key: { toExclusive: '2022' } },
-      ],
-      effects: { ltvCeilingPercent: '50', maxMonths: 48 },
-    },
-    {
-      id: 'case_5',
-      allOf: [{ factKey: 'what_brand_is_the_car', key: { key: 'chery' } }],
-      effects: {},
-      refuse: true,
-    },
-  ],
+  friendlyName: 'Car pricing demo',
+  friendlyNameAr: 'عرض تسعير السيارات',
+  maxMonths: 96,
 } as const;
 
-async function seedNestedCarDemo(): Promise<void> {
-  const demo = NESTED_CAR_DEMO;
+async function seedCarPricingDemo(): Promise<void> {
+  const demo = CAR_PRICING_DEMO;
   if (await prisma.bankProgram.findUnique({ where: { programCode: demo.programCode }, select: { id: true } })) {
     return;
   }
@@ -476,22 +445,30 @@ async function seedNestedCarDemo(): Promise<void> {
       isShariaCompliant: source.isShariaCompliant,
       requiredDocuments: source.requiredDocuments,
       operatorTips: [],
-      tenor: json(source.tenor),
+      tenor: {
+        ...(source.tenor as Record<string, unknown>),
+        maxMonths: demo.maxMonths,
+        maxMonthsByFact: CAR_PRICING_DEMO_GRIDS.maxMonthsByFact,
+      } as unknown as Prisma.InputJsonValue,
       loanLimits: json(source.loanLimits),
-      pricing: json(source.pricing),
+      pricing: {
+        ...(source.pricing as Record<string, unknown>),
+        rateByFact: CAR_PRICING_DEMO_GRIDS.rateByFact,
+        interestFreeYearsByFact: CAR_PRICING_DEMO_GRIDS.interestFreeYearsByFact,
+      } as unknown as Prisma.InputJsonValue,
       eligibility: json(source.eligibility),
       ...(source.performanceCriteria !== null
         ? { performanceCriteria: json(source.performanceCriteria) }
         : {}),
       incomeAssumption: json(source.incomeAssumption),
       fees: json(source.fees),
-      plansSource: source.plansSource,
-      cases: demo.cases as unknown as Prisma.InputJsonValue,
+      plansSource: 'own',
+      cases: [],
       createdBy: actor,
       updatedBy: actor,
     },
   });
-  console.log(`[seed-bank-programs] demo ${demo.programCode} (Nested car demo) created.`);
+  console.log(`[seed-bank-programs] demo ${demo.programCode} (Car pricing demo) created.`);
 }
 
 async function resolveSeedActor(): Promise<string | null> {

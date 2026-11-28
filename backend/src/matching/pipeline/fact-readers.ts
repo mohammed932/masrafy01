@@ -304,10 +304,18 @@ export function factsReadByFees(raw: unknown): Set<string> {
 function gridAxisKeys(raw: unknown): Set<string> {
   const keys = new Set<string>();
   if (!isRecord(raw) || !Array.isArray(raw.axes)) return keys;
-  for (const axis of raw.axes) {
+  const cells = Array.isArray(raw.cells) ? raw.cells : [];
+  for (const [index, axis] of raw.axes.entries()) {
     if (!isRecord(axis)) continue;
     const key = axis.factKey;
     if (typeof key !== 'string' || key === '') continue;
+    // An axis no cell keys is never consulted — every cell is a wildcard there — so it reads
+    // nothing (v37.0.0: the car pricing card carries the fuel axis on every grid, and a card
+    // with no electric exception must not make "gas or electric?" asked).
+    const keyed = cells.some(
+      (cell) => isRecord(cell) && Array.isArray(cell.keys) && cell.keys[index] !== null && cell.keys[index] !== undefined,
+    );
+    if (!keyed) continue;
     if (isGridOnlyFactKey(key)) {
       for (const input of DERIVED_FACT_INPUTS[key] ?? []) keys.add(input);
       continue;
@@ -387,8 +395,13 @@ export function factSurfacesOfProgram(row: FactReaderProgramRow): Map<string, Fa
     // it is computed from, so those are the questions this table needs. Not a refusal on a
     // blank: the inputs behind a derived key are asked as their own required questions.
     if (isRecord(raw) && Array.isArray(raw.axes)) {
-      for (const axis of raw.axes) {
+      const cells = Array.isArray(raw.cells) ? raw.cells : [];
+      for (const [index, axis] of raw.axes.entries()) {
         if (!isRecord(axis) || typeof axis.factKey !== 'string') continue;
+        const keyed = cells.some(
+          (cell) => isRecord(cell) && Array.isArray(cell.keys) && cell.keys[index] !== null && cell.keys[index] !== undefined,
+        );
+        if (!keyed) continue;
         for (const input of DERIVED_FACT_INPUTS[axis.factKey] ?? []) add(input, surface);
       }
     }
