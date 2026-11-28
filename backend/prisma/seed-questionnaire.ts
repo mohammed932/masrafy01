@@ -21,7 +21,7 @@ import {
   TRANSFER_ANSWERS,
 } from '../src/matching/pipeline/base-question-set';
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
-import { CAR_BRANDS, CAR_COUNTRIES, CAR_MODELS } from './data/car-list.data';
+import { CAR_BRANDS, CAR_CATEGORIES } from './data/car-list.data';
 import { CAR_QUESTION_CODES } from '../src/questionnaire/car-questions';
 import { bankSlug } from '../src/matching/pipeline/bank-relationship';
 import {
@@ -505,65 +505,6 @@ const CAR_DOWN_PAYMENT_Q: SeedQuestion = {
 };
 
 /**
- * The car itself: where it was built, what year it is, and whether it will be insured.
- *
- * ─── Why the platform asks the COUNTRY and not the bank's grouping ────────────
- *
- * ADIB's used-car card groups "German / Japanese / American" on one row and "Korean / French
- * / Czech / Spanish / Italian" on another; the next bank will group differently, and the doc
- * already prints two ADIB sheets that disagree with each other. So the platform asks the one
- * thing that is a fact about the car — where it was built — and each bank states which
- * countries share a row in its own table (Principle II / A1). Exactly the governorate
- * precedent: 27 of them, and every bank tiers them its own way.
- *
- * Codes are stated rather than slugged from the label, for the reason `GREEN_BUYER_TYPE_Q`
- * states: they are the keys a bank's grid is written against, and a reworded label must not
- * move a row.
- *
- * ─── Why OPTIONAL, having first made them required ────────────────────────────
- *
- * They shipped REQUIRED, on the reasoning that a grid reading an unanswered axis refuses at
- * the END of the flow, so asking up front is one tap instead of a wasted application. That
- * reasoning is sound and the decision was still wrong, because of what `car` contains.
- *
- * The `car` loan type is not only cars. Both Suez Canal GREEN FINANCE programmes are sold
- * under it — a solar installation for a flat, and an e-bike — and a required question cannot
- * be narrowed away from them. `question-scope.ts`'s `isCore` keeps any question whose fact no
- * live `surrogate_product_ask` row points at (clause 4), which is true of all three, so the
- * per-programme narrowing does not drop them however the catalog name is picked. A solar
- * applicant was being made to state the model year, country of origin and insurance status of
- * a car they are not buying, and could not submit without inventing all three.
- *
- * There is no gate available either: `enabledWhen` names exactly ONE option code of ONE other
- * question, and no question asks what is being bought — the catalog NAME carries that, and the
- * name is not a question.
- *
- * So: optional, and the cost moves rather than disappearing. A programme that states a vehicle
- * table and meets an unanswered axis answers `VEHICLE_NOT_ELIGIBLE` carrying `missingFactKeys`,
- * which the mobile card already renders as the list of questions to go back and answer. That
- * is a worse first experience for a car buyer than being asked up front — and it is the only
- * option that does not refuse a solar applicant outright for a question about a car.
- *
- * Insurance still cannot be DEFAULTED in either direction, and optional is not a default: on
- * ADIB's card the no-insurance column sits 0.65–0.80pp ABOVE the insured one in every cell, so
- * assuming "insured" under-quotes and assuming "uninsured" over-quotes. Unanswered stays
- * unanswered, and a programme that needs it says so.
- */
-const CAR_ORIGIN_Q: SeedQuestion = {
-  code: 'car_origin',
-  // REQUIRED since 2026-10-13 (v30.10.0): Crédit Agricole's three car caps are keyed by it with
-  // `onNoMatch: reject`, so an applicant who skipped it got no offer from any of the three.
-  isRequired: true,
-  questionEn: 'Where was the car built?',
-  questionAr: 'أين صُنعت السيارة؟',
-  helperTextEn: 'Some banks finance a car for longer, or at a better rate, depending on where it was made.',
-  helperTextAr: 'بعض البنوك تموّل السيارة لمدة أطول أو بسعر أفضل حسب بلد الصنع.',
-  // The car list's countries (v36.7.0): the list is the authority, the question mirrors it.
-  optionsFromEnum: 'car_country',
-  options: [],
-};
-
-/**
  * What the car runs on.
  *
  * Its OWN question and not an option on `car_origin` above: that one asks where the car was
@@ -587,114 +528,12 @@ const CAR_FUEL_TYPE_Q: SeedQuestion = {
   isRequired: true,
   questionEn: 'What does the car run on?',
   questionAr: 'ما نوع وقود السيارة؟',
-  helperTextEn: 'Some banks price an electric or hybrid car differently.',
-  helperTextAr: 'بعض البنوك تسعّر السيارات الكهربائية أو الهجينة بشكل مختلف.',
+  helperTextEn: 'Some banks price an electric car differently.',
+  helperTextAr: 'بعض البنوك تسعّر السيارات الكهربائية بشكل مختلف.',
   options: [
-    { code: 'petrol_diesel', labelEn: 'Petrol or diesel', labelAr: 'بنزين أو ديزل' },
-    { code: 'hybrid', labelEn: 'Hybrid', labelAr: 'هجينة' },
-    { code: 'electric', labelEn: 'Fully electric', labelAr: 'كهربائية بالكامل' },
+    { code: 'petrol_diesel', labelEn: 'Gas', labelAr: 'بنزين' },
+    { code: 'electric', labelEn: 'Electric', labelAr: 'كهربائية' },
   ],
-};
-
-/**
- * Who is selling the car.
- *
- * Its own question, and it exists for ONE published rule: every page of the Credit Agricole
- * auto guide carries the same General Condition — "Finance all Chinese cars for 60 months
- * except for Chinese cars sold by Ghabbour & Mansour Company tenor to reach 84 Months". The
- * term a Chinese car is financed over therefore depends on the DEALER, and `car_origin`
- * cannot answer that: it says where the car was built, not who is selling it.
- *
- * NOT an option on `car_origin`, for the reason that question's own docblock gives about fuel:
- * a list mixing eleven countries with a dealership is one question answering two things, and
- * an applicant buying a Chinese car from Ghabbour could only pick one of the two facts a
- * bank's grid reads.
- *
- * OPTIONAL, like the four car questions around it. The `car` loan type also sells the two
- * Green Finance programmes and the deposit-secured pair, and a required dealer question would
- * refuse a solar applicant over a showroom. Safe because a grid states a wildcard row beside
- * its named ones — an applicant who skips this is still priced, just not given the Ghabbour
- * extension they never claimed.
- *
- * Option codes are STATED, not slugged: they are the keys a bank's grid is written against,
- * and a reworded label must never move a column.
- */
-const CAR_DEALER_Q: SeedQuestion = {
-  code: 'car_dealer',
-  // Required since v31.0.0: a fixed question for car loans (operator decision), asked of every
-  // car applicant. Only the first run writes it — the admin owns a fixed question after.
-  isRequired: true,
-  questionEn: 'Who are you buying the car from?',
-  questionAr: 'من أين تشتري السيارة؟',
-  helperTextEn: 'Some banks finance a car for longer when it is bought through certain dealers.',
-  helperTextAr: 'بعض البنوك تموّل السيارة لمدة أطول عند شرائها من وكلاء معيّنين.',
-  options: [
-    { code: 'ghabbour_mansour', labelEn: 'Ghabbour or Mansour', labelAr: 'غبور أو منصور' },
-    { code: 'other_authorized', labelEn: 'Another authorised dealer', labelAr: 'وكيل معتمد آخر' },
-    { code: 'individual_seller', labelEn: 'A private seller', labelAr: 'بائع فرد' },
-  ],
-};
-
-/**
- * "Do you want insurance on the car?" — an ORDINARY question, not one of the six car questions
- * ticked on every car program. It is asked only where a bank program reads it: ADIB's used-car
- * card prices a different rate with and without insurance (`adib-programs.ts`), so a program
- * that keys its rate table on this answer makes it asked, and required, there.
- *
- * Option codes are STATED, not slugged: they are the keys a bank's table is written against.
- */
-const CAR_INSURANCE_WANTED_Q: SeedQuestion = {
-  code: 'do_you_want_insurance_on_the_car',
-  isRequired: false,
-  questionEn: 'Do you want insurance on the car?',
-  questionAr: 'هل تريد تأمينًا على السيارة؟',
-  options: [
-    { code: 'with_insurance', labelEn: 'With insurance', labelAr: 'مع تأمين' },
-    { code: 'without_insurance', labelEn: 'Without insurance', labelAr: 'بدون تأمين' },
-  ],
-};
-
-/**
- * Three more ORDINARY car questions (2026-11-22), asked only where a bank program reads them —
- * a condition or a table in the Loan Engine — like the insurance question above. Each code is
- * the slug of its English wording, so a database where the operator created the question on
- * the Questions screen holds the same code this seed would write.
- *
- *   · the car's class — the sheets price, cap and age a luxury car apart (CAE 10M / 12 years,
- *     ADIB's luxury card);
- *   · ADIB's home-verification-only card is sold where the job or degree is printed on the ID;
- *   · CAE refuses a used car driven more than 40,000 km a year (100,000 for a luxury car).
- */
-const CAR_CLASS_Q: SeedQuestion = {
-  code: 'what_kind_of_car_is_it',
-  isRequired: false,
-  questionEn: 'What kind of car is it?',
-  questionAr: 'ما فئة السيارة؟',
-  options: [
-    { code: 'economy', labelEn: 'Economy', labelAr: 'اقتصادية' },
-    { code: 'luxury', labelEn: 'Luxury', labelAr: 'فاخرة' },
-  ],
-};
-
-const JOB_ON_ID_Q: SeedQuestion = {
-  code: 'is_your_job_or_degree_printed_on_your_national_id',
-  isRequired: false,
-  questionEn: 'Is your job or degree printed on your national ID?',
-  questionAr: 'هل وظيفتك أو مؤهلك مكتوب في بطاقة الرقم القومي؟',
-  options: [
-    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
-    { code: 'no', labelEn: 'No', labelAr: 'لا' },
-  ],
-};
-
-const CAR_KM_PER_YEAR_Q: SeedQuestion = {
-  code: 'how_many_kilometres_does_the_car_drive_a_year',
-  type: 'NUMERIC',
-  isRequired: false,
-  numeric: { minValue: '0', maxValue: '500000', step: '1', unitEn: 'km', unitAr: 'كم' },
-  questionEn: 'How many kilometres does the car drive a year?',
-  questionAr: 'كم كيلومترًا تسير السيارة في السنة؟',
-  options: [],
 };
 
 /**
@@ -704,6 +543,16 @@ const CAR_KM_PER_YEAR_Q: SeedQuestion = {
  * commonly asks; colour is left out on purpose — no bank sheet prices on it, and the operator
  * can add it on the Questions screen if one ever does. Codes are the slugs of the wording.
  */
+/** What kind of car it is — the car list's categories (v37.0.0); the brands follow it. */
+const CAR_CATEGORY_Q: SeedQuestion = {
+  code: 'car_category',
+  isRequired: true,
+  questionEn: 'What kind of car is it?',
+  questionAr: 'ما فئة السيارة؟',
+  optionsFromEnum: 'car_category',
+  options: [],
+};
+
 const CAR_BRAND_Q: SeedQuestion = {
   code: 'what_brand_is_the_car',
   isRequired: false,
@@ -712,70 +561,6 @@ const CAR_BRAND_Q: SeedQuestion = {
   // The car list's brands, each filed under its country (v36.7.0).
   optionsFromEnum: 'car_brand',
   options: [],
-};
-
-/** The car list's models, each filed under its brand (v36.7.0). */
-const CAR_MODEL_Q: SeedQuestion = {
-  code: 'what_model_is_the_car',
-  isRequired: false,
-  questionEn: 'What model is the car?',
-  questionAr: 'ما طراز السيارة؟',
-  optionsFromEnum: 'car_model',
-  options: [],
-};
-
-const CAR_ASSEMBLY_Q: SeedQuestion = {
-  code: 'is_the_car_assembled_in_egypt_or_imported',
-  isRequired: false,
-  questionEn: 'Is the car assembled in Egypt or imported?',
-  questionAr: 'هل السيارة مجمعة في مصر أم مستوردة؟',
-  options: [
-    { code: 'assembled_in_egypt', labelEn: 'Assembled in Egypt', labelAr: 'مجمعة في مصر' },
-    { code: 'imported', labelEn: 'Imported', labelAr: 'مستوردة' },
-  ],
-};
-
-const CAR_ENGINE_CC_Q: SeedQuestion = {
-  code: 'what_is_the_engine_size',
-  type: 'NUMERIC',
-  isRequired: false,
-  numeric: { minValue: '600', maxValue: '8000', step: '1', unitEn: 'cc', unitAr: 'سي سي' },
-  questionEn: 'What is the engine size?',
-  questionAr: 'ما سعة المحرك؟',
-  options: [],
-};
-
-const CAR_USE_Q: SeedQuestion = {
-  code: 'what_will_you_use_the_car_for',
-  isRequired: false,
-  questionEn: 'What will you use the car for?',
-  questionAr: 'ما استخدام السيارة؟',
-  options: [
-    { code: 'personal_use', labelEn: 'Personal use', labelAr: 'استخدام شخصي' },
-    { code: 'business_use', labelEn: 'Business use', labelAr: 'استخدام تجاري' },
-    { code: 'taxi_or_ride_hailing', labelEn: 'Taxi or ride-hailing', labelAr: 'تاكسي أو نقل ركاب' },
-  ],
-};
-
-const CAR_TOTAL_KM_Q: SeedQuestion = {
-  code: 'how_many_kilometres_has_the_car_been_driven',
-  type: 'NUMERIC',
-  isRequired: false,
-  numeric: { minValue: '0', maxValue: '1000000', step: '1', unitEn: 'km', unitAr: 'كم' },
-  questionEn: 'How many kilometres has the car been driven?',
-  questionAr: 'كم كيلومترًا قطعت السيارة؟',
-  options: [],
-};
-
-const GUARANTOR_Q: SeedQuestion = {
-  code: 'do_you_have_a_guarantor',
-  isRequired: false,
-  questionEn: 'Do you have a guarantor?',
-  questionAr: 'هل لديك ضامن؟',
-  options: [
-    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
-    { code: 'no', labelEn: 'No', labelAr: 'لا' },
-  ],
 };
 
 /**
@@ -1734,20 +1519,9 @@ const CAR: CategoryConfig = {
         // disguise — they mean a different year every January — so they could never key a
         // bank's table, which prints "from model 2015". Nothing read it.
         CAR_MODEL_YEAR_Q,
-        CAR_ORIGIN_Q,
         CAR_FUEL_TYPE_Q,
-        CAR_DEALER_Q,
-        CAR_INSURANCE_WANTED_Q,
-        CAR_CLASS_Q,
-        JOB_ON_ID_Q,
-        CAR_KM_PER_YEAR_Q,
+        CAR_CATEGORY_Q,
         CAR_BRAND_Q,
-        CAR_MODEL_Q,
-        CAR_ASSEMBLY_Q,
-        CAR_ENGINE_CC_Q,
-        CAR_USE_Q,
-        CAR_TOTAL_KM_Q,
-        GUARANTOR_Q,
         CAR_PRICE_Q,
         // Right after the price it is a share of (the client's order, 2026-10-13) — it used to
         // open the financing step, three steps before the price.
@@ -2454,15 +2228,14 @@ async function upsertBaseFacts(): Promise<void> {
  */
 // ---- The car list (v36.7.0) -------------------------------------------------
 //
-// Three lists, each filed under the one before: country → brand → model. Each IS the answers of
+// Two lists: category → brand (v37.0.0; was country → brand → model). Each IS the answers of
 // its question (`mirrorQuestionId`), so the Car list page edits the answers, and the served
 // questionnaire shows a level's answers filed under the pick one level up. The seed only ADDS
 // what is missing — a value, a kind or a link the operator changed is left as it is.
 
 const CAR_LIST_LEVELS = [
-  { key: 'car_country', labelEn: 'Country', labelAr: 'البلد', parent: null, question: 'car_origin', rows: CAR_COUNTRIES },
-  { key: 'car_brand', labelEn: 'Brand', labelAr: 'الماركة', parent: 'car_country', question: 'what_brand_is_the_car', rows: CAR_BRANDS },
-  { key: 'car_model', labelEn: 'Model', labelAr: 'الطراز', parent: 'car_brand', question: 'what_model_is_the_car', rows: CAR_MODELS },
+  { key: 'car_category', labelEn: 'Category', labelAr: 'الفئة', parent: null, question: 'car_category', rows: CAR_CATEGORIES },
+  { key: 'car_brand', labelEn: 'Brand', labelAr: 'الماركة', parent: 'car_category', question: 'what_brand_is_the_car', rows: CAR_BRANDS },
 ] as const;
 
 async function seedCarList(): Promise<void> {
@@ -2476,9 +2249,9 @@ async function seedCarList(): Promise<void> {
         labelEn: level.labelEn,
         labelAr: level.labelAr,
         parentTypeKey: level.parent,
-        // A brand or a model may be removed on the Car list page; a country may not — bank
-        // tables are keyed on `car_origin`'s answers.
-        deletable: level.key !== 'car_country',
+        // A category or a brand may be removed on the Car list page (refused while anything
+        // is filed under it or a bank table names it).
+        deletable: true,
         // The Car list page is its screen.
         onValuesRail: false,
       },
@@ -2620,6 +2393,12 @@ async function upsertCarFacts(): Promise<void> {
       labelEn: 'Kilometres a year',
       labelAr: 'كيلومترات في السنة',
       sortOrder: 131,
+    },
+    {
+      key: 'car_category',
+      labelEn: 'Car category',
+      labelAr: 'فئة السيارة',
+      sortOrder: 139,
     },
     {
       key: 'what_brand_is_the_car',

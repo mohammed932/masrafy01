@@ -3,7 +3,7 @@ import { API, apiToken, overflowX, signIn, watchErrors } from './support';
 
 /**
  * The car list and a bank's cases (v36.4.0), through the screens:
- *  1. Car list: Germany → Mercedes-Benz → its models; add a model and remove it again.
+ *  1. Car list: Category → Brand (European → Mercedes-Benz); add a brand and remove it again.
  *  2. Cases on a TESTING copy of a car program: "Brand Mercedes-Benz → rate 11%" and
  *     "Brand Chery → refuse", saved with the program; the simulator prices a Mercedes by
  *     case 1, hides a Chery, prices a Toyota by the program; the brand question is now asked
@@ -29,42 +29,42 @@ async function pick(page: Page, select: ReturnType<Page['locator']>, text: strin
     .click();
 }
 
-test('car list: browse, add a model, remove it', async ({ page, request }) => {
+test('car list: browse, add a brand, remove it', async ({ page, request }) => {
   const errors = watchErrors(page);
   const run = test.info().project.name;
-  const model = `TESTING S ${run}`;
-  // A run that died half-way leaves its model behind; clear it first.
+  const brand = `TESTING Brand ${run}`;
+  // A run that died half-way leaves its brand behind; clear it first.
   const headers = await auth(request);
   const rows = (await (
-    await request.get(`${API}/enumerations?type=car_model`, { headers })
+    await request.get(`${API}/enumerations?type=car_brand`, { headers })
   ).json()) as { data: { id: string; labelEn: string }[] };
-  for (const r of rows.data.filter((x) => x.labelEn === model)) {
+  for (const r of rows.data.filter((x) => x.labelEn === brand)) {
     await request.delete(`${API}/enumerations/${r.id}`, { headers });
   }
   await signIn(page);
   await page.goto('/car-list');
-  await page.locator('.cl__pick', { hasText: 'Germany' }).click();
-  await page.locator('.cl__pick', { hasText: 'Mercedes-Benz' }).click();
-  const models = page.locator('.cl__col').nth(2);
-  await expect(models.getByRole('heading', { name: 'Model' })).toBeVisible();
-  await expect(models.getByText('Under Mercedes-Benz')).toBeVisible();
-  await expect(models.getByText('C 200')).toBeVisible();
+  // Category → Brand: no countries, no models.
+  await expect(
+    page.locator('.cl__col').first().getByRole('heading', { name: 'Category' }),
+  ).toBeVisible();
+  await page.locator('.cl__pick', { hasText: 'European' }).click();
+  const brands = page.locator('.cl__col').nth(1);
+  await expect(brands.getByRole('heading', { name: 'Brand' })).toBeVisible();
+  await expect(brands.getByText('Under European')).toBeVisible();
+  await brands.getByRole('searchbox').fill('Mercedes');
+  await expect(brands.getByText('Mercedes-Benz')).toBeVisible();
+  await brands.getByRole('searchbox').fill('');
 
-  // The search box on a long list narrows it.
-  const countries = page.locator('.cl__col').first();
-  await countries.getByRole('searchbox').fill('jap');
-  await expect(countries.locator('.cl__pick')).toHaveCount(1);
-  await countries.getByRole('searchbox').fill('');
-
-  await models.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.locator('#clNameEn').fill(model);
+  await brands.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.locator('#clNameEn').fill(brand);
   await page.locator('app-form-drawer').getByRole('button', { name: 'Add', exact: true }).click();
-  await expect(models.getByText(model)).toBeVisible();
+  await brands.getByRole('searchbox').fill('TESTING Brand');
+  await expect(brands.getByText(brand)).toBeVisible();
   expect(await overflowX(page)).toBe(0);
 
-  await models.getByRole('button', { name: `Remove ${model}` }).click();
+  await brands.getByRole('button', { name: `Remove ${brand}` }).click();
   await page.locator('.ant-modal-confirm').getByRole('button', { name: 'Remove' }).click();
-  await expect(models.getByText(model)).toHaveCount(0);
+  await expect(brands.getByText(brand)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

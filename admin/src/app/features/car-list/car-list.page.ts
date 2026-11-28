@@ -30,7 +30,7 @@ import { BankProgramsApiService } from '../bank-programs/bank-programs.api.servi
  * added here is an answer the customer can pick, and the app shows only the answers filed
  * under the one picked a level up. A bank prices any level on its program's Cases.
  */
-const ROOT_LEVEL = 'car_country';
+const ROOT_LEVEL = 'car_category';
 
 interface Level {
   key: string;

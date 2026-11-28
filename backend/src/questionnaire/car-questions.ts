@@ -12,10 +12,10 @@
  * question is the admin's to add to car programs on the Program catalog, not a code change.
  */
 export const CAR_QUESTION_CODES: readonly string[] = [
+  'car_category',
+  'what_brand_is_the_car',
+  'car_fuel_type',
   'car_price',
   'car_down_payment',
   'car_model_year',
-  'car_origin',
-  'car_fuel_type',
-  'car_dealer',
 ];
