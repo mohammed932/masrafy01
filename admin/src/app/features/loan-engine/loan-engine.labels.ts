@@ -63,6 +63,8 @@ export function readOnlyLabel(reason: EffectReadOnlyReason | undefined): string 
       return $localize`:@@lengine.ro.other_fact:Keyed on another answer`;
     case 'two_axis_cap':
       return $localize`:@@lengine.ro.two_axis_cap:Two-column cap`;
+    case 'car_card':
+      return $localize`:@@lengine.ro.car_card:Set on the car pricing card`;
     case 'not_numeric':
       return $localize`:@@lengine.ro.not_numeric:Number answers only`;
     default:

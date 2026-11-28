@@ -6043,6 +6043,11 @@ RAV4</target></trans-unit>
       <trans-unit id="bank_programs.car_pricing.unreadable" datatype="html"><source>This program's tables are not in this card's shape, so they are kept as they are and shown in the older editors below.</source><target>جداول هذا البرنامج ليست بشكل هذه البطاقة، لذلك تُركت كما هي وتظهر في المحررات القديمة أدناه.</target></trans-unit>
       <trans-unit id="ps.def.car_pricing_hint" datatype="html"><source>The rates each bank starts from, by down payment, with any brand, category or electric exceptions. Leave it empty and each bank starts from a blank card.</source><target>العوائد التي يبدأ منها كل بنك حسب المقدم، مع أي استثناءات للماركة أو الفئة أو الكهربائية. اتركها فارغة ليبدأ كل بنك ببطاقة فارغة.</target></trans-unit>
       <trans-unit id="ps.def.err_car_pricing" datatype="html"><source>The pricing by down payment is not finished — see the message under the line.</source><target>التسعير حسب المقدم لم يكتمل — راجع الرسالة تحت السطر.</target></trans-unit>
+      <trans-unit id="carPricing.err.duplicate" datatype="html"><source>Another line already sets this figure for the same car on the same band.</source><target>سطر آخر يحدد هذا الرقم لنفس السيارة في نفس الشريحة.</target></trans-unit>
+      <trans-unit id="carPricing.kind.gas" datatype="html"><source>Gas</source><target>بنزين</target></trans-unit>
+      <trans-unit id="carPricing.ex.hint2" datatype="html"><source>A brand beats gas or electric, a fuel beats a category, and each beats the band's own row. The rows price every car no exception covers.</source><target>الماركة تسبق البنزين أو الكهربائية، والوقود يسبق الفئة، وكلها تسبق صف الشريحة نفسه. الصفوف تسعّر كل سيارة لا يغطيها استثناء.</target></trans-unit>
+      <trans-unit id="carPricing.ex.fuelHint" datatype="html"><source>Applies only where the customer is asked the fuel (New Car). Used cars are not asked it, so they keep the band's own row.</source><target>يُطبَّق فقط حيث يُسأل العميل عن الوقود (سيارة جديدة). لا تُسأل السيارات المستعملة عنه، فتبقى على صف الشريحة.</target></trans-unit>
+      <trans-unit id="lengine.ro.car_card" datatype="html"><source>Set on the car pricing card</source><target>يُحدَّد في بطاقة تسعير السيارات</target></trans-unit>
     </body>
   </file>
 </xliff>

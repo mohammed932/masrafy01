@@ -2068,6 +2068,7 @@ export async function seedQuestionnaire(): Promise<void> {
 
   // ---- 3. Publish ONE global snapshot ---------------------------------------
   await publishVersion();
+  await tickCarFlowQuestions();
 
   // ---- 4. Per-program weight sets ------------------------------------------
   console.log(
@@ -2238,6 +2239,31 @@ const CAR_LIST_LEVELS = [
   { key: 'car_category', labelEn: 'Category', labelAr: 'الفئة', parent: null, question: 'car_category', rows: CAR_CATEGORIES },
   { key: 'car_brand', labelEn: 'Brand', labelAr: 'الماركة', parent: 'car_category', question: 'what_brand_is_the_car', rows: CAR_BRANDS },
 ] as const;
+
+/**
+ * Every name offered under car asks the category and the brand (v37.0.0). Migration
+ * `20261128100000_car_flow_questions` ticks them too, but on a database where the category
+ * question did not exist yet it can only tick the brand — this, run after the question is
+ * written, closes that gap. Insert-only: an operator's own untick of another question is not
+ * touched, and a re-run adds nothing.
+ */
+async function tickCarFlowQuestions(): Promise<void> {
+  const questions = await prisma.question.findMany({
+    where: { code: { in: ['car_category', 'what_brand_is_the_car'] }, isActive: true },
+    select: { id: true },
+  });
+  const names = await prisma.platformEnumerationLoanCategory.findMany({
+    where: { category: 'car' },
+    select: { enumerationId: true },
+  });
+  const added = await prisma.programNameQuestionAddition.createMany({
+    data: names.flatMap((n) =>
+      questions.map((q) => ({ enumerationId: n.enumerationId, category: 'car' as const, questionId: q.id })),
+    ),
+    skipDuplicates: true,
+  });
+  if (added.count > 0) console.log(`seed-questionnaire: ${added.count} car-flow tick(s) added.`);
+}
 
 async function seedCarList(): Promise<void> {
   let added = 0;

@@ -33,7 +33,7 @@ import {
   type Criterion,
 } from '@/matching/pipeline/criterion';
 import type { FactGridBand, FactGridConfig, FactGridKey } from '@/matching/pipeline/fact-grid';
-import { inheritsProductPlans } from '@/matching/pipeline/plan-inherit';
+import { CAR_PRICING_AXES, inheritsProductPlans } from '@/matching/pipeline/plan-inherit';
 import type { MaxLoanByFactConfig, MaxLoanByFactRow } from '@/matching/pipeline/max-loan-by-fact';
 import type { AdditionalIncomeConfig } from '@/matching/pipeline/additional-income';
 import {
@@ -244,7 +244,8 @@ export class LoanEngineService {
           } else if (
             state.readOnlyReason === 'multi_axis' ||
             state.readOnlyReason === 'class_axis' ||
-            state.readOnlyReason === 'two_axis_cap'
+            state.readOnlyReason === 'two_axis_cap' ||
+            state.readOnlyReason === 'car_card'
           ) {
             elsewhere.push({ effect, reason: state.readOnlyReason, questionCode: question.code });
           }
@@ -660,6 +661,10 @@ export class LoanEngineService {
     }
 
     if (slot.planSlot && inheritsProductPlans(row.plansSource)) return readOnly('inherited_plan');
+    // A program priced on the car pricing card (v37.0.0): its rate and longest term live on the
+    // card. A rule written here would replace the card's whole table with one keyed on this
+    // question, and the card could no longer read it — so they are set on the card.
+    if ((effect === 'rate' || effect === 'max_term') && pricedOnCarCard(row)) return readOnly('car_card');
     if (!isRecord(stored)) return { editable: true, rows: [], onNoMatch: 'useFallback' };
     const grid = stored as unknown as FactGridConfig;
     const axes = Array.isArray(grid.axes) ? grid.axes : [];
@@ -808,4 +813,23 @@ function updateDtoOf(
     incomeAssumption: (patch.incomeAssumption ?? program.incomeAssumption) as never,
     fees: program.fees as never,
   };
+}
+
+/** True when any of the car pricing card's tables is stated on the card's axes (v37.0.0). */
+function pricedOnCarCard(row: LoanEngineProgramRow): boolean {
+  const want = JSON.stringify(CAR_PRICING_AXES.map((a) => [a.factKey, 'via' in a ? a.via : null]));
+  const grids: unknown[] = [
+    isRecord(row.pricing) ? row.pricing.rateByFact : undefined,
+    isRecord(row.pricing) ? row.pricing.interestFreeYearsByFact : undefined,
+    isRecord(row.tenor) ? row.tenor.maxMonthsByFact : undefined,
+    isRecord(row.tenor) ? row.tenor.maxVehicleAgeYearsByFact : undefined,
+  ];
+  return grids.some((g) => {
+    if (!isRecord(g) || !Array.isArray(g.axes)) return false;
+    const axes = (g.axes as Array<{ factKey?: unknown; via?: unknown }>).map((a) => [
+      a.factKey,
+      a.via === 'parentClass' ? 'parentClass' : null,
+    ]);
+    return JSON.stringify(axes) === want;
+  });
 }

@@ -288,7 +288,7 @@ async function upsertFixture(f: Fixture, bankName: string, bankId: string): Prom
  * shows on that product's card). The next run creates them again.
  */
 async function removeFixtures(): Promise<void> {
-  for (const fx of [...FIXTURES, ...EXTRA_FIXTURES, ...AUTO_FIXTURES]) {
+  for (const fx of [...FIXTURES, ...EXTRA_FIXTURES, ...AUTO_FIXTURES, ...LE_FIXTURES]) {
     const now = await call('GET', `/bank-programs/${fx.code}`);
     if (now['success'] !== true) continue;
     const res = await fetch(`${API}/bank-programs/${fx.code}`, {
@@ -1259,6 +1259,161 @@ async function partE(): Promise<void> {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════════════════════════
+// PART H — the Loan Engine on every loan type and income basis: each of its seven figures and a
+// condition written through its own endpoints, read back by the quote; the car-card guard; and
+// every live program readable from every question.
+// ═════════════════════════════════════════════════════════════════════════════════════════════
+const LE_FIXTURES: Fixture[] = [
+  { code: 'TESTING-LE-PERSONAL', friendly: 'TESTING LE Personal', rate: 24, basis: 'reducing', minMonths: 12, maxMonths: 60, minAmount: 10000, maxAmount: 1000000, dbrCap: 50, adminFeePct: 0, docs: DOCS },
+  { code: 'TESTING-LE-MORTGAGE', friendly: 'TESTING LE Mortgage', category: 'mortgage', rate: 15, basis: 'reducing', minMonths: 60, maxMonths: 240, minAmount: 100000, maxAmount: 10000000, dbrCap: 50, adminFeePct: 0, docs: DOCS },
+  { code: 'TESTING-LE-BUSINESS', friendly: 'TESTING LE Business', category: 'business', rate: 21, basis: 'reducing', minMonths: 12, maxMonths: 36, minAmount: 50000, maxAmount: 3000000, dbrCap: 50, adminFeePct: 0, docs: DOCS },
+  { code: 'TESTING-LE-CAR', friendly: 'TESTING LE Car', category: 'car', rate: 18, basis: 'reducing', minMonths: 12, maxMonths: 60, minAmount: 10000, maxAmount: 5000000, dbrCap: 50, ltvPercent: 80, adminFeePct: 0, docs: DOCS },
+  { code: 'TESTING-LE-NOPAY', friendly: 'TESTING LE No Payslip', category: 'personal', nameKey: NOPAY_NAME_KEY, programType: 'income_surrogate',
+    incomeAssumption: { wayId: 'primary', amounts: 'own', strategy: 'steps', stepParams: { primary: { scalar: { unit: 'percent', value: '40' } } } },
+    rate: 20, basis: 'reducing', minMonths: 12, maxMonths: 60, minAmount: 10000, maxAmount: 2000000, dbrCap: 50, adminFeePct: 0, docs: DOCS.slice(0, 1) },
+];
+
+async function partH(): Promise<void> {
+  console.log('\n══ Part H — the Loan Engine on every loan type and income basis, the card guard, every program ══');
+  const banks = (await ok('GET', '/banks')) as Json[];
+  const bank = banks.find((b) => b['nameEnglish'] === bankNameOf(5)) ?? await ok('POST', '/banks', {
+    nameEnglish: bankNameOf(5), nameArabic: 'بنك TESTING 6', isActive: true, isFeatured: false,
+    notes: 'TESTING fixture for check:engine — not a real bank.' });
+  for (const f of LE_FIXTURES) await upsertFixture(f, bankNameOf(5), bank['id']);
+
+  const HOME = 'home_ownership';
+  const version = async (code: string): Promise<number> => (await ok('GET', `/bank-programs/${code}`))['version'] as number;
+  const rule = async (code: string, question: string, effect: string, rows: Json[], onNoMatch?: string) =>
+    ok('PUT', `/loan-engine/questions/${question}/programs/${code}/effects/${effect}`, {
+      expectedVersion: await version(code), ...(onNoMatch ? { onNoMatch } : {}), rows });
+  const conditions = async (code: string, list: Json[]) =>
+    ok('PUT', `/loan-engine/programs/${code}/conditions`, { expectedVersion: await version(code), conditions: list });
+  // A run that died half-way leaves its conditions behind (the fixture save does not carry them).
+  for (const f of LE_FIXTURES) await conditions(f.code, []);
+  const quote = async (cat: string, key: string, code: string, over: Record<string, string | number | string[] | undefined>) =>
+    lookup(await simulate({ category: cat, age: 35, programNameKey: key, answers: answers(over) }), code);
+  const fig = (m: Json | undefined): Json | null => (m?.['figures'] as Json | null | undefined) ?? null;
+  const owns = (v: string) => ({ [HOME]: v });
+
+  // 1. Personal · payslip — a RATE by an answer, then a CONDITION.
+  await rule('TESTING-LE-PERSONAL', HOME, 'rate', [{ criterion: { option: 'owned_by_me' }, value: '15' }], 'useFallback');
+  const pOwn = fig(await quote('personal', NAME_KEY, 'TESTING-LE-PERSONAL', { monthly_income: 50000, ...owns('owned_by_me') }));
+  const pRent = fig(await quote('personal', NAME_KEY, 'TESTING-LE-PERSONAL', { monthly_income: 50000, ...owns('rented_or_other') }));
+  expect('H · personal payslip · rate rule: owner 15%', pOwn !== null && near(+pOwn['effectiveRatePercent'], 15, 0.0001), `rate ${pOwn?.['effectiveRatePercent']}`);
+  expect('H · personal payslip · rate rule: no row → program 24%', pRent !== null && near(+pRent['effectiveRatePercent'], 24, 0.0001), `rate ${pRent?.['effectiveRatePercent']}`);
+  await conditions('TESTING-LE-PERSONAL', [{ id: 'home', reasonCode: 'GATE_NOT_MET',
+    anyOf: ['owned_by_me', 'owned_by_relative'].map((o) => ({ questionCode: HOME, criterion: { option: o } })) }]);
+  const pRefused = await quote('personal', NAME_KEY, 'TESTING-LE-PERSONAL', { monthly_income: 50000, ...owns('rented_or_other') });
+  expect('H · personal payslip · condition refuses a renter', fig(pRefused) === null && pRefused?.['figuresUnavailableReason'] === 'PRODUCT_RULE_GATE_FAILED', `got ${pRefused?.['figuresUnavailableReason']}`);
+  const pRelative = fig(await quote('personal', NAME_KEY, 'TESTING-LE-PERSONAL', { monthly_income: 50000, ...owns('owned_by_relative') }));
+  expect('H · personal payslip · condition lets a relative-owner through', pRelative !== null, 'refused');
+
+  // 2. Mortgage · payslip — a MAX LOAN by a number answer, and a SHORTEST TERM by an answer.
+  await rule('TESTING-LE-MORTGAGE', 'total_savings', 'cap', [{ criterion: { op: 'gte', a: '500000' }, value: '2000000' }], 'useProgramMax');
+  const mBig = { monthly_income: 500000, amount_requested: 3000000, repayment_period_months: 240 };
+  const mCapped = fig(await quote('mortgage', NAME_KEY, 'TESTING-LE-MORTGAGE', { ...mBig, total_savings: 600000 }));
+  const mFree = fig(await quote('mortgage', NAME_KEY, 'TESTING-LE-MORTGAGE', { ...mBig, total_savings: 100000 }));
+  expect('H · mortgage payslip · max loan rule: savings ≥ 500,000 → 2,000,000', mCapped !== null && near(+mCapped['offeredAmountEGP'], 2000000, 1), `loan ${mCapped?.['offeredAmountEGP']}`);
+  expect('H · mortgage payslip · max loan rule: no row → the request', mFree !== null && near(+mFree['offeredAmountEGP'], 3000000, 1), `loan ${mFree?.['offeredAmountEGP']}`);
+  await rule('TESTING-LE-MORTGAGE', HOME, 'min_term', [{ criterion: { option: 'rented_or_other' }, value: '120' }], 'useFallback');
+  const mShort = fig(await quote('mortgage', NAME_KEY, 'TESTING-LE-MORTGAGE', { monthly_income: 500000, amount_requested: 1000000, repayment_period_months: 60, ...owns('rented_or_other') }));
+  expect('H · mortgage payslip · shortest term rule: renter asks 60 → 120', mShort?.['effectiveTenorMonths'] === 120, `term ${mShort?.['effectiveTenorMonths']}`);
+
+  // 3. Business · payslip — a LONGEST TERM by an answer.
+  await rule('TESTING-LE-BUSINESS', HOME, 'max_term', [{ criterion: { option: 'owned_by_me' }, value: '24' }], 'useFallback');
+  const bOwn = fig(await quote('business', NAME_KEY, 'TESTING-LE-BUSINESS', { monthly_income: 100000, amount_requested: 500000, repayment_period_months: 36, ...owns('owned_by_me') }));
+  const bRent = fig(await quote('business', NAME_KEY, 'TESTING-LE-BUSINESS', { monthly_income: 100000, amount_requested: 500000, repayment_period_months: 36, ...owns('rented_or_other') }));
+  expect('H · business payslip · longest term rule: owner 36 → 24', bOwn?.['effectiveTenorMonths'] === 24, `term ${bOwn?.['effectiveTenorMonths']}`);
+  expect('H · business payslip · longest term rule: no row → 36', bRent?.['effectiveTenorMonths'] === 36, `term ${bRent?.['effectiveTenorMonths']}`);
+
+  // 4. Car · payslip (no card) — a FINANCED SHARE and a SMALLEST LOAN by an answer.
+  const carAns = (more: Record<string, string | number>) => ({ monthly_income: 100000, car_price: 1000000, car_down_payment: 100000,
+    amount_requested: 900000, car_model_year: new Date().getFullYear() - 1, car_category: 'japanese', what_brand_is_the_car: 'toyota',
+    car_fuel_type: 'petrol_diesel', ...more });
+  await rule('TESTING-LE-CAR', HOME, 'financed_share', [{ criterion: { option: 'owned_by_me' }, value: '90' }], 'useFallback');
+  const cOwn = fig(await quote('car', NAME_KEY, 'TESTING-LE-CAR', carAns(owns('owned_by_me'))));
+  const cRent = fig(await quote('car', NAME_KEY, 'TESTING-LE-CAR', carAns(owns('rented_or_other'))));
+  expect('H · car payslip · financed share rule: owner 90% → 900,000', cOwn !== null && near(+cOwn['offeredAmountEGP'], 900000, 1), `loan ${cOwn?.['offeredAmountEGP']}`);
+  expect('H · car payslip · financed share rule: no row → the program 80%', cRent !== null && near(+cRent['offeredAmountEGP'], 800000, 1), `loan ${cRent?.['offeredAmountEGP']}`);
+  await rule('TESTING-LE-CAR', HOME, 'min_amount', [{ criterion: { option: 'rented_or_other' }, value: '850000' }], 'useFallback');
+  const cBelow = await quote('car', NAME_KEY, 'TESTING-LE-CAR', carAns(owns('rented_or_other')));
+  expect('H · car payslip · smallest loan rule: renter capped at 800,000 < 850,000 → no offer', fig(cBelow) === null, `got ${fig(cBelow)?.['offeredAmountEGP']}`);
+  const cOwnStill = fig(await quote('car', NAME_KEY, 'TESTING-LE-CAR', carAns(owns('owned_by_me'))));
+  expect('H · car payslip · smallest loan rule: owner unaffected', cOwnStill !== null, 'refused');
+
+  // 5. Personal · no payslip — a RATE and EXTRA INCOME (rent counted at 50%).
+  const np = { monthly_income: undefined, current_loans: ['credit_cards'], credit_card_total_limit: 100000, amount_requested: 2000000 };
+  const npBefore = fig(await quote('personal', NOPAY_NAME_KEY, 'TESTING-LE-NOPAY', { ...np, rental_income_monthly: 40000 }));
+  await rule('TESTING-LE-NOPAY', HOME, 'rate', [{ criterion: { option: 'owned_by_me' }, value: '12' }], 'useFallback');
+  const npRate = fig(await quote('personal', NOPAY_NAME_KEY, 'TESTING-LE-NOPAY', { ...np, ...owns('owned_by_me') }));
+  expect('H · personal no payslip · rate rule: owner 12%', npRate !== null && near(+npRate['effectiveRatePercent'], 12, 0.0001), `rate ${npRate?.['effectiveRatePercent']}`);
+  await rule('TESTING-LE-NOPAY', 'rental_income_monthly', 'extra_income', [{ criterion: null, value: '50' }]);
+  const npAfter = fig(await quote('personal', NOPAY_NAME_KEY, 'TESTING-LE-NOPAY', { ...np, rental_income_monthly: 40000 }));
+  expect('H · personal no payslip · extra income rule: rent at 50% lends more',
+    npBefore !== null && npAfter !== null && +npAfter['offeredAmountEGP'] > +npBefore['offeredAmountEGP'] + 1,
+    `before ${npBefore?.['offeredAmountEGP']} · after ${npAfter?.['offeredAmountEGP']}`);
+
+  // 6. Car · no payslip (the down-payment method) — a SHORTEST TERM by an answer; put back after.
+  const dp = { monthly_income: undefined, car_price: 1000000, car_down_payment: 300000, amount_requested: 700000, repayment_period_months: 12,
+    car_model_year: new Date().getFullYear() - 1, car_category: 'japanese', what_brand_is_the_car: 'toyota', car_fuel_type: 'petrol_diesel' };
+  await rule('TESTING-AUTO-DP', HOME, 'min_term', [{ criterion: { option: 'rented_or_other' }, value: '24' }], 'useFallback');
+  const dpRent = fig(await quote('car', AUTO_NAME_KEY, 'TESTING-AUTO-DP', { ...dp, ...owns('rented_or_other') }));
+  expect('H · car no payslip · shortest term rule: renter asks 12 → 24', dpRent?.['effectiveTenorMonths'] === 24, `term ${dpRent?.['effectiveTenorMonths']}`);
+  await rule('TESTING-AUTO-DP', HOME, 'min_term', []);
+
+  // 7. A car program priced on the card: rate and longest term are the card's; the rest is open.
+  const viewOf = async (question: string) => (await ok('GET', `/loan-engine/questions/${question}`)) as Json;
+  const cardRow = ((await viewOf(HOME))['programs'] as Json[]).find((r) => r['programCode'] === 'TESTING-CAR-PRICING');
+  const eff = (cardRow?.['effects'] ?? {}) as Record<string, Json>;
+  for (const e of ['rate', 'max_term']) {
+    expect(`H · card program · ${e} is set on the card`, eff[e]?.['editable'] === false && eff[e]?.['readOnlyReason'] === 'car_card', JSON.stringify(eff[e] ?? null));
+  }
+  const refused = await call('PUT', `/loan-engine/questions/${HOME}/programs/TESTING-CAR-PRICING/effects/max_term`, {
+    expectedVersion: await version('TESTING-CAR-PRICING'), onNoMatch: 'useFallback', rows: [{ criterion: { option: 'owned_by_me' }, value: '24' }] });
+  expect('H · card program · a longest-term rule is refused', refused['success'] === false && refused['code'] === 'LOAN_ENGINE_RULE_INVALID', JSON.stringify(refused).slice(0, 160));
+  expect('H · card program · financed share stays editable', eff['financed_share']?.['editable'] === true, JSON.stringify(eff['financed_share'] ?? null));
+  await rule('TESTING-CAR-PRICING', HOME, 'financed_share', [{ criterion: { option: 'owned_by_me' }, value: '50' }], 'useFallback');
+  const cardShare = fig(await quote('car', NAME_KEY, 'TESTING-CAR-PRICING', { monthly_income: 200000, car_price: 1000000, car_down_payment: 250000,
+    amount_requested: 750000, repayment_period_months: 60, car_model_year: new Date().getFullYear() - 1, car_category: 'japanese',
+    what_brand_is_the_car: 'toyota', car_fuel_type: 'petrol_diesel', ...owns('owned_by_me') }));
+  expect('H · card program · financed share rule applies with the card rate', cardShare !== null && near(+cardShare['offeredAmountEGP'], 500000, 1) && near(+cardShare['effectiveRatePercent'], 18, 0.0001),
+    `loan ${cardShare?.['offeredAmountEGP']} · rate ${cardShare?.['effectiveRatePercent']}`);
+  await rule('TESTING-CAR-PRICING', HOME, 'financed_share', []);
+
+  // 8. Every program the platform holds, from every question the Loan Engine lists: present, and
+  //    each figure either editable or read-only with a reason — never missing, never an error.
+  const listed = (await ok('GET', '/bank-programs?pageSize=100')) as Json[];
+  const rules = (await ok('GET', '/loan-engine/rules')) as Json;
+  const inRules = new Set(((rules['programs'] ?? []) as Json[]).map((r) => r['programCode']));
+  const missing = listed.filter((p) => !inRules.has(p['programCode'])).map((p) => p['programCode']);
+  expect(`H · every program (${listed.length}) is on the Loan Engine`, missing.length === 0, `missing ${missing.join(', ')}`);
+  const questions = (await ok('GET', '/loan-engine/questions')) as Json[];
+  let views = 0;
+  const broken: string[] = [];
+  for (const q of questions) {
+    const view = await call('GET', `/loan-engine/questions/${q['questionCode']}`);
+    if (view['success'] !== true) { broken.push(`${q['questionCode']}: ${view['code']}`); continue; }
+    // A question not linked to a figure yet is read-only as a whole ("Link it to a figure").
+    const linked = view['data']['factKey'] !== null && view['data']['factKey'] !== undefined;
+    for (const row of (view['data']['programs'] ?? []) as Json[]) {
+      for (const [effect, state] of Object.entries((row['effects'] ?? {}) as Record<string, Json>)) {
+        views += 1;
+        const bad = !linked
+          ? state['editable'] !== false
+          : typeof state['editable'] !== 'boolean' || (state['editable'] === false && typeof state['readOnlyReason'] !== 'string');
+        if (bad) {
+          broken.push(`${q['questionCode']} · ${row['programCode']} · ${effect}`);
+        }
+      }
+    }
+  }
+  expect(`H · ${questions.length} questions × every program: ${views} figure states readable`, broken.length === 0 && views > 0, broken.slice(0, 5).join('; '));
+  const byType = new Map<string, number>();
+  for (const p of listed) byType.set(`${p['productCategory']}/${p['programType']}`, (byType.get(`${p['productCategory']}/${p['programType']}`) ?? 0) + 1);
+  console.log(`  programs by loan type / income: ${[...byType.entries()].map(([k, n]) => `${k} ${n}`).join(' · ')}`);
+}
+
 async function partG(): Promise<void> {
   console.log('\n══ Part G — the car pricing card: bands, brand > electric > category, interest-free, oldest car ══');
   // Its own TESTING bank: one program per name and loan type per bank.
@@ -1312,6 +1467,7 @@ async function main(): Promise<void> {
     await partD();
     await partF();
     await partG();
+    await partH();
     await partE();
   } finally {
     if (!KEEP) {

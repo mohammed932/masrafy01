@@ -124,7 +124,7 @@ test('car pricing card: bands, brand and category exceptions, a band deleted, qu
     const created = await call(request, auth, 'POST', '/bank-programs', {
       ...programBody(template, bankName, bankId, 'new_car', 'TESTING New'),
       programCode: NEW,
-      pricing: { isVariableRate: false, baseRatePercent: '25', rateBasis: 'reducing', rateByFact: { axes, cells: [{ keys: [{ fromInclusive: '10' }, null, null, null], value: '17' }], onNoMatch: 'reject' } },
+      pricing: { isVariableRate: false, baseRatePercent: '25', rateBasis: 'reducing', rateByFact: { axes, cells: [{ keys: [{ fromInclusive: '10' }, null, null, null], value: '17' }, { keys: [{ fromInclusive: '10' }, null, { key: 'petrol_diesel' }, null], value: '16' }], onNoMatch: 'reject' } },
       tenor: { minMonths: 12, maxMonths: 96, maxMonthsByFact: { axes, cells: [{ keys: [{ fromInclusive: '10' }, null, { key: 'electric' }, null], value: '60' }], onNoMatch: 'useFallback' } },
     });
     expect(created.success, JSON.stringify(created)).toBeTruthy();
@@ -159,6 +159,18 @@ test('car pricing card: bands, brand and category exceptions, a band deleted, qu
     await rate.nth(1).fill('');
     await expect(card.getByText('Type a rate for this band.')).toBeVisible();
     await rate.nth(1).fill('16');
+    // A 0 is refused (the engine reads 0 as "not stated").
+    await rate.nth(1).fill('0');
+    await expect(card.getByText(/A figure here is not a number/).first()).toBeVisible();
+    await rate.nth(1).fill('16');
+    // A second line setting the same figure for the same car and band is refused.
+    await card.getByRole('button', { name: 'Add an exception' }).click();
+    await pick(page, card.locator('app-search-select nz-select'), 'BMW');
+    await card.locator('.cpx__fig').nth(0).locator('input').fill('11');
+    await card.getByRole('button', { name: 'Done' }).click();
+    await expect(card.getByText('Another line already sets this figure for the same car on the same band.')).toBeVisible();
+    await card.getByRole('button', { name: 'Remove this exception' }).last().click();
+    await expect(card.getByText('Another line already sets this figure')).toHaveCount(0);
     // Delete the first band: the exceptions stay "all bands" and its cells go with it.
     await card.getByRole('button', { name: 'Remove this band' }).first().click();
     await expect(from).toHaveCount(1);
@@ -190,6 +202,12 @@ test('car pricing card: bands, brand and category exceptions, a band deleted, qu
     expect(term(ev.shown), JSON.stringify(ev.shown ?? ev.hidden ?? null).slice(0, 400)).toBe(60);
     const gas = await quote(request, auth, 'new_car', NEW, { car_category: 'chinese', what_brand_is_the_car: 'byd', car_fuel_type: 'petrol_diesel', repayment_period_months: '84' });
     expect(term(gas.shown)).toBe(84);
+    // Gas and electric are equal exceptions; the row (17%) prices what neither covers.
+    expect(Number(gas.shown?.['effectiveRatePercent'])).toBe(16);
+    expect(Number(ev.shown?.['effectiveRatePercent'])).toBe(17);
+    await page.goto(`/banks/programs/${NEW}/edit`);
+    await page.locator('app-wizard-steps').getByText('Money').click();
+    await expect(page.locator('app-car-pricing-card').getByText('Gas · all bands → Rate 16%')).toBeVisible();
 
     // ── What each flow asks ──
     const served = async (key: string) => {
@@ -215,5 +233,71 @@ test('car pricing card: bands, brand and category exceptions, a band deleted, qu
       await request.delete(`${API}/bank-programs/${code}`, { headers: { ...auth, 'x-confirm-program-code': code } });
     }
     await request.delete(`${API}/banks/${bankId}`, { headers: auth });
+  }
+});
+
+test("a program following its product keeps the product's other tables after a card edit", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const errors = watchErrors(page);
+  const auth = { authorization: `Bearer ${await apiToken(request)}` };
+  const run = test.info().project.name.toUpperCase();
+  const PRODUCT = 'testing_car_buyers_down_payment';
+  const CODE = `TESTING-E2E-FOLLOW-${run}`;
+  const bankName = `TESTING e2e follow ${run}`;
+  const axes = [
+    { factKey: 'car_down_payment_percent' },
+    { factKey: 'what_brand_is_the_car' },
+    { factKey: 'car_fuel_type' },
+    { factKey: 'what_brand_is_the_car', via: 'parentClass' },
+  ];
+  const before = (await call(request, auth, 'GET', `/bank-programs/surrogate-products/${PRODUCT}`)).data;
+  await request.delete(`${API}/bank-programs/${CODE}`, { headers: { ...auth, 'x-confirm-program-code': CODE } });
+  const banks = (await call(request, auth, 'GET', '/banks')).data as Json[];
+  const bank = banks.find((b) => b['nameEnglish'] === bankName)
+    ?? (await call(request, auth, 'POST', '/banks', { nameEnglish: bankName, nameArabic: 'بنك TESTING', isActive: true, isFeatured: false, notes: 'TESTING' })).data;
+  const bankId = String(bank['id']);
+  try {
+    // The product: a card plus a financed-share table the card does not show.
+    const ltv = { axes: [{ factKey: 'car_down_payment_percent' }], cells: [{ keys: [{ fromInclusive: '20' }], value: '70' }], onNoMatch: 'reject' };
+    const put = await request.put(`${API}/bank-programs/surrogate-products/${PRODUCT}/plan-defaults`, { headers: auth, data: { plans: {
+      rateByFact: { axes, cells: [{ keys: [{ fromInclusive: '20' }, null, null, null], value: '15' }], onNoMatch: 'reject' },
+      ltvCeilingByFact: ltv,
+    } } });
+    expect(put.ok(), await put.text()).toBeTruthy();
+    // A program that reads the product's plans.
+    const template = (await call(request, auth, 'GET', '/bank-programs/HOUSING-CAR-7832')).data;
+    const body: Json = {};
+    for (const k of ['programType', 'productCategory', 'isShariaCompliant', 'requiredDocuments', 'tenor', 'loanLimits', 'eligibility', 'incomeAssumption', 'fees', 'pricing']) {
+      if (template[k] !== null && template[k] !== undefined) body[k] = template[k];
+    }
+    const pricing = { ...(template['pricing'] as Json) };
+    delete pricing['rateByFact'];
+    const limits = { ...(template['loanLimits'] as Json) };
+    delete limits['ltvCeilingByFact'];
+    delete limits['minAmountByFact'];
+    const made = await call(request, auth, 'POST', '/bank-programs', { ...body, pricing, loanLimits: limits, programCode: CODE, bankName, bankId,
+      friendlyName: 'TESTING follow', friendlyNameAr: 'TESTING follow', programNameKey: 'testing_car_buyers_program', plansSource: 'product' });
+    expect(made.success, JSON.stringify(made).slice(0, 400)).toBeTruthy();
+
+    // The operator edits the rate on the card and saves.
+    await signIn(page);
+    await page.goto(`/banks/programs/${CODE}/edit`);
+    await page.locator('app-wizard-steps').getByText('Money').click();
+    const rate = page.locator('app-car-pricing-card input[aria-label="Rate"]');
+    await expect(rate.first()).toHaveValue('15');
+    await rate.first().fill('14');
+    await page.locator('app-wizard-steps').getByText('Review').click();
+    await page.getByRole('button', { name: 'Save changes' }).first().click();
+    await expect.poll(async () => (await call(request, auth, 'GET', `/bank-programs/${CODE}`)).data['plansSource']).toBe('own');
+
+    const stored = (await call(request, auth, 'GET', `/bank-programs/${CODE}`)).data;
+    // Its own rate, AND the product's financed share taken as its own — not dropped.
+    expect(((stored['pricing'] as Json)['rateByFact'] as { cells: { value: string }[] }).cells[0]!.value).toBe('14');
+    expect((stored['loanLimits'] as Json)['ltvCeilingByFact']).toEqual(ltv);
+    expect(errors).toEqual([]);
+  } finally {
+    await request.delete(`${API}/bank-programs/${CODE}`, { headers: { ...auth, 'x-confirm-program-code': CODE } });
+    await request.delete(`${API}/banks/${bankId}`, { headers: auth });
+    await request.put(`${API}/bank-programs/surrogate-products/${PRODUCT}/plan-defaults`, { headers: auth, data: { plans: before['planDefaults'] ?? null } });
   }
 });

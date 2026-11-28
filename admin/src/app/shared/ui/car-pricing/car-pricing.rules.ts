@@ -9,11 +9,11 @@ import type {
  * The car pricing card (v37.0.0) — what an operator types, and the five grids the engine reads.
  *
  * The card is rows by down payment (a band: a lower edge and an optional upper one) with a rate
- * and up to four more figures, plus exceptions: a category, a brand or "electric", on all bands
+ * and up to four more figures, plus exceptions: a category, a brand, gas or electric, on all bands
  * or some, setting any figure. Underneath, every figure is ONE grid on the same four axes
  * (`CAR_PRICING_AXES` — mirrors the backend's): the deposit, the brand, the fuel, the brand's
  * category. An earlier axis outranks every later one, so per figure a brand exception beats
- * electric, electric beats a category, and all three beat the row. Nothing here names a bank,
+ * gas or electric, a fuel beats a category, and all of them beat the row. Nothing here names a bank,
  * a brand or a category — they arrive as list values.
  */
 
@@ -32,11 +32,11 @@ export interface CarBand {
   to: string | null;
 }
 
-export type CarExceptionKind = 'category' | 'brand' | 'electric';
+export type CarExceptionKind = 'category' | 'brand' | 'gas' | 'electric';
 
 export interface CarException {
   kind: CarExceptionKind;
-  /** The category or brand list value; `null` for electric. */
+  /** The category or brand list value; `null` for gas and electric. */
   value: string | null;
   bands: 'all' | number[];
   figures: Partial<Record<CarFigure, string>>;
@@ -81,8 +81,16 @@ export const CAR_PRICING_AXES: readonly FactGridAxis[] = [
   { factKey: 'what_brand_is_the_car', via: 'parentClass' },
 ];
 
-/** The fuel answer an "electric" exception keys on. */
+/** The fuel answers the two fuel exceptions key on. Gas and electric rank the same (one fuel
+ *  axis); a car is one or the other, so they never clash. The band rows stay the default — they
+ *  price every car no fuel exception covers, including used cars, which are not asked the fuel. */
 export const ELECTRIC_FUEL = 'electric';
+export const GAS_FUEL = 'petrol_diesel';
+
+/** A fuel exception names no list value. */
+export function isFuelKind(kind: CarExceptionKind): kind is 'gas' | 'electric' {
+  return kind === 'gas' || kind === 'electric';
+}
 
 const NUMBER = /^\d+(\.\d+)?$/;
 
@@ -115,6 +123,7 @@ function exceptionKeys(
 ): [FactGridCell['keys'][1], FactGridCell['keys'][2], FactGridCell['keys'][3]] {
   if (ex.kind === 'brand') return [{ key: ex.value ?? '' }, null, null];
   if (ex.kind === 'electric') return [null, { key: ELECTRIC_FUEL }, null];
+  if (ex.kind === 'gas') return [null, { key: GAS_FUEL }, null];
   return [null, null, { key: ex.value ?? '' }];
 }
 
@@ -185,7 +194,11 @@ function classify(keys: FactGridCell['keys']): Cls | null {
   if (set.length === 0) return { kind: 'row' };
   if (set.length > 1) return null;
   if (isKey(brand)) return { kind: 'brand', value: brand.key };
-  if (isKey(fuel)) return fuel.key === ELECTRIC_FUEL ? { kind: 'electric', value: null } : null;
+  if (isKey(fuel)) {
+    if (fuel.key === ELECTRIC_FUEL) return { kind: 'electric', value: null };
+    if (fuel.key === GAS_FUEL) return { kind: 'gas', value: null };
+    return null;
+  }
   if (isKey(category)) return { kind: 'category', value: category.key };
   return null;
 }
@@ -283,7 +296,10 @@ export interface CarPricingIssue {
 function badNumber(figure: CarFigure, value: string | undefined): boolean {
   if (value === undefined || value === '') return false;
   if (!NUMBER.test(value)) return true;
-  if (figure === 'maxYears') return !Number.isInteger(Number(value) * 12) || Number(value) === 0;
+  // The engine reads a 0 in a table as "not stated" and falls through to the next cell, so a
+  // 0 typed here would be ignored — refused instead.
+  if (Number(value) <= 0) return true;
+  if (figure === 'maxYears') return !Number.isInteger(Number(value) * 12);
   return false;
 }
 
@@ -335,7 +351,7 @@ export function carPricingIssues(p: CarPricing): CarPricingIssue[] {
   p.exceptions.forEach((ex, i) => {
     const add = (message: string): void =>
       void issues.push({ where: 'exception', index: i, message });
-    if (ex.kind !== 'electric' && (ex.value === null || ex.value === '')) {
+    if (!isFuelKind(ex.kind) && (ex.value === null || ex.value === '')) {
       add(
         ex.kind === 'brand'
           ? $localize`:@@carPricing.err.brand:Pick the brand.`
@@ -354,6 +370,25 @@ export function carPricingIssues(p: CarPricing): CarPricingIssue[] {
     if (CAR_FIGURES.some((f) => badNumber(f, ex.figures[f]))) {
       add(
         $localize`:@@carPricing.err.number:A figure here is not a number (a term in years must come to whole months).`,
+      );
+      return;
+    }
+    // I2 — two lines setting the same figure for the same car on the same band: the engine
+    // takes the first, the card would read back the last.
+    const bandsOf = (e: CarException): number[] =>
+      e.bands === 'all' ? p.bands.map((_, b) => b) : e.bands;
+    const clash = p.exceptions
+      .slice(0, i)
+      .some(
+        (o) =>
+          o.kind === ex.kind &&
+          (o.value ?? '') === (ex.value ?? '') &&
+          bandsOf(o).some((b) => bandsOf(ex).includes(b)) &&
+          CAR_FIGURES.some((f) => (o.figures[f] ?? '') !== '' && (ex.figures[f] ?? '') !== ''),
+      );
+    if (clash) {
+      add(
+        $localize`:@@carPricing.err.duplicate:Another line already sets this figure for the same car on the same band.`,
       );
     }
   });

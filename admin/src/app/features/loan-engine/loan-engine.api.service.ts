@@ -54,6 +54,7 @@ export type EffectReadOnlyReason =
   | 'class_axis'
   | 'other_fact'
   | 'two_axis_cap'
+  | 'car_card'
   | 'not_numeric';
 
 export type NoMatch = 'useFallback' | 'reject' | 'useProgramMax';

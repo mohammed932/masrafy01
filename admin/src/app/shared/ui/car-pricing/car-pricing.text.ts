@@ -4,6 +4,7 @@ import {
   type CarException,
   type CarExceptionKind,
   type CarFigure,
+  isFuelKind,
 } from './car-pricing.rules';
 
 /**
@@ -31,6 +32,7 @@ export const CAR_FIGURE_UNIT: Record<CarFigure, string> = {
 export const CAR_KIND_LABEL: Record<CarExceptionKind, string> = {
   category: $localize`:@@carPricing.kind.category:Category`,
   brand: $localize`:@@carPricing.kind.brand:Brand`,
+  gas: $localize`:@@carPricing.kind.gas:Gas`,
   electric: $localize`:@@carPricing.kind.electric:Electric`,
 };
 
@@ -55,8 +57,9 @@ export function carExceptionSentence(
   bands: readonly CarBand[],
   nameOf: (ex: CarException) => string,
 ): string {
-  const who =
-    ex.kind === 'electric' ? CAR_KIND_LABEL.electric : `${CAR_KIND_LABEL[ex.kind]} ${nameOf(ex)}`;
+  const who = isFuelKind(ex.kind)
+    ? CAR_KIND_LABEL[ex.kind]
+    : `${CAR_KIND_LABEL[ex.kind]} ${nameOf(ex)}`;
   const on =
     ex.bands === 'all'
       ? $localize`:@@carPricing.allBandsShort:all bands`

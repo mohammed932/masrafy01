@@ -2184,7 +2184,9 @@ function keyedByDeposit(grid: FactGridConfig): boolean {
                 }
               </section>
               <!-- The bank's cases: a combination of answers that changes its offer (car loans). -->
-              @if (isAutoLoan() && !carCardOn()) {
+              <!-- On a card program the cases stay on screen while it still has any: they still
+                   price, so they must be seen to be removed. -->
+              @if (isAutoLoan() && (!carCardOn() || cases().length > 0)) {
                 <section id="card-cases" class="card">
                   <app-program-cases-editor
                     [cases]="cases()"
@@ -4420,7 +4422,7 @@ export class BankProgramFormPage implements OnInit {
     // The plan card, for the same reason as the two grids above: six tables in signals, so a
     // half-typed row walks past Continue and comes back FACT_GRID_INVALID from the server.
     if (id === 'money' && !this.carCardOn() && this.planCardError()) out.push('planCard');
-    if (id === 'money' && this.isAutoLoan() && !this.carCardOn() && casesHaveProblem(this.cases())) {
+    if (id === 'money' && this.isAutoLoan() && casesHaveProblem(this.cases())) {
       out.push('cases');
     }
     if (id === 'money' && this.carCardOn() && carPricingProblem(this.carPricing()) !== null) {
@@ -4775,13 +4777,26 @@ export class BankProgramFormPage implements OnInit {
    * (a copy: the first edit makes them this bank's). Grids the card cannot read are left as
    * they are and the older editors stay on screen.
    */
-  private readonly carGridsLoaded = signal<CarPricingGrids | null>(null);
   private readonly carPricingEdited = signal<CarPricing | null>(null);
+  /** This program's own five grids, as the save would send them. */
+  private readonly ownCarGrids = computed<CarPricingGrids>(() => ({
+    ...(this.toggles.rateGrid() && this.rateByFact() ? { rateByFact: this.rateByFact()! } : {}),
+    ...(this.toggles.vehicleGrid() && this.maxMonthsByFact() ? { maxMonthsByFact: this.maxMonthsByFact()! } : {}),
+    ...(this.toggles.carInsuranceGrid() && this.carInsuranceRateByFact()
+      ? { carInsuranceRateByFact: this.carInsuranceRateByFact()! }
+      : {}),
+    ...(this.interestFreeYearsByFact() ? { interestFreeYearsByFact: this.interestFreeYearsByFact()! } : {}),
+    ...(this.maxVehicleAgeYearsByFact() ? { maxVehicleAgeYearsByFact: this.maxVehicleAgeYearsByFact()! } : {}),
+  }));
   private readonly carPricingStart = computed<{ pricing: CarPricing; unreadable: boolean }>(() => {
-    const own = this.carGridsLoaded();
-    const source = own !== null && hasCarPricingGrids(own) ? own : this.productPlans();
+    // The product's figures only while this program follows them; a program on its own reads
+    // its own (none yet → one band at its current flat rate, so nothing it quotes moves).
+    const source = this.plansInherits() ? this.productPlans() : this.ownCarGrids();
     if (source === null || !hasCarPricingGrids(source)) {
-      return { pricing: emptyCarPricing(), unreadable: false };
+      const empty = emptyCarPricing();
+      const base = this.pricingGroup.controls.baseRatePercent?.value;
+      if (!this.plansInherits() && base) empty.rows[0] = { rate: String(base) };
+      return { pricing: empty, unreadable: false };
     }
     const read = carPricingFromGrids(source);
     return read === null ? { pricing: emptyCarPricing(), unreadable: true } : { pricing: read, unreadable: false };
@@ -4800,6 +4815,9 @@ export class BankProgramFormPage implements OnInit {
 
   /** Every edit on the card becomes this bank's own grids, written where the save reads them. */
   protected onCarPricingChange(next: CarPricing): void {
+    // Following the product's plans: take ALL of them as this bank's own first (financed share,
+    // smallest loan, shortest term, end-of-loan age), or 'own' would drop them on the save.
+    if (this.plansInherits()) this.stateOwnPlans();
     this.carPricingEdited.set(next);
     const g = carPricingToGrids(next);
     this.rateByFact.set(g.rateByFact ?? null);
@@ -4811,6 +4829,7 @@ export class BankProgramFormPage implements OnInit {
     this.interestFreeYearsByFact.set(g.interestFreeYearsByFact ?? null);
     this.maxVehicleAgeYearsByFact.set(g.maxVehicleAgeYearsByFact ?? null);
     this.plansSource.set('own');
+    this.markPlansDirty();
   }
   readonly rateGridError = computed(() =>
     this.toggles.rateGrid() ? factGridErrorFor(this.rateByFact(), 'ratePercent') : null,
@@ -8983,20 +9002,8 @@ export class BankProgramFormPage implements OnInit {
     this.maxCarAgeAtEndYearsByFact.set(initial.tenor.maxCarAgeAtEndYearsByFact ?? null);
     this.interestFreeYearsByFact.set(initial.pricing.interestFreeYearsByFact ?? null);
     this.maxVehicleAgeYearsByFact.set(initial.tenor.maxVehicleAgeYearsByFact ?? null);
-    // The car card starts from the stored grids — its own only; a program on its product's
-    // plans starts from the product's (`carPricingStart`).
+    // The car card starts from the stored grids (`carPricingStart`).
     this.carPricingEdited.set(null);
-    this.carGridsLoaded.set(
-      initial.plansSource === 'product'
-        ? null
-        : {
-            ...(storedRateGrid ? { rateByFact: storedRateGrid } : {}),
-            ...(storedVehicleGrid ? { maxMonthsByFact: storedVehicleGrid } : {}),
-            ...(initial.fees?.carInsuranceRateByFact ? { carInsuranceRateByFact: initial.fees.carInsuranceRateByFact } : {}),
-            ...(initial.pricing.interestFreeYearsByFact ? { interestFreeYearsByFact: initial.pricing.interestFreeYearsByFact } : {}),
-            ...(initial.tenor.maxVehicleAgeYearsByFact ? { maxVehicleAgeYearsByFact: initial.tenor.maxVehicleAgeYearsByFact } : {}),
-          },
-    );
     // Whose plan tables this program reads. ABSENT READS AS `'own'` — every program written
     // before the field existed carries its own figures.
     this.plansSource.set(initial.plansSource === 'product' ? 'product' : 'own');

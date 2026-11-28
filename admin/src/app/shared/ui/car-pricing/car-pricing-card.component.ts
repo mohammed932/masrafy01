@@ -12,6 +12,7 @@ import {
   type CarExceptionKind,
   type CarFigure,
   type CarPricing,
+  isFuelKind,
 } from './car-pricing.rules';
 import {
   CAR_FIGURE_LABEL,
@@ -154,8 +155,9 @@ const ADD_LABEL: Record<CarFigure, string> = {
 
       <div class="cp__ex">
         <h4 class="cp__title" i18n="@@carPricing.ex.title">Exceptions</h4>
-        <p class="cp__hint" i18n="@@carPricing.ex.hint">
-          A brand beats electric, electric beats a category, and each beats the band's own row.
+        <p class="cp__hint" i18n="@@carPricing.ex.hint2">
+          A brand beats gas or electric, a fuel beats a category, and each beats the band's own row.
+          The rows price every car no exception covers.
         </p>
 
         @if (pricing().exceptions.length > 0) {
@@ -178,7 +180,7 @@ const ADD_LABEL: Record<CarFigure, string> = {
                           </button>
                         }
                       </div>
-                      @if (ex.kind !== 'electric') {
+                      @if (!isFuel(ex.kind)) {
                         <app-search-select
                           class="cpx__value"
                           [options]="ex.kind === 'brand' ? brands() : categories()"
@@ -190,6 +192,12 @@ const ADD_LABEL: Record<CarFigure, string> = {
                       }
                     </div>
 
+                    @if (isFuel(ex.kind)) {
+                      <p class="cp__hint" i18n="@@carPricing.ex.fuelHint">
+                        Applies only where the customer is asked the fuel (New Car). Used cars are
+                        not asked it, so they keep the band's own row.
+                      </p>
+                    }
                     <div class="cpx__bands" role="group" [attr.aria-labelledby]="'cpx-on-' + i">
                       <span class="cpx__legend" [id]="'cpx-on-' + i" i18n="@@carPricing.ex.on"
                         >On</span
@@ -580,9 +588,11 @@ export class CarPricingCardComponent {
   protected readonly kinds: ReadonlyArray<{ kind: CarExceptionKind; label: string }> = [
     { kind: 'category', label: CAR_KIND_LABEL.category },
     { kind: 'brand', label: CAR_KIND_LABEL.brand },
+    { kind: 'gas', label: CAR_KIND_LABEL.gas },
     { kind: 'electric', label: CAR_KIND_LABEL.electric },
   ];
 
+  protected readonly isFuel = isFuelKind;
   protected readonly downPaymentLabel = $localize`:@@carPricing.col.downPayment:Down payment`;
   protected readonly fromLabel = $localize`:@@carPricing.aria.from:Down payment from`;
   protected readonly toLabel = $localize`:@@carPricing.aria.to:Down payment up to`;
