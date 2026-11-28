@@ -5989,6 +5989,54 @@ RAV4</target></trans-unit>
       <trans-unit id="lengine.crit.any" datatype="html"><source>any answer</source><target>أي إجابة</target></trans-unit>
       <trans-unit id="lengine.crit.answered" datatype="html"><source>answered</source><target>تمت الإجابة</target></trans-unit>
       <trans-unit id="lengine.crit.custom" datatype="html"><source>a custom band</source><target>نطاق مخصص</target></trans-unit>
+      <trans-unit id="carPricing.add.insurance" datatype="html"><source>Insurance</source><target>التأمين</target></trans-unit>
+      <trans-unit id="carPricing.add.interestFree" datatype="html"><source>Interest-free years</source><target>سنوات بدون فوائد</target></trans-unit>
+      <trans-unit id="carPricing.add.maxYears" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="carPricing.add.oldestCar" datatype="html"><source>Oldest car</source><target>أقدم سيارة</target></trans-unit>
+      <trans-unit id="carPricing.addBand" datatype="html"><source>Add a band</source><target>إضافة شريحة</target></trans-unit>
+      <trans-unit id="carPricing.allBandsShort" datatype="html"><source>all bands</source><target>كل الشرائح</target></trans-unit>
+      <trans-unit id="carPricing.andAbove" datatype="html"><source>and above</source><target>فأكثر</target></trans-unit>
+      <trans-unit id="carPricing.aria.from" datatype="html"><source>Down payment from</source><target>المقدم من</target></trans-unit>
+      <trans-unit id="carPricing.aria.kind" datatype="html"><source>What the exception is for</source><target>على ماذا ينطبق الاستثناء</target></trans-unit>
+      <trans-unit id="carPricing.aria.removeBand" datatype="html"><source>Remove this band</source><target>حذف هذه الشريحة</target></trans-unit>
+      <trans-unit id="carPricing.aria.removeColumn" datatype="html"><source>Remove the column</source><target>حذف العمود</target></trans-unit>
+      <trans-unit id="carPricing.aria.removeException" datatype="html"><source>Remove this exception</source><target>حذف هذا الاستثناء</target></trans-unit>
+      <trans-unit id="carPricing.aria.to" datatype="html"><source>Down payment up to</source><target>المقدم حتى</target></trans-unit>
+      <trans-unit id="carPricing.bandOpen" datatype="html"><source><x id="FROM" equiv-text="band.from"/>% and above</source><target><x id="FROM" equiv-text="band.from"/>% فأكثر</target></trans-unit>
+      <trans-unit id="carPricing.col.downPayment" datatype="html"><source>Down payment</source><target>المقدم</target></trans-unit>
+      <trans-unit id="carPricing.col.remove" datatype="html"><source>Remove</source><target>حذف</target></trans-unit>
+      <trans-unit id="carPricing.err.bands" datatype="html"><source>Pick at least one band.</source><target>اختر شريحة واحدة على الأقل.</target></trans-unit>
+      <trans-unit id="carPricing.err.brand" datatype="html"><source>Pick the brand.</source><target>اختر الماركة.</target></trans-unit>
+      <trans-unit id="carPricing.err.category" datatype="html"><source>Pick the category.</source><target>اختر الفئة.</target></trans-unit>
+      <trans-unit id="carPricing.err.figure" datatype="html"><source>Type at least one figure.</source><target>اكتب رقماً واحداً على الأقل.</target></trans-unit>
+      <trans-unit id="carPricing.err.from" datatype="html"><source>Type the down payment this band starts at (0–100%).</source><target>اكتب نسبة المقدم التي تبدأ عندها هذه الشريحة (0–100%).</target></trans-unit>
+      <trans-unit id="carPricing.err.number" datatype="html"><source>A figure here is not a number (a term in years must come to whole months).</source><target>أحد الأرقام هنا غير صحيح (المدة بالسنوات يجب أن تساوي عدداً صحيحاً من الشهور).</target></trans-unit>
+      <trans-unit id="carPricing.err.open" datatype="html"><source>Only the last band can be open-ended — type where this one ends.</source><target>الشريحة الأخيرة فقط يمكن أن تكون مفتوحة — اكتب أين تنتهي هذه الشريحة.</target></trans-unit>
+      <trans-unit id="carPricing.err.overlap" datatype="html"><source>This band overlaps the next one.</source><target>هذه الشريحة تتداخل مع التالية.</target></trans-unit>
+      <trans-unit id="carPricing.err.rate" datatype="html"><source>Type a rate for this band.</source><target>اكتب العائد لهذه الشريحة.</target></trans-unit>
+      <trans-unit id="carPricing.err.to" datatype="html"><source>The band must end above where it starts, at 100% at most.</source><target>يجب أن تنتهي الشريحة فوق بدايتها، وبحد أقصى 100%.</target></trans-unit>
+      <trans-unit id="carPricing.ex.add" datatype="html"><source>Add an exception</source><target>إضافة استثناء</target></trans-unit>
+      <trans-unit id="carPricing.ex.allBands" datatype="html"><source>All bands</source><target>كل الشرائح</target></trans-unit>
+      <trans-unit id="carPricing.ex.blank" datatype="html"><source>Leave a figure empty to keep the band's.</source><target>اترك الرقم فارغاً للإبقاء على رقم الشريحة.</target></trans-unit>
+      <trans-unit id="carPricing.ex.done" datatype="html"><source>Done</source><target>تم</target></trans-unit>
+      <trans-unit id="carPricing.ex.edit" datatype="html"><source>Edit</source><target>تعديل</target></trans-unit>
+      <trans-unit id="carPricing.ex.hint" datatype="html"><source>A brand beats electric, electric beats a category, and each beats the band's own row.</source><target>الماركة تسبق الكهربائية، والكهربائية تسبق الفئة، وكلها تسبق صف الشريحة نفسه.</target></trans-unit>
+      <trans-unit id="carPricing.ex.on" datatype="html"><source>On</source><target>على</target></trans-unit>
+      <trans-unit id="carPricing.ex.title" datatype="html"><source>Exceptions</source><target>الاستثناءات</target></trans-unit>
+      <trans-unit id="carPricing.fig.insurance" datatype="html"><source>Insurance</source><target>التأمين</target></trans-unit>
+      <trans-unit id="carPricing.fig.interestFree" datatype="html"><source>Interest-free</source><target>بدون فوائد</target></trans-unit>
+      <trans-unit id="carPricing.fig.maxYears" datatype="html"><source>Longest term</source><target>أطول مدة</target></trans-unit>
+      <trans-unit id="carPricing.fig.oldestCar" datatype="html"><source>Oldest car</source><target>أقدم سيارة</target></trans-unit>
+      <trans-unit id="carPricing.fig.rate" datatype="html"><source>Rate</source><target>العائد</target></trans-unit>
+      <trans-unit id="carPricing.kind.brand" datatype="html"><source>Brand</source><target>ماركة</target></trans-unit>
+      <trans-unit id="carPricing.kind.category" datatype="html"><source>Category</source><target>فئة</target></trans-unit>
+      <trans-unit id="carPricing.kind.electric" datatype="html"><source>Electric</source><target>كهربائية</target></trans-unit>
+      <trans-unit id="carPricing.pickBrand" datatype="html"><source>Pick a brand</source><target>اختر ماركة</target></trans-unit>
+      <trans-unit id="carPricing.pickCategory" datatype="html"><source>Pick a category</source><target>اختر فئة</target></trans-unit>
+      <trans-unit id="carPricing.to" datatype="html"><source>to</source><target>إلى</target></trans-unit>
+      <trans-unit id="carPricing.unit.perYear" datatype="html"><source>% a year</source><target>% سنوياً</target></trans-unit>
+      <trans-unit id="carPricing.unit.years" datatype="html"><source>years</source><target>سنوات</target></trans-unit>
+      <trans-unit id="carPricing.unit.yearsOld" datatype="html"><source>years old</source><target>سنوات عمراً</target></trans-unit>
     </body>
   </file>
 </xliff>
