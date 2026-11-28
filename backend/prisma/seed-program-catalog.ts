@@ -49,7 +49,7 @@ import {
   type CatalogIncomeBasis,
 } from './data/program-catalog-matrix';
 import { incomeRuleValidationContext } from './data/income-rule-validation-context';
-import { CAR_QUESTION_CODES } from '../src/questionnaire/car-questions';
+import { carQuestionCodesFor } from '../src/questionnaire/car-questions';
 import { stableJson } from '../src/common/stable-json.util';
 
 const prisma = new PrismaClient();
@@ -161,7 +161,7 @@ export async function seedProgramCatalog(): Promise<void> {
     const carTicks =
       next.includes('car') && !before.includes('car')
         ? await prisma.question.findMany({
-            where: { code: { in: [...CAR_QUESTION_CODES] }, isActive: true },
+            where: { code: { in: [...carQuestionCodesFor(key)] }, isActive: true },
             select: { id: true },
           })
         : [];

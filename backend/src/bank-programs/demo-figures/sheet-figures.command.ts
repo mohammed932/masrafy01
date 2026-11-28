@@ -56,7 +56,7 @@ import {
 } from './sheet-figures.plan';
 import type { EstimatedPaths } from './sheet-figures';
 import { stableJson } from '../../common/stable-json.util';
-import { CAR_QUESTION_CODES } from '@/questionnaire/car-questions';
+import { carQuestionCodesFor } from '@/questionnaire/car-questions';
 import { LoanEngineRepository } from '../loan-engine/loan-engine.repository';
 import { asProgramConditions } from '@/matching/pipeline/program-conditions';
 
@@ -432,7 +432,7 @@ async function main(): Promise<void> {
           // same ticks the migration gave every car name and `seed:catalog` gives a new one.
           if (spec.categories.includes(LoanCategory.car)) {
             const carQuestions = await prisma.question.findMany({
-              where: { code: { in: [...CAR_QUESTION_CODES] }, isActive: true },
+              where: { code: { in: [...carQuestionCodesFor(spec.key)] }, isActive: true },
               select: { id: true },
             });
             await enumsAdmin.setProgramNameQuestionAdditions(

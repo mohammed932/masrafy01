@@ -555,10 +555,11 @@ const CAR_CATEGORY_Q: SeedQuestion = {
 
 const CAR_BRAND_Q: SeedQuestion = {
   code: 'what_brand_is_the_car',
-  isRequired: false,
+  // Required (v37.0.0): the car pricing card prices by the brand and its category.
+  isRequired: true,
   questionEn: 'What brand is the car?',
   questionAr: 'ما ماركة السيارة؟',
-  // The car list's brands, each filed under its country (v36.7.0).
+  // The car list's brands, each filed under its category (v37.0.0).
   optionsFromEnum: 'car_brand',
   options: [],
 };
@@ -2354,7 +2355,9 @@ async function upsertCarFacts(): Promise<void> {
     // `fact key === question code` throughout, which is what lets this loop find the question
     // by the fact's own key.
     { key: 'car_model_year', labelEn: 'Car model year', labelAr: 'سنة موديل السيارة', sortOrder: 122 },
-    { key: 'car_origin', labelEn: 'Where the car was built', labelAr: 'بلد صنع السيارة', sortOrder: 123 },
+    // Origin, dealer, insurance, class, model, assembly, engine size, use, kilometres, job on
+    // the ID and guarantor left on 2026-11-28 with their questions (v37.0.0): the car is priced
+    // by its category, brand and fuel now.
     // `car_insurance` (124) and `vehicle_condition` (125) left on 2026-09-24 with their
     // questions: no car programme's grid read either. A bank that prices on one again brings
     // the question back first — `check:question-scope` refuses a grid on an unasked fact.
@@ -2363,36 +2366,6 @@ async function upsertCarFacts(): Promise<void> {
       labelEn: 'What the car runs on',
       labelAr: 'نوع وقود السيارة',
       sortOrder: 126,
-    },
-    // Read by the term grids only: Credit Agricole finances a Chinese car over 60 months
-    // unless Ghabbour or Mansour is selling it, and that is a fact about the SALE rather
-    // than about the car, so no other axis can carry it.
-    {
-      key: 'car_dealer',
-      labelEn: 'Who is selling the car',
-      labelAr: 'جهة بيع السيارة',
-      sortOrder: 127,
-    },
-    // Read by a bank's rate table (ADIB used car: insured or not). Same key as the question.
-    {
-      key: 'do_you_want_insurance_on_the_car',
-      labelEn: 'Insurance on the car',
-      labelAr: 'التأمين على السيارة',
-      sortOrder: 128,
-    },
-    // Read by the Loan Engine's conditions and tables (2026-11-22). Same key as the question.
-    { key: 'what_kind_of_car_is_it', labelEn: 'Car class', labelAr: 'فئة السيارة', sortOrder: 129 },
-    {
-      key: 'is_your_job_or_degree_printed_on_your_national_id',
-      labelEn: 'Job printed on the national ID',
-      labelAr: 'الوظيفة مكتوبة في البطاقة',
-      sortOrder: 130,
-    },
-    {
-      key: 'how_many_kilometres_does_the_car_drive_a_year',
-      labelEn: 'Kilometres a year',
-      labelAr: 'كيلومترات في السنة',
-      sortOrder: 131,
     },
     {
       key: 'car_category',
@@ -2405,42 +2378,6 @@ async function upsertCarFacts(): Promise<void> {
       labelEn: 'Car brand',
       labelAr: 'ماركة السيارة',
       sortOrder: 132,
-    },
-    {
-      key: 'what_model_is_the_car',
-      labelEn: 'Car model',
-      labelAr: 'طراز السيارة',
-      sortOrder: 138,
-    },
-    {
-      key: 'is_the_car_assembled_in_egypt_or_imported',
-      labelEn: 'Assembled or imported',
-      labelAr: 'مجمعة أم مستوردة',
-      sortOrder: 133,
-    },
-    {
-      key: 'what_is_the_engine_size',
-      labelEn: 'Engine size',
-      labelAr: 'سعة المحرك',
-      sortOrder: 134,
-    },
-    {
-      key: 'what_will_you_use_the_car_for',
-      labelEn: 'Car use',
-      labelAr: 'استخدام السيارة',
-      sortOrder: 135,
-    },
-    {
-      key: 'how_many_kilometres_has_the_car_been_driven',
-      labelEn: 'Total kilometres',
-      labelAr: 'إجمالي الكيلومترات',
-      sortOrder: 136,
-    },
-    {
-      key: 'do_you_have_a_guarantor',
-      labelEn: 'Has a guarantor',
-      labelAr: 'لديه ضامن',
-      sortOrder: 137,
     },
   ] as const;
 
